@@ -4,7 +4,7 @@ const path = require('path');
 const { URL } = require('url');
 
 const PORT = parseInt(process.env.PORT || '8082', 10);
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8088';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8080';
 const NATS_MONITOR_URL = process.env.NATS_MONITOR_URL || 'http://localhost:8222';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
