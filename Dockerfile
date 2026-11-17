@@ -17,10 +17,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o server .
 # Stage 3: Final Runtime
 FROM node:20-slim
 WORKDIR /app
-# Install binary dependencies
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy build artifacts
+# Copy build artifacts explicitly
 COPY --from=api-build /app/api/server ./server
 COPY --from=ui-build /app/ui/dist ./public
 COPY --from=ui-build /app/ui/server.js ./server.js
