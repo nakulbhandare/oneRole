@@ -158,7 +158,7 @@ const server = http.createServer((req, res) => {
           filePath = basenameFile;
         } else {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('404 Not Found');
+          console.log("404 Not Found: " + filePath); res.end('404 Not Found');
           return;
         }
       } else {
@@ -170,7 +170,7 @@ const server = http.createServer((req, res) => {
     fs.readFile(filePath, (readErr, content) => {
       if (readErr) {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('404 Not Found');
+        console.log("404 Not Found: " + filePath); res.end('404 Not Found');
         return;
       }
       const ext = path.extname(filePath).toLowerCase();
@@ -185,7 +185,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 [oneRole_UI] Microservice running on port ${PORT}`);
+  console.log(`🚀 [oneRole_UI] Microservice running on port ${PORT}`); console.log("Serving from: " + PUBLIC_DIR);
   console.log(`🔗 [oneRole_UI] Backend Proxy -> ${BACKEND_URL}`);
   console.log(`📊 [oneRole_UI] NATS Telemetry Proxy -> ${NATS_MONITOR_URL}`);
 });
