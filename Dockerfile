@@ -7,7 +7,7 @@ COPY oneRole_UI/ .
 RUN npm run build
 
 # Stage 2: Build Backend
-FROM golang:1.24 AS api-build
+FROM golang:1.23 AS api-build
 WORKDIR /app/api
 COPY go.mod go.sum ./
 RUN go mod download
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 # Copy build artifacts explicitly
 COPY --from=api-build /app/api/server ./server
-COPY --from=ui-build /app/ui/dist ./public
+COPY --from=ui-build /app/ui/dist/ ./public/
 COPY --from=ui-build /app/ui/server.js ./server.js
 COPY --from=ui-build /app/ui/package.json ./package.json
 
