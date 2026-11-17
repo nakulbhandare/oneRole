@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f8f6" />
+  <title>OneRole — Discover your next opportunity</title>
+  <style>
+    :root{--ink:#1d2825;--muted:#78827e;--muted-2:#9aa29f;--line:#e8ece9;--canvas:#f7f8f6;--paper:#fff;--green:#24684f;--green-dark:#174a38;--green-soft:#e8f3ed;--gold:#c58b41;--nav:#152c25;--nav-muted:#adbbb4;--blue:#5474a1;--shadow:0 12px 34px rgba(20,43,34,.06);--radius:16px}
+    *{box-sizing:border-box}svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}html,body{margin:0;min-height:100%;background:var(--canvas);color:var(--ink);font:14px/1.5 'DM Sans',sans-serif}button,input,select{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}.app{min-height:100vh;display:flex}
+    .sidebar{width:248px;background:var(--nav);color:#fff;display:flex;flex-direction:column;padding:24px 14px 18px;flex:none;min-height:100vh}.brand{display:flex;align-items:center;gap:10px;padding:0 12px 29px;font:800 20px/1 'Manrope',sans-serif;letter-spacing:-.7px}.brand-mark{height:31px;width:31px;border-radius:10px;background:#d8eadb;display:grid;place-items:center;color:var(--green-dark)}.brand-mark svg{width:18px;height:18px}.nav-label{font-size:10px;font-weight:700;letter-spacing:1.15px;text-transform:uppercase;color:#82968c;padding:0 12px;margin:9px 0 8px}.nav-list{display:grid;gap:4px}.nav-link{border:0;color:var(--nav-muted);background:transparent;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:12px;text-align:left;width:100%;font-size:13px;font-weight:500;transition:.16s}.nav-link:hover{color:#fff;background:rgba(255,255,255,.07)}.nav-link.active{background:#254b3e;color:white;box-shadow:inset 2px 0 #88b79d}.nav-link svg{width:17px;height:17px;opacity:.9;flex:none}.nav-count{margin-left:auto;background:rgba(255,255,255,.13);border-radius:20px;padding:1px 7px;font-size:10px;color:#eaf2ed}.sidebar-spacer{flex:1}.plan-card{background:#1d3b30;border:1px solid rgba(255,255,255,.08);border-radius:12px;margin:12px 4px 17px;padding:13px 13px 12px}.plan-top{display:flex;align-items:center;gap:7px;font-size:11px;color:#d9e6df;font-weight:600}.plan-top .pulse{width:7px;height:7px;border-radius:50%;background:#8ac5a0;box-shadow:0 0 0 3px rgba(138,197,160,.14)}.plan-copy{color:#a9beb2;font-size:10px;margin:7px 0 10px}.coverage-track{height:4px;background:#355447;border-radius:5px;overflow:hidden}.coverage-track i{display:block;width:34%;height:100%;background:#90c7a4;border-radius:5px}.coverage-foot{display:flex;justify-content:space-between;color:#a9beb2;font-size:9px;margin-top:6px}.user-chip{display:flex;gap:10px;align-items:center;padding:13px 10px 0;border-top:1px solid rgba(255,255,255,.1)}.avatar{width:32px;height:32px;border-radius:50%;background:#ecd8c7;color:#754e35;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}.user-meta{min-width:0}.user-name{font-size:12px;font-weight:600}.user-email{font-size:10px;color:#9fb0a7;white-space:nowrap}.user-more{margin-left:auto;color:#9fb0a7}
+    .main{min-width:0;flex:1}.topbar{height:70px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.78);display:flex;align-items:center;padding:0 36px;gap:20px}.crumb{font-size:12px;color:var(--muted);white-space:nowrap}.crumb b{color:var(--ink);font-weight:600}.global-search{width:min(440px,45vw);height:38px;border:1px solid var(--line);background:#fafbfa;border-radius:9px;display:flex;align-items:center;gap:9px;padding:0 11px;margin-left:auto}.global-search svg{width:16px;height:16px;color:#919b96;flex:none}.global-search input{border:0;background:none;outline:none;width:100%;font-size:12px;color:var(--ink)}.global-search input::placeholder{color:#9ca6a1}.key-hint{font-size:10px;color:#a1aaa6;border:1px solid var(--line);border-radius:4px;padding:0 5px;white-space:nowrap}.top-actions{display:flex;align-items:center;gap:13px}.icon-button{position:relative;border:0;background:transparent;color:#67736d;padding:5px;display:grid;place-items:center}.icon-button svg{width:18px;height:18px}.notification-dot{position:absolute;right:2px;top:3px;width:6px;height:6px;background:#ce785c;border-radius:50%;border:1.5px solid white}.top-avatar{width:30px;height:30px;border-radius:50%;background:#ecd8c7;color:#754e35;display:grid;place-items:center;font-size:10px;font-weight:700}
+    .content{max-width:1550px;margin:0 auto;padding:30px 36px 60px}.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:22px;margin-bottom:24px}.eyebrow{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:5px}.page-title{font:700 26px/1.25 'Manrope',sans-serif;letter-spacing:-.7px;margin:0}.page-subtitle{font-size:12px;color:var(--muted);margin:7px 0 0}.head-actions{display:flex;gap:9px;align-items:center}.select,.button{height:36px;border:1px solid var(--line);border-radius:8px;background:white;color:#49554f;padding:0 11px;font-size:11px;font-weight:600}.select{min-width:125px}.button{display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.15s}.button:hover{border-color:#c5d6cb;transform:translateY(-1px)}.button svg{width:14px;height:14px}.button.primary{color:white;background:var(--green);border-color:var(--green)}.button.primary:hover{background:var(--green-dark)}.demo-banner{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid #e6e5d9;background:#fbfaf3;border-radius:10px;color:#746a48;font-size:10px;margin:-7px 0 18px}.demo-banner svg{width:14px;height:14px;color:#a88b4b}.demo-banner strong{font-weight:700;color:#625a3f}.demo-banner .banner-tail{margin-left:auto;color:#999173;white-space:nowrap}
+    .search-panel{display:grid;grid-template-columns:minmax(180px,1fr) minmax(175px,.8fr) auto;gap:9px;background:white;border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 3px 10px rgba(18,42,31,.025);margin-bottom:18px}.search-field{display:flex;align-items:center;gap:9px;padding:0 9px;height:40px;border:1px solid var(--line);border-radius:8px;min-width:0}.search-field svg{width:16px;height:16px;color:#89958e;flex:none}.search-field input{border:0;outline:0;min-width:0;width:100%;font-size:12px}.search-field input::placeholder{color:#9da7a2}.search-submit{height:40px;padding:0 18px}
+    .tabs-row{display:flex;align-items:center;gap:23px;border-bottom:1px solid var(--line);margin-bottom:16px}.tab{border:0;background:none;color:#79837e;padding:10px 0 11px;font-size:11px;font-weight:600;position:relative}.tab.active{color:var(--green)}.tab.active:after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--green);border-radius:2px}.tab .tab-num{margin-left:5px;color:#a4aca8;font-weight:500}.tab.active .tab-num{color:var(--green)}.tab-end{margin-left:auto;display:flex;align-items:center;gap:6px;padding-bottom:8px;font-size:10px;color:#748078}.fresh-dot{width:6px;height:6px;border-radius:50%;background:#79ad8b}.results-layout{display:grid;grid-template-columns:minmax(305px,1.1fr) minmax(295px,.9fr);gap:16px;align-items:start}.results-column{min-width:0}.results-head{display:flex;align-items:center;justify-content:space-between;margin:0 1px 10px}.results-count{font-size:11px;color:#738078}.results-count strong{color:#344139;font-weight:700}.sort{border:0;background:none;color:#6f7b74;font-size:10px;font-weight:600;padding:4px}.job-list{display:grid;gap:9px}.job-card{border:1px solid var(--line);background:white;border-radius:12px;padding:14px 14px 12px;transition:.17s;cursor:pointer;position:relative}.job-card:hover{border-color:#cbdad0;box-shadow:var(--shadow);transform:translateY(-1px)}.job-card.selected{border-color:#7da88e;box-shadow:0 0 0 2px rgba(65,124,87,.09)}.job-card-top{display:flex;align-items:flex-start;gap:11px}.company-logo{width:38px;height:38px;border-radius:10px;background:#f0f4f1;display:grid;place-items:center;flex:none;font:800 14px 'Manrope',sans-serif;color:#315b48}.company-logo.purple{background:#f1edf7;color:#72599a}.company-logo.blue{background:#ecf2f8;color:#527297}.company-logo.orange{background:#fbf1e6;color:#a57136}.job-heading{min-width:0;flex:1}.job-title{font-size:13px;line-height:1.35;font-weight:700;letter-spacing:-.1px;margin:1px 22px 3px;color:#26332c}.company-name{font-size:10px;color:#6f7c74}.save-btn{border:0;background:transparent;color:#9ba49f;padding:2px;position:absolute;right:13px;top:13px}.save-btn svg{width:16px;height:16px}.save-btn.saved{color:#bb8b45}.job-meta{display:flex;flex-wrap:wrap;gap:6px 13px;margin:10px 0 11px;color:#68766e;font-size:10px}.job-meta span{display:inline-flex;align-items:center;gap:4px}.job-meta svg{width:12px;height:12px;color:#9aa69f}.job-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.tag{background:#f4f6f4;color:#637069;border-radius:5px;padding:3px 7px;font-size:9px;font-weight:600}.tag.match{background:#e9f3ed;color:#3f7957}.tag.remote{background:#edf3f9;color:#597494}.job-card-foot{border-top:1px solid #f0f2ef;margin-top:11px;padding-top:9px;display:flex;align-items:center;justify-content:space-between;color:#89948d;font-size:9px}.seen{display:flex;align-items:center;gap:5px}.seen i{width:5px;height:5px;border-radius:50%;background:#80ae8c}.source-label{color:#77837c;font-weight:600}.list-empty{border:1px dashed #d8dfda;background:rgba(255,255,255,.55);border-radius:12px;padding:30px;text-align:center;color:#78837c;font-size:12px}.list-empty strong{display:block;color:#314038;font:700 15px 'Manrope',sans-serif;margin:7px 0 4px}
+    .job-actions{display:flex;gap:6px;margin-top:0;flex:none}.job-actions .button{height:27px;width:53px;flex:none;padding:0 7px;font-size:9px}.button:disabled{opacity:.52;cursor:default;transform:none}.submission-note{margin-top:16px;border:1px solid #e5eee7;background:#f6faf7;border-radius:9px;padding:12px;color:#65736a;font-size:10px;line-height:1.55}.submission-note strong{color:#365a43}.status-pill.preview{background:#f4f2e8;color:#8c7645}
+    .detail-panel{background:white;border:1px solid var(--line);border-radius:14px;overflow:hidden;position:sticky;top:16px;min-width:0}.detail-cover{height:54px;background:linear-gradient(110deg,#e8f1eb,#f2f4ec);position:relative}.detail-cover:after{content:'';position:absolute;right:0;top:0;bottom:0;width:40%;opacity:.3;background:radial-gradient(circle at 30% 120%,#8bb89a 0 20%,transparent 21%),radial-gradient(circle at 70% 0%,#d4c89c 0 24%,transparent 25%)}.detail-main{padding:0 18px 18px}.detail-logo-row{display:flex;align-items:flex-end;justify-content:space-between;margin-top:-22px;position:relative}.detail-logo{height:46px;width:46px;border-radius:12px;border:3px solid white;background:#315f4a;color:white;display:grid;place-items:center;font:800 16px 'Manrope',sans-serif;box-shadow:0 3px 8px #00000012}.detail-save{border:1px solid var(--line);border-radius:7px;background:white;color:#66746b;padding:6px 9px;display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600}.detail-save svg{width:13px;height:13px}.detail-title{font:700 17px/1.3 'Manrope',sans-serif;letter-spacing:-.4px;margin:13px 0 3px}.detail-company{font-size:11px;color:#69766f}.detail-facts{display:flex;flex-wrap:wrap;gap:7px 14px;margin:13px 0 14px;color:#68756e;font-size:10px}.detail-facts span{display:flex;align-items:center;gap:5px}.detail-facts svg{width:13px;height:13px;color:#9aa59e}.detail-actions{display:flex;gap:8px;margin-bottom:17px}.detail-actions .button{flex:1;height:35px}.detail-section{border-top:1px solid #edf0ed;padding-top:14px;margin-top:13px}.section-title{font-size:10px;font-weight:700;color:#334139;margin:0 0 8px}.detail-desc{color:#758078;font-size:10px;line-height:1.65;margin:0}.skill-list{display:flex;flex-wrap:wrap;gap:5px}.skill{border:1px solid #e7ece8;border-radius:5px;padding:4px 7px;color:#5d6a62;font-size:9px}.match-card{border:1px solid #e5eee7;background:#f6faf7;border-radius:10px;padding:11px;margin-top:14px}.match-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}.match-title{font-size:10px;font-weight:700;color:#365a43;display:flex;align-items:center;gap:6px}.match-title svg{width:13px;height:13px}.match-value{font:700 13px 'Manrope',sans-serif;color:#31704b}.match-copy{font-size:9px;color:#748178}.match-bar{height:4px;border-radius:5px;background:#e1ebe3;margin-top:9px;overflow:hidden}.match-bar i{display:block;height:100%;width:87%;background:#70a681;border-radius:5px}.source-note{display:flex;align-items:flex-start;gap:7px;margin-top:13px;color:#8a948e;font-size:9px;line-height:1.45}.source-note svg{width:13px;height:13px;flex:none;color:#9ea9a1}.company-row{display:flex;justify-content:space-between;align-items:center;color:#69766e;font-size:9px}.company-row a{color:var(--green);font-weight:700}
+    .below-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:16px}.mini-panel{background:white;border:1px solid var(--line);border-radius:12px;padding:15px}.mini-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}.mini-head h3{font:700 12px 'Manrope',sans-serif;margin:0}.text-link{border:0;background:none;color:var(--green);font-size:10px;font-weight:700}.coverage-line{display:flex;align-items:center;justify-content:space-between;margin:10px 0;color:#68766e;font-size:10px}.coverage-line b{color:#3d4942;font-size:10px}.coverage-source{display:flex;align-items:center;gap:7px}.source-mark{width:21px;height:21px;border:1px solid var(--line);border-radius:6px;background:#fafbfa;display:grid;place-items:center;font-size:8px;font-weight:700;color:#53665a}.sync-status{color:#829087;font-size:9px}.alert-body{font-size:10px;color:#748078;line-height:1.55;margin:0 0 11px}.alert-settings{display:flex;align-items:center;gap:7px;font-size:10px;color:#516057}.switch{width:31px;height:18px;padding:2px;border:0;border-radius:12px;background:#dfe6e1;display:flex;align-items:center;transition:.2s}.switch i{width:14px;height:14px;background:white;border-radius:50%;box-shadow:0 1px 2px #0002;transition:.2s}.switch.on{background:#73a384;justify-content:flex-end}
+    .alt-view{max-width:1050px}.alt-card{background:white;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:20px}.alt-card h2{font:700 17px 'Manrope',sans-serif;margin:0 0 7px}.alt-card p{margin:0;color:var(--muted);font-size:12px}.alt-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.alt-item{border:1px solid var(--line);border-radius:10px;padding:14px}.alt-item b{font-size:11px;display:block;margin-bottom:5px}.alt-item span{font-size:10px;color:#7c8881}.profile-progress{height:7px;background:#edf1ee;border-radius:6px;margin:16px 0 8px;overflow:hidden}.profile-progress i{display:block;width:72%;height:100%;background:#75a685}.app-row{display:flex;align-items:center;gap:12px;border-bottom:1px solid #f0f2ef;padding:13px 0}.app-row:last-child{border-bottom:0}.app-row .company-logo{width:34px;height:34px}.app-row-main{flex:1}.app-row-main b{font-size:11px;display:block}.app-row-main span{font-size:10px;color:#7c8881}.status-pill{font-size:9px;padding:4px 8px;border-radius:20px;background:#f4f2e8;color:#9c8042;font-weight:700}.status-pill.interview{background:#eaf1f8;color:#52759a}.status-pill.applied{background:#eaf3ed;color:#4b7e5c}
+    .auto-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.8fr);gap:14px;align-items:start}.auto-main{display:grid;gap:13px}.auto-hero{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;align-items:center;justify-content:space-between;gap:18px}.auto-hero h2{font:700 19px/1.3 'Manrope',sans-serif;letter-spacing:-.4px;margin:10px 0 7px;max-width:560px}.auto-hero p{font-size:11px;color:var(--muted);max-width:530px;margin:0}.auto-status-line{display:flex;align-items:center;gap:7px;color:#79847d;font-size:10px;font-weight:700}.auto-status-line i{width:7px;height:7px;border-radius:50%;background:#c8a766}.auto-status-line.enabled{color:#3c7750}.auto-status-line.enabled i{background:#76aa82}.auto-icon{width:58px;height:58px;border-radius:17px;background:#e8f3ed;color:#2d704b;display:grid;place-items:center;flex:none}.auto-icon svg{width:25px;height:25px}.auto-rules{display:grid;gap:0;margin-top:13px}.auto-rule{display:flex;align-items:center;gap:11px;padding:12px 0;border-top:1px solid #f0f2ef}.auto-step{height:25px;width:25px;display:grid;place-items:center;border-radius:8px;background:#f0f5f1;color:#4d7759;font-size:10px;font-weight:700;flex:none}.auto-rule-main{min-width:0;flex:1}.auto-rule-main b{display:block;font-size:10px;color:#344139}.auto-rule-main span{display:block;font-size:9px;color:#828d86;margin-top:2px}.auto-rule .select{height:30px;min-width:100px;font-size:9px;padding:0 7px}.auto-chips{display:flex;gap:5px;flex-wrap:wrap}.auto-chip{border-radius:5px;background:#f2f5f2;color:#5d6b63;padding:4px 7px;font-size:9px;font-weight:600}.auto-side{display:grid;gap:13px}.auto-safe{display:grid;gap:11px;margin-top:14px}.auto-safe-row{display:flex;align-items:flex-start;gap:8px;color:#56645b;font-size:10px;line-height:1.45}.auto-safe-row svg{width:14px;height:14px;color:#57906a;flex:none;margin-top:1px}.auto-pause{border:1px solid #f0e5ce;background:#fcfaf4;border-radius:9px;padding:11px;color:#786a4b;font-size:9px;line-height:1.55;margin-top:14px}.auto-match{background:#fbfcfb;border:1px solid var(--line);border-radius:10px;padding:13px;margin-top:12px}.auto-match-top{display:flex;justify-content:space-between;align-items:center;gap:10px}.auto-match-top b{font-size:10px}.auto-match-top span{font-size:9px;color:#65836d;background:#edf5ef;border-radius:5px;padding:4px 6px;font-weight:700}.auto-match p{font-size:9px;color:#7a867e;margin:7px 0 0}.auto-activity{margin-top:13px}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#223a2f;color:white;padding:11px 16px;border-radius:9px;box-shadow:0 10px 30px #15251e36;font-size:11px;transition:.22s;z-index:20}.toast.show{opacity:1;transform:translate(-50%,0)}.mobile-nav{display:none}
+    .state-banner{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid #dfe8e2;background:#f4f8f5;border-radius:10px;color:#52635a;font-size:11px;line-height:1.5;margin:0 0 16px}.state-banner.warning{border-color:#eadfc7;background:#fbf8ef;color:#786a49}.state-banner.error{border-color:#ecd4cf;background:#fcf4f2;color:#865246}.state-banner svg{width:15px;height:15px;flex:none;margin-top:1px}.state-banner strong{display:block;color:#30483a;font-size:11px;margin-bottom:2px}.state-banner.warning strong{color:#665737}.state-banner.error strong{color:#75483e}.provider-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.provider-link{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #dbe5dd;border-radius:8px;background:white;color:#365945;font-size:10px;font-weight:700}.provider-link:hover{border-color:#9eb9a5}.tenant-control{padding:10px 8px 12px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:10px}.tenant-control[hidden]{display:none}.tenant-control label{display:block;font-size:9px;color:#9fb0a7;margin-bottom:5px}.tenant-select{width:100%;height:30px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:#1d3b30;color:#fff;padding:0 7px;font-size:10px}.job-state{border:1px dashed #d8dfda;background:rgba(255,255,255,.55);border-radius:12px;padding:30px;text-align:center;color:#78837c;font-size:12px;grid-column:1/-1}.job-state strong{display:block;color:#314038;font:700 15px 'Manrope',sans-serif;margin:7px 0 4px}.job-state .state-actions{margin-top:11px}.job-status{display:flex;align-items:center;gap:6px;padding:9px 10px;border:1px solid #e5eee7;background:#f6faf7;border-radius:8px;color:#5c6c62;font-size:10px;line-height:1.45;margin:12px 0}.job-status.warning{border-color:#eee3cd;background:#fcfaf4;color:#786a4b}.job-status svg{width:14px;height:14px;flex:none}.capability-tag{display:inline-flex;padding:3px 7px;border-radius:5px;background:#f2f5f2;color:#607066;font-size:9px;font-weight:700}.job-card .job-title{margin-right:8px}
+    @media(max-width:1160px){.sidebar{width:220px}.content{padding:26px 24px 50px}.topbar{padding:0 24px}.results-layout{grid-template-columns:minmax(280px,1fr) minmax(280px,.9fr)}.job-card{padding:12px}.detail-main{padding-left:15px;padding-right:15px}}
+    @media(max-width:900px){.sidebar{width:68px;padding:21px 9px}.brand{padding:0 9px 27px}.brand-word,.nav-label,.nav-link span,.nav-count,.plan-card,.user-meta,.user-more{display:none}.nav-link{justify-content:center;padding:11px 0}.nav-link svg{width:19px;height:19px}.user-chip{justify-content:center;padding:15px 0 0}.user-chip .avatar{width:31px;height:31px}.results-layout{grid-template-columns:minmax(0,1fr) minmax(270px,.88fr)}.auto-layout{grid-template-columns:1fr}.auto-side{grid-template-columns:1fr 1fr}.topbar{padding:0 18px}.content{padding:24px 18px 45px}.below-grid{grid-template-columns:1fr}.page-title{font-size:23px}}
+    @media(max-width:680px){.app{display:block;padding-bottom:64px}.sidebar{display:none}.topbar{height:58px;padding:0 15px}.crumb{display:none}.global-search{margin:0;width:100%;height:36px}.key-hint{display:none}.top-actions{gap:8px}.top-actions .icon-button:first-child{display:none}.top-avatar{display:none}.content{padding:20px 14px 35px}.page-head{display:block;margin-bottom:17px}.page-title{font-size:22px}.head-actions{margin-top:13px}.search-panel{grid-template-columns:1fr 1fr;gap:7px;padding:8px}.search-field{height:38px}.search-submit{grid-column:span 2}.demo-banner{align-items:flex-start;font-size:9px}.demo-banner .banner-tail{display:none}.tabs-row{gap:16px;overflow:auto}.tab{white-space:nowrap}.tab-end{display:none}.results-layout{display:block}.detail-panel{position:fixed;z-index:12;left:0;right:0;bottom:0;top:auto;max-height:80vh;overflow:auto;border-radius:18px 18px 0 0;box-shadow:0 -12px 40px #10261c25;display:none}.detail-panel.mobile-open{display:block}.detail-cover{height:35px}.detail-logo-row{margin-top:-19px}.mobile-close{display:block!important}.job-card{padding:13px}.job-title{font-size:13px}.job-card-foot{font-size:8px}.below-grid{display:none}.alt-items{grid-template-columns:1fr}.auto-hero{padding:17px}.auto-hero h2{font-size:17px}.auto-icon{width:44px;height:44px}.auto-side{grid-template-columns:1fr}.auto-rule{align-items:flex-start}.auto-rule .select{min-width:82px}.auto-rules{margin-top:8px}.mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;height:62px;background:white;border-top:1px solid var(--line);z-index:10;justify-content:space-around;align-items:center;padding:0 3px}.mobile-nav button{border:0;background:transparent;color:#7e8a83;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:8px;min-width:44px}.mobile-nav button svg{width:17px;height:17px}.mobile-nav button.active{color:var(--green);font-weight:700}.mobile-close{border:0;background:#fff;border-radius:50%;width:28px;height:28px;display:none;place-items:center;color:#68756e}.mobile-close svg{width:15px;height:15px}}
+  </style>
+  <style>
+    .tailor-card{border:1px solid #dfeae2;background:#f8fbf8;border-radius:10px;padding:12px;margin-top:13px}.tailor-card-top{display:flex;align-items:center;gap:7px;color:#365d43;font-size:10px;font-weight:700}.tailor-card-top svg{width:14px;height:14px;color:#548964}.tailor-card p{font-size:9px;color:#748078;line-height:1.5;margin:6px 0 9px}.tailor-card .button{height:29px;font-size:9px}.tailor-badges{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}.tailor-badge{font-size:8px;color:#57735f;background:#eaf3ec;border-radius:5px;padding:4px 6px;font-weight:700}.modal-scrim{position:fixed;inset:0;z-index:30;background:rgba(17,35,27,.46);display:grid;place-items:center;padding:20px}.modal-scrim[hidden]{display:none}.tailor-modal{width:min(660px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid #e4ebe5;border-radius:16px;box-shadow:0 24px 80px #10261c45;padding:22px}.tailor-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}.tailor-modal-head h2{font:700 18px/1.3 'Manrope',sans-serif;margin:0;color:#26332c}.tailor-modal-head p{font-size:10px;color:#758078;margin:5px 0 0}.tailor-close{border:0;background:#f3f6f3;color:#647169;border-radius:8px;width:30px;height:30px;display:grid;place-items:center}.tailor-close svg{width:15px;height:15px}.tailor-proof{display:flex;align-items:center;gap:7px;margin-top:15px;padding:9px 11px;background:#f1f7f2;border:1px solid #e0ece2;border-radius:8px;color:#4c7457;font-size:9px;font-weight:700}.tailor-proof svg{width:14px;height:14px}.tailor-block{border:1px solid var(--line);border-radius:10px;padding:13px;margin-top:11px}.tailor-block-title{font-size:10px;font-weight:700;color:#354239;margin-bottom:8px}.tailor-resume-file{display:flex;align-items:center;gap:10px;background:#fafbfa;border-radius:8px;padding:10px}.tailor-resume-file .company-logo{width:32px;height:32px}.tailor-resume-file b{font-size:10px;display:block}.tailor-resume-file span{font-size:9px;color:#7b867f}.tailor-change{font-size:9px;color:#68756e;line-height:1.5;margin:9px 0 0}.tailor-qa{border-top:1px solid #f0f2ef;padding:10px 0}.tailor-qa:first-of-type{border-top:0;padding-top:0}.tailor-qa b{font-size:9px;color:#344139;display:block}.tailor-qa p{font-size:10px;color:#58665d;line-height:1.55;margin:5px 0}.tailor-evidence{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:8px;color:#62806a}.tailor-evidence span{border:1px solid #e2ebe4;background:#f7faf7;border-radius:5px;padding:3px 5px}.tailor-missing{border:1px solid #f0e5ce;background:#fcfaf4;color:#796b4b;border-radius:7px;padding:8px;font-size:9px;line-height:1.45}.tailor-opt-in{display:flex;gap:8px;align-items:flex-start;margin-top:13px;color:#536158;font-size:9px;line-height:1.4}.tailor-opt-in input{accent-color:var(--green);margin:1px 0 0}.tailor-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.tailor-modal-actions .button{height:35px;font-size:10px}.tailored-app-meta{display:block!important;color:#5c7863!important}
+  </style>
+  <style>
+    .filter-panel{border:1px solid var(--line);background:#fff;border-radius:12px;padding:16px;margin:-5px 0 18px;box-shadow:0 5px 18px rgba(18,42,31,.04)}
+    .filter-panel[hidden]{display:none}.filter-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .filter-panel-head h2{font:700 14px 'Manrope',sans-serif;margin:0}.filter-panel-head p{font-size:10px;color:var(--muted);margin:4px 0 0}
+    .filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .filter-block{border:1px solid #edf0ed;border-radius:9px;padding:11px;min-width:0}
+    .filter-block h3,.filter-block legend,.filter-block-title{display:block;font-size:10px;font-weight:700;color:#354239;margin:0 0 8px}
+    .filter-block fieldset{border:0;padding:0;margin:0}.filter-input,.filter-select{width:100%;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 9px;background:#fff;color:var(--ink);font-size:10px}
+    .filter-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
+    .filter-option,.filter-unknown{display:flex;align-items:center;gap:6px;color:#59675f;font-size:9px;line-height:1.3}
+    .filter-option input,.filter-unknown input{accent-color:var(--green);margin:0;flex:none}.filter-option small{color:#87928a;font-size:8px;margin-left:auto}
+    .filter-unknown{margin-top:9px;border-top:1px solid #f0f2ef;padding-top:8px}.facet-unknown{font-size:8px;color:#849088;margin-top:7px}
+    .filter-suggest{display:grid;gap:4px;margin-top:6px;max-height:120px;overflow:auto}.suggestion{border:1px solid #edf0ed;border-radius:6px;background:#fbfcfb;text-align:left;padding:6px 8px;font-size:9px;color:#405047}
+    .suggestion:hover{border-color:#b9d0c0;background:#f5faf6}.filter-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+    .filter-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #dfe9e1;background:#f5faf6;color:#45634e;border-radius:6px;padding:4px 6px;font-size:8px}
+    .filter-chip button{border:0;background:transparent;padding:0;color:inherit;font-size:12px;line-height:1}
+    .filter-help{font-size:8px;color:#87928a;line-height:1.4;margin:6px 0 0}.filter-panel-actions{display:flex;align-items:center;gap:7px;margin-top:12px}
+    .filter-panel-actions .filter-spacer{flex:1}.filter-error{font-size:9px;color:#9b5a49;margin-right:auto}
+    @media(max-width:900px){.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:680px){.filter-panel{padding:11px}.filter-grid{grid-template-columns:1fr}.filter-panel-actions{flex-wrap:wrap}.filter-panel-actions .filter-spacer{display:none}.filter-panel-actions .button{flex:1}}
+  </style>
+</head>
+<body>
+  <svg aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden">
+    <symbol id="i-mark" viewBox="0 0 24 24"><path d="M4 17.5 9.2 6l3.1 6.2 2.1-4.3L20 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 18h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 4.8A1.8 1.8 0 0 1 7.8 3h8.4A1.8 1.8 0 0 1 18 4.8V21l-6-3.8L6 21V4.8Z"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 0 1-2.4-2.4l.1-.1A1.7 1.7 0 0 0 4.2 12h-.2a1.7 1.7 0 0 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 0 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2v-.2a1.7 1.7 0 0 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 0 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9Z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 10-13h-7l1-7Z"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13"/></symbol>
+  </svg>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark"><svg><use href="#i-mark"/></svg></span><span class="brand-word">OneRole</span></div>
+      <div class="nav-label">Workspace</div>
+      <nav class="nav-list" aria-label="Main navigation">
+        <button class="nav-link" data-view="Overview"><svg><use href="#i-grid"/></svg><span>Overview</span></button>
+        <button class="nav-link active" data-view="Discover Jobs"><svg><use href="#i-search"/></svg><span>Discover Jobs</span></button>
+        <button class="nav-link" data-view="New Jobs"><svg><use href="#i-bolt"/></svg><span>New Jobs</span></button>
+        <button class="nav-link" data-view="Recommended for You"><svg><use href="#i-spark"/></svg><span>Recommended</span></button>
+        <button class="nav-link" data-view="Saved Jobs"><svg><use href="#i-bookmark"/></svg><span>Saved Jobs</span></button>
+        <button class="nav-link" data-view="Auto-apply"><svg><use href="#i-send"/></svg><span>Auto-apply</span></button>
+        <button class="nav-link" data-view="My Applications"><svg><use href="#i-briefcase"/></svg><span>My Applications</span></button>
+      </nav>
+      <div class="nav-label" style="margin-top:25px">Your account</div>
+      <nav class="nav-list" aria-label="Account navigation">
+        <button class="nav-link" data-view="Resume & Profile"><svg><use href="#i-user"/></svg><span>Resume &amp; Profile</span></button>
+        <button class="nav-link" data-view="Job Alerts"><svg><use href="#i-bell"/></svg><span>Job Alerts</span></button>
+        <button class="nav-link" data-view="Settings"><svg><use href="#i-settings"/></svg><span>Settings</span></button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="plan-card"><div class="plan-top"><i class="pulse"></i> Discovery status</div><div class="plan-copy" id="source-summary">Waiting for API status</div><div class="coverage-track"><i style="width:0"></i></div><div class="coverage-foot"><span>Source status</span><span>Not provided</span></div></div>
+      <div class="tenant-control" id="tenant-control" hidden><label for="tenant-select">Active workspace</label><select class="tenant-select" id="tenant-select" aria-label="Active workspace"></select></div>
+      <div class="user-chip"><div class="avatar" id="user-avatar">?</div><div class="user-meta"><div class="user-name" id="user-name">Signed out</div><div class="user-email" id="user-email">Connect to OneRole</div></div><span class="user-more">···</span></div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb">OneRole <span style="padding:0 6px;color:#bac1bd">/</span> <b id="crumb-current">Discover Jobs</b></div>
+        <label class="global-search"><svg><use href="#i-search"/></svg><input id="global-search" placeholder="Search roles, companies, or skills" /><span class="key-hint">⌘ K</span></label>
+        <div class="top-actions"><button class="button" id="session-action" type="button">Sign in</button><div class="top-avatar" id="top-avatar">?</div></div>
+      </header>
+      <section class="content" id="content"></section>
+    </main>
+  </div>
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button data-view="Discover Jobs"><svg><use href="#i-search"/></svg><span>Discover</span></button><button data-view="New Jobs"><svg><use href="#i-bolt"/></svg><span>New</span></button><button data-view="Auto-apply"><svg><use href="#i-send"/></svg><span>Auto</span></button><button data-view="Saved Jobs"><svg><use href="#i-bookmark"/></svg><span>Saved</span></button><button data-view="My Applications"><svg><use href="#i-briefcase"/></svg><span>Applied</span></button>
+  </nav>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-scrim" id="tailor-modal" hidden><section class="tailor-modal" role="dialog" aria-modal="true" aria-labelledby="tailor-title"><div id="tailor-modal-content"></div></section></div>
+  <script>
+    // Serve this page from an origin listed in ALLOWED_ORIGINS; browser sign-in also needs the API hostname.
+    function defaultApiBase() {
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return 'http://localhost:8080/api/v1';
+      const localHost = ['localhost', '127.0.0.1'].includes(location.hostname.toLowerCase());
+      if (localHost && location.port === '3000') {
+        const apiHost = location.hostname.toLowerCase() === '127.0.0.1' ? '127.0.0.1' : 'localhost';
+        return location.protocol + '//' + apiHost + ':8080/api/v1';
+      }
+      return location.origin + '/api/v1';
+    }
+    const API_BASE = new URL(window.ONE_ROLE_API_BASE || defaultApiBase(), location.href).toString().replace(/\/$/, '');
+    const API_URL = new URL(API_BASE);
+    const API_ORIGIN = API_URL.origin;
+    const sessionHostMatchesAPI = location.protocol === API_URL.protocol && location.hostname.toLowerCase() === API_URL.hostname.toLowerCase();
+    const isUUID = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+    // A server may inject these IDs after the user has selected a reviewed resume and stored consent.
+    const APPLICATION_CONTEXT = window.ONE_ROLE_APPLICATION_CONTEXT || {};
+    const applicationContextReady = isUUID(APPLICATION_CONTEXT.resume_version_id) && isUUID(APPLICATION_CONTEXT.consent_id);
+    const icon = (name) => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
+    const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const viewsWithSearch = new Set(['Discover Jobs', 'New Jobs']);
+    const statusLabels = {
+      preparing: 'Preparing for review', needs_user_input: 'Needs your input', ready_for_review: 'Ready for your review',
+      approved: 'Approved', queued: 'Queued by OneRole', submitting: 'Submission in progress', submitted: 'Employer confirmed receipt',
+      submission_unconfirmed: 'Submission unconfirmed', requires_manual_action: 'Manual action required', failed_retryable: 'Paused for retry',
+      failed_permanent: 'Could not continue', duplicate: 'Already in progress', expired: 'Expired', skipped: 'Skipped', rejected_by_user: 'Stopped by you'
+    };
+    let activeView = 'Discover Jobs';
+    let activeTab = 'For you';
+    let jobs = [];
+    let selectedJob = null;
+    let providers = [];
+    let currentUser = null;
+    let selectedTenantID = '';
+    let accessToken = '';
+    let csrfToken = '';
+    let applications = [];
+    let searchTerm = '';
+    let locationTerm = '';
+    let datePreset = 'any';
+    let sortOrder = 'relevance';
+    const emptyFilters = () => ({
+      excludeTerms: [], locations: [], radiusKM: '', workplaceModes: [], companies: [], excludedCompanies: [],
+      degreeLevels: [], degreeRequirement: 'any', maxExperienceYears: '', includeUnknownExperience: false,
+      visaSponsorship: 'any', roleIDs: [], jobTypes: [], employmentTypes: [],
+      includeUnknown: {location: false, company: false, degree: false, workplace: false, role: false, jobType: false, employmentType: false, publicationTime: false}
+    });
+    const cloneFilters = value => JSON.parse(JSON.stringify(value));
+    let appliedFilters = emptyFilters();
+    let filterDraft = emptyFilters();
+    let filtersOpen = false;
+    let metadataFacets = {};
+    let searchFacets = {};
+    let facetLoadError = '';
+    let companySuggestions = {include: [], exclude: []};
+    let locationSuggestions = [];
+    let suggestionTimers = {};
+    let suggestionSequence = {};
+    let loadingJobs = false;
+    let searchError = '';
+    let apiError = '';
+    let providersLoaded = false;
+    let statusLoading = false;
+    let searchSequence = 0;
+    let mobileDetail = false;
+
+    function toast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    function apiURL(path) {
+      if (/^https?:\/\//i.test(path)) return path;
+      if (path.startsWith('/api/v1/')) return new URL(path, API_ORIGIN).toString();
+      return new URL(path.replace(/^\/+/, ''), `${API_BASE}/`).toString();
+    }
+
+    function readCookie(name) {
+      const prefix = `${name}=`;
+      const item = document.cookie.split(';').map(value => value.trim()).find(value => value.startsWith(prefix));
+      return item ? decodeURIComponent(item.slice(prefix.length)) : '';
+    }
+
+    function readTenantSelection() {
+      try { return sessionStorage.getItem('onerole_tenant_id') || ''; } catch (_error) { return ''; }
+    }
+
+    function storeTenantSelection(tenantID) {
+      try {
+        if (tenantID) sessionStorage.setItem('onerole_tenant_id', tenantID);
+        else sessionStorage.removeItem('onerole_tenant_id');
+      } catch (_error) { /* The active tenant remains in memory for this page. */ }
+    }
+
+    async function refreshAccessToken() {
+      let csrf = sessionHostMatchesAPI ? readCookie('onerole_csrf') : '';
+      if (!csrf) {
+        let bootstrapResponse;
+        try {
+          bootstrapResponse = await fetch(apiURL('/auth/csrf'), {method: 'GET', credentials: 'include'});
+        } catch (_error) {
+          throw new Error('The CSRF session could not be reached. Check the API address, exact ALLOWED_ORIGINS entry, and same-site browser setup.');
+        }
+        const bootstrap = await bootstrapResponse.json().catch(() => ({}));
+        if (!bootstrapResponse.ok || !bootstrap.csrf_token) {
+          const error = new Error(bootstrapResponse.status === 401 ? 'No active OneRole session. Sign in with an enabled provider.' : 'The browser could not read the CSRF session. The UI and API must share a site; cross-site deployments are unsupported.');
+          error.status = bootstrapResponse.status;
+          throw error;
+        }
+        csrf = bootstrap.csrf_token;
+      }
+      csrfToken = csrf;
+      const response = await fetch(apiURL('/auth/refresh'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'X-CSRF-Token': csrf}
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.access_token) {
+        accessToken = '';
+        throw new Error(response.status === 401 ? 'Your OneRole session has expired. Sign in again.' : 'The OneRole session could not be refreshed.');
+      }
+      accessToken = payload.access_token;
+      return accessToken;
+    }
+
+    async function apiRequest(path, options = {}) {
+      const {authenticated = true, tenant = false, retry = true, ...fetchOptions} = options;
+      if (authenticated && !accessToken) await refreshAccessToken();
+      const headers = new Headers(fetchOptions.headers || {});
+      if (authenticated && accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+      if (tenant && selectedTenantID) headers.set('X-Tenant-ID', selectedTenantID);
+      if (fetchOptions.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+      let response;
+      try {
+        response = await fetch(apiURL(path), {...fetchOptions, headers, credentials: 'include'});
+      } catch (_error) {
+        throw new Error('OneRole API is unreachable. Check the configured API address and frontend origin.');
+      }
+      if (response.status === 401 && authenticated && retry) {
+        accessToken = '';
+        await refreshAccessToken();
+        return apiRequest(path, {...options, retry: false});
+      }
+      const payload = response.status === 204 ? null : await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = payload?.error?.message || `OneRole API returned ${response.status}.`;
+        const error = new Error(message);
+        error.status = response.status;
+        error.payload = payload;
+        throw error;
+      }
+      return payload;
+    }
+
+    async function loadProviders() {
+      try {
+        const payload = await apiRequest('/auth/providers', {authenticated: false});
+        providers = Array.isArray(payload?.providers) ? payload.providers : [];
+        providersLoaded = true;
+        apiError = '';
+      } catch (error) {
+        apiError = error.message;
+        providers = [];
+        providersLoaded = false;
+      }
+    }
+
+    function chooseTenant(memberships) {
+      const ids = memberships.map(item => item.tenant_id).filter(isUUID);
+      const saved = readTenantSelection();
+      if (ids.includes(saved)) selectedTenantID = saved;
+      else if (ids.length === 1) selectedTenantID = ids[0];
+      else selectedTenantID = '';
+      storeTenantSelection(selectedTenantID);
+    }
+
+    function updateIdentity() {
+      const memberships = Array.isArray(currentUser?.memberships) ? currentUser.memberships : [];
+      const name = currentUser?.display_name || 'Signed out';
+      const initials = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+      document.getElementById('user-name').textContent = name;
+      document.getElementById('user-email').textContent = currentUser?.email || (accessToken ? 'OneRole account' : 'Connect to OneRole');
+      document.getElementById('user-avatar').textContent = initials;
+      document.getElementById('top-avatar').textContent = initials;
+      const control = document.getElementById('tenant-control');
+      const select = document.getElementById('tenant-select');
+      control.hidden = !accessToken || memberships.length < 2;
+      if (memberships.length > 1) {
+        select.innerHTML = memberships.filter(item => isUUID(item.tenant_id)).map(item => `<option value="${escapeHTML(item.tenant_id)}">${escapeHTML(item.label || item.name || item.tenant_id)}</option>`).join('');
+        select.value = selectedTenantID;
+      }
+      const action = document.getElementById('session-action');
+      action.textContent = accessToken ? 'Sign out' : 'Sign in';
+      document.getElementById('source-summary').textContent = apiError ? 'API status unavailable' : accessToken ? 'API session active' : 'Sign-in required for live data';
+    }
+
+    function providerLinks() {
+      const enabled = providers.filter(provider => provider.enabled);
+      if (!providersLoaded) return apiError ? '' : '<span>Checking sign-in providers…</span>';
+      if (!enabled.length) return '<span>No sign-in providers are enabled in this deployment.</span>';
+      return `<div class="provider-list">${enabled.map(provider => `<a class="provider-link" href="${escapeHTML(apiURL(`/auth/oauth/${encodeURIComponent(provider.id)}/start`))}">${escapeHTML(provider.label)}</a>`).join('')}</div>`;
+    }
+
+    function authBanner() {
+      if (accessToken) return '';
+      if (apiError) return stateBanner('error', 'OneRole API is unavailable', `${apiError} No sample jobs are shown.`, '');
+      const originNote = sessionHostMatchesAPI ? '' : 'Cross-origin browser sessions require a same-site UI/API deployment and the CSRF bootstrap route; cross-site deployments are unsupported.';
+      return stateBanner('warning', 'Sign in to search live listings', `Job discovery requires a OneRole session. The application shows only records returned by the configured API. ${originNote}`, providerLinks());
+    }
+
+    function stateBanner(kind, title, copy, extra = '') {
+      return `<div class="state-banner ${kind}">${icon(kind === 'error' ? 'close' : 'shield')}<div><strong>${escapeHTML(title)}</strong>${escapeHTML(copy)}${extra ? `<div>${extra}</div>` : ''}</div></div>`;
+    }
+
+    function formatDate(value) {
+      if (!value) return 'Not provided';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 'Not provided' : date.toLocaleDateString(undefined, {year: 'numeric', month: 'short', day: 'numeric'});
+    }
+
+    function timeAgo(value) {
+      if (!value) return 'time not provided';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return 'time not provided';
+      const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+      if (minutes < 60) return `${minutes} min ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours} hr ago`;
+      const days = Math.floor(hours / 24);
+      return `${days} day${days === 1 ? '' : 's'} ago`;
+    }
+
+    function locationLabel(job) {
+      if (job.location?.trim()) return job.location.trim();
+      const parts = [job.city, job.region, job.country_code].filter(Boolean);
+      return parts.length ? parts.join(', ') : 'Location not provided';
+    }
+
+    function humanize(value) {
+      return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+    }
+
+    function jobTags(job) {
+      return [...(job.workplace_modes || []), ...(job.employment_types || []), ...(job.degree_levels || [])].filter(Boolean).slice(0, 4);
+    }
+
+    function capabilityLabel(job) {
+      return humanize(job.application_capability || 'unknown');
+    }
+
+    function canStartApplication(job) {
+      return ['automated_supported', 'assisted_supported'].includes(job.application_capability);
+    }
+
+    function applyAction(job) {
+      if (job.application_capability === 'manual_required' && isHTTPURL(job.source_url)) {
+        return `<a class="button primary" href="${escapeHTML(job.source_url)}" target="_blank" rel="noopener noreferrer">Open employer listing ${icon('arrow')}</a>`;
+      }
+      const disabled = !canStartApplication(job) || !applicationContextReady || !selectedTenantID || applications.some(item => item.job_id === job.id);
+      const hasMembership = Array.isArray(currentUser?.memberships) && currentUser.memberships.length > 0;
+      const label = !canStartApplication(job) ? 'Not supported' : !selectedTenantID ? (hasMembership ? 'Choose workspace' : 'Workspace required') : !applicationContextReady ? 'Setup required' : 'Prepare application';
+      const title = !canStartApplication(job) ? `API capability: ${capabilityLabel(job)}.` : !selectedTenantID ? (hasMembership ? 'Select an active workspace before starting an application.' : 'Your account has no active workspace membership.') : !applicationContextReady ? 'A reviewed resume version and stored consent are required.' : 'Starts a review workflow in OneRole; does not submit to an employer.';
+      return `<button class="button primary" type="button" data-apply="${escapeHTML(job.id)}" ${disabled ? 'disabled' : ''} title="${escapeHTML(title)}">${escapeHTML(label)}</button>`;
+    }
+
+    function jobCard(job) {
+      const selected = selectedJob?.id === job.id ? 'selected' : '';
+      const tags = jobTags(job).map(tag => `<span class="tag">${escapeHTML(humanize(tag))}</span>`).join('');
+      const remote = (job.workplace_modes || []).includes('remote') ? '<span class="tag remote">Remote</span>' : '';
+      const firstSeen = job.first_seen_at ? `First discovered ${escapeHTML(timeAgo(job.first_seen_at))}` : 'Discovery time not provided';
+      return `<article class="job-card ${selected}" data-job="${escapeHTML(job.id)}" tabindex="0" aria-label="${escapeHTML(job.title)} at ${escapeHTML(job.company)}"><div class="job-card-top"><div class="company-logo">${escapeHTML((job.company || '?').trim().slice(0, 1).toUpperCase())}</div><div class="job-heading"><div class="job-title">${escapeHTML(job.title)}</div><div class="company-name">${escapeHTML(job.company)}</div></div><button class="save-btn" type="button" disabled title="Saved jobs are not available in the documented API." aria-label="Saved jobs are not available">${icon('bookmark')}</button></div><div class="job-meta"><span>${icon('pin')}${escapeHTML(locationLabel(job))}</span><span>${icon('clock')}${escapeHTML(humanize(job.job_type || job.employment_types?.[0] || 'Type not provided'))}</span></div><div class="job-tags"><span class="capability-tag">${escapeHTML(capabilityLabel(job))}</span>${remote}${tags}</div><div class="job-card-foot"><span class="seen"><i></i>${firstSeen}</span><div class="job-actions">${applyAction(job)}<button class="button" type="button" disabled title="Passing jobs is not available in the documented API.">Pass</button></div></div></article>`;
+    }
+
+    function isHTTPURL(value) {
+      try { return ['http:', 'https:'].includes(new URL(value).protocol); } catch (_error) { return false; }
+    }
+
+    function detailHTML(job) {
+      if (!job) return `<aside class="detail-panel"><div class="detail-main"><div class="list-empty">Select a live listing to inspect its details.</div></div></aside>`;
+      const description = job.description?.trim() || 'The source did not provide a description.';
+      const statusText = canStartApplication(job)
+        ? 'OneRole can prepare a review workflow for this capability. Employer submission requires a separate authorization and readiness check.'
+        : job.application_capability === 'manual_required'
+          ? 'This listing requires you to continue directly with the employer. OneRole will not submit it automatically.'
+          : `OneRole cannot start an application for this listing with capability “${capabilityLabel(job)}”.`;
+      const sourceLink = isHTTPURL(job.source_url) ? `<a href="${escapeHTML(job.source_url)}" target="_blank" rel="noopener noreferrer" class="company-row">Open original employer listing ${icon('arrow')}</a>` : '<span class="source-note">Original listing URL is not available.</span>';
+      const workplace = (job.workplace_modes || []).map(humanize).join(', ') || 'Not provided';
+      const types = (job.employment_types || []).map(humanize).join(', ') || 'Not provided';
+      const published = job.published_at ? `Published ${escapeHTML(formatDate(job.published_at))}` : 'Publication date not provided';
+      const skills = [...(job.role_ids || []), ...(job.degree_levels || [])];
+      return `<aside class="detail-panel ${mobileDetail ? 'mobile-open' : ''}" id="detail-panel"><div class="detail-cover"></div><div class="detail-main"><div class="detail-logo-row"><div class="detail-logo">${escapeHTML((job.company || '?').trim().slice(0, 1).toUpperCase())}</div><button class="mobile-close" id="mobile-close" aria-label="Close details">${icon('close')}</button><button class="detail-save" type="button" disabled title="Saved jobs are not available in the documented API.">${icon('bookmark')} Save unavailable</button></div><h2 class="detail-title">${escapeHTML(job.title)}</h2><div class="detail-company">${escapeHTML(job.company)}</div><div class="detail-facts"><span>${icon('pin')}${escapeHTML(locationLabel(job))}</span><span>${icon('briefcase')}${escapeHTML(types)}</span><span>${icon('clock')}${published}</span></div><div class="detail-actions">${applyAction(job)}<button class="button" type="button" disabled title="Passing jobs is not available in the documented API.">Pass unavailable</button></div><div class="job-status ${canStartApplication(job) ? '' : 'warning'}">${icon('shield')}${escapeHTML(statusText)}</div><section class="detail-section"><h3 class="section-title">About the role</h3><p class="detail-desc">${escapeHTML(description)}</p></section>${skills.length ? `<section class="detail-section"><h3 class="section-title">Normalized role and degree tags</h3><div class="skill-list">${skills.map(skill => `<span class="skill">${escapeHTML(humanize(skill))}</span>`).join('')}</div></section>` : ''}<section class="detail-section"><h3 class="section-title">Listing provenance</h3><p class="detail-desc">First seen ${escapeHTML(formatDate(job.first_seen_at))}; last seen ${escapeHTML(formatDate(job.last_seen_at))}. These values are returned by the API.</p></section>${sourceLink}</div></aside>`;
+    }
+
+    function datePayload() {
+      if (activeView === 'New Jobs') {
+        return {preset: 'any', first_seen_after: new Date(Date.now() - 7 * 86400000).toISOString()};
+      }
+      return {preset: datePreset};
+    }
+
+    const filterEnums = {
+      workplace: [['remote', 'Remote'], ['hybrid', 'Hybrid'], ['on_site', 'On site']],
+      degree_level: [['high_school', 'High school'], ['associate', 'Associate'], ['bachelor', 'Bachelor'], ['master', 'Master'], ['doctorate', 'Doctorate'], ['no_degree_stated', 'No degree stated'], ['unknown', 'Unknown tag']],
+      degree_requirement: [['required', 'Required'], ['preferred', 'Preferred'], ['any', 'Any']],
+      visa_sponsorship: [['yes', 'Yes'], ['no', 'No'], ['unknown', 'Unknown'], ['any', 'Any']],
+      job_type: [['internship', 'Internship'], ['entry_level', 'Entry level'], ['associate', 'Associate'], ['mid_level', 'Mid level'], ['senior', 'Senior'], ['lead', 'Lead'], ['manager', 'Manager'], ['director', 'Director'], ['executive', 'Executive']],
+      employment_type: [['full_time', 'Full time'], ['part_time', 'Part time'], ['contract', 'Contract'], ['temporary', 'Temporary'], ['seasonal', 'Seasonal'], ['freelance', 'Freelance'], ['internship', 'Internship'], ['apprenticeship', 'Apprenticeship'], ['other', 'Other']]
+    };
+
+    function facetFor(key) {
+      return searchFacets[key] || metadataFacets[key] || null;
+    }
+
+    function facetCount(key, value) {
+      const option = (facetFor(key)?.options || []).find(item => item.value === value);
+      return option ? String(option.count) : '';
+    }
+
+    function unknownCountText(key) {
+      const facet = facetFor(key);
+      return facet && Number.isFinite(facet.unknown_count) ? 'Unknown count: ' + facet.unknown_count : 'Unknown count unavailable until the API responds.';
+    }
+
+    function unknownCheckbox(label, key, property, checked) {
+      return '<label class="filter-unknown"><input type="checkbox" data-unknown-filter="' + property + '" ' + (checked ? 'checked' : '') + ' />' +
+        escapeHTML(label) + ' (' + escapeHTML(unknownCountText(key)) + ')</label>';
+    }
+
+    function filterChoiceGroup(title, arrayName, facetKey, choices, selected, unknownProperty, unknownLabel) {
+      const facetOptions = facetFor(facetKey)?.options || [];
+      let available = choices.slice();
+      if (!available.length && facetOptions.length) available = facetOptions.map(option => [option.value, option.label]);
+      const rows = available.map(choice => {
+        const value = choice[0];
+        const facetOption = facetOptions.find(option => option.value === value);
+        const label = facetOption?.label || choice[1];
+        const count = facetCount(facetKey, value);
+        return '<label class="filter-option"><input type="checkbox" data-filter-array="' + arrayName + '" value="' + escapeHTML(value) + '" ' +
+          (selected.includes(value) ? 'checked' : '') + ' /><span>' + escapeHTML(label) + '</span>' +
+          (count === '' ? '' : '<small>' + escapeHTML(count) + '</small>') + '</label>';
+      }).join('');
+      const unknown = unknownProperty ? unknownCheckbox(unknownLabel, facetKey, unknownProperty, filterDraft.includeUnknown[unknownProperty]) : '';
+      return '<fieldset class="filter-block"><legend>' + escapeHTML(title) + '</legend><div class="filter-options">' + rows +
+        '</div><div class="facet-unknown">' + escapeHTML(unknownCountText(facetKey)) + '</div>' + unknown + '</fieldset>';
+    }
+
+    function filterSelect(title, inputID, facetKey, choices, selected) {
+      const facetOptions = facetFor(facetKey)?.options || [];
+      const options = choices.map(choice => {
+        const value = choice[0];
+        const facetOption = facetOptions.find(item => item.value === value);
+        const label = facetOption?.label || choice[1];
+        const count = facetCount(facetKey, value);
+        return '<option value="' + escapeHTML(value) + '" ' + (selected === value ? 'selected' : '') + '>' +
+          escapeHTML(label) + (count === '' ? '' : ' · ' + escapeHTML(count)) + '</option>';
+      }).join('');
+      return '<label class="filter-block"><span class="filter-block-title">' + escapeHTML(title) + '</span><select class="filter-select" id="' +
+        inputID + '">' + options + '</select><div class="facet-unknown">' + escapeHTML(unknownCountText(facetKey)) + '</div></label>';
+    }
+
+    function companyChips(mode) {
+      const property = mode === 'include' ? 'companies' : 'excludedCompanies';
+      return filterDraft[property].map((company, index) => '<span class="filter-chip">' + escapeHTML(company.name) +
+        '<button type="button" aria-label="Remove ' + escapeHTML(company.name) + '" data-remove-company="' + mode + '" data-index="' + index + '">×</button></span>').join('');
+    }
+
+    function locationChips() {
+      return filterDraft.locations.map((place, index) => '<span class="filter-chip">' + escapeHTML(place.label) +
+        '<button type="button" aria-label="Remove ' + escapeHTML(place.label) + '" data-remove-location="' + index + '">×</button></span>').join('');
+    }
+
+    function suggestionMarkup(kind, items) {
+      if (!items.length) return '';
+      return items.map((item, index) => {
+        const label = kind === 'location' ? item.label + ' · ' + item.matching_job_count + ' matching' : item.name;
+        return '<button type="button" class="suggestion" data-suggestion-kind="' + kind + '" data-index="' + index + '">' +
+          escapeHTML(label) + '</button>';
+      }).join('');
+    }
+
+    function filterPanelHTML() {
+      const roleOptions = (facetFor('role')?.options || []).map(item => [item.value, item.label]);
+      const roleSelected = filterDraft.roleIDs;
+      const roleGroup = filterChoiceGroup('Role', 'roleIDs', 'role', roleOptions, roleSelected, 'role', 'Include unknown roles');
+      return '<section class="filter-panel" id="filter-panel" aria-label="Job filters" ' + (filtersOpen ? '' : 'hidden') + '>' +
+        '<div class="filter-panel-head"><div><h2>Filter live listings</h2><p>Counts and choices come from the authenticated API. Apply sends this filter set to job search.</p></div>' +
+        '<button class="button" type="button" id="close-filters">Close</button></div>' +
+        '<div class="filter-grid">' +
+        '<label class="filter-block"><span class="filter-block-title">Exclude terms</span><input class="filter-input" id="exclude-terms" value="' + escapeHTML(filterDraft.excludeTerms.join(', ')) + '" placeholder="intern, junior" />' +
+        '<p class="filter-help">Separate up to 30 excluded words or phrases with commas.</p></label>' +
+        '<div class="filter-block"><h3>Location and radius</h3><input class="filter-input" id="filter-location-query" autocomplete="off" placeholder="Search a normalized city or region" />' +
+        '<div class="filter-suggest" id="location-suggestions">' + suggestionMarkup('location', locationSuggestions) + '</div><div class="filter-chips">' + locationChips() + '</div>' +
+        '<label class="filter-help" for="location-radius">Radius in kilometers (0 means exact location)</label><input class="filter-input" id="location-radius" type="number" min="0" max="500" value="' + escapeHTML(filterDraft.radiusKM) + '" />' +
+        '<div class="facet-unknown">' + escapeHTML(unknownCountText('location')) + '</div>' + unknownCheckbox('Include listings without a known location', 'location', 'location', filterDraft.includeUnknown.location) + '</div>' +
+        '<div class="filter-block"><h3>Companies to include</h3><input class="filter-input" id="company-include-query" autocomplete="off" placeholder="Search canonical companies" />' +
+        '<div class="filter-suggest" id="company-include-suggestions">' + suggestionMarkup('include', companySuggestions.include) + '</div><div class="filter-chips">' + companyChips('include') + '</div>' +
+        '<div class="facet-unknown">' + escapeHTML(unknownCountText('company')) + '</div>' + unknownCheckbox('Include listings without a company match', 'company', 'company', filterDraft.includeUnknown.company) + '</div>' +
+        '<div class="filter-block"><h3>Companies to exclude</h3><input class="filter-input" id="company-exclude-query" autocomplete="off" placeholder="Search companies to omit" />' +
+        '<div class="filter-suggest" id="company-exclude-suggestions">' + suggestionMarkup('exclude', companySuggestions.exclude) + '</div><div class="filter-chips">' + companyChips('exclude') + '</div>' +
+        '<p class="filter-help">Both company lists use canonical company IDs returned by the API.</p></div>' +
+        filterChoiceGroup('Workplace', 'workplaceModes', 'workplace', filterEnums.workplace, filterDraft.workplaceModes, 'workplace', 'Include unknown workplace') +
+        filterChoiceGroup('Degree level', 'degreeLevels', 'degree_level', filterEnums.degree_level, filterDraft.degreeLevels, 'degree', 'Include unknown degree') +
+        filterSelect('Degree requirement', 'degree-requirement', 'degree_requirement', filterEnums.degree_requirement, filterDraft.degreeRequirement) +
+        '<label class="filter-block"><span class="filter-block-title">Maximum experience</span><input class="filter-input" id="max-experience" type="number" min="0" max="50" value="' +
+        escapeHTML(filterDraft.maxExperienceYears) + '" placeholder="Any years" /><div class="facet-unknown">' + escapeHTML(unknownCountText('experience')) +
+        '</div>' + unknownCheckbox('Include jobs with unknown experience', 'experience', 'experience', filterDraft.includeUnknownExperience) + '</label>' +
+        filterSelect('Visa sponsorship', 'visa-sponsorship', 'visa_sponsorship', filterEnums.visa_sponsorship, filterDraft.visaSponsorship) +
+        roleGroup +
+        '<label class="filter-block"><span class="filter-block-title">Additional role IDs</span><input class="filter-input" id="role-ids" value="' +
+        escapeHTML(filterDraft.roleIDs.join(', ')) + '" placeholder="platform_engineering" /><p class="filter-help">Use API facet values or comma-separated role taxonomy IDs.</p></label>' +
+        filterChoiceGroup('Job type', 'jobTypes', 'job_type', filterEnums.job_type, filterDraft.jobTypes, 'jobType', 'Include unknown job type') +
+        filterChoiceGroup('Employment type', 'employmentTypes', 'employment_type', filterEnums.employment_type, filterDraft.employmentTypes, 'employmentType', 'Include unknown employment type') +
+        '<div class="filter-block"><h3>Publication date</h3><div class="facet-unknown">' + escapeHTML(unknownCountText('date')) + '</div>' +
+        unknownCheckbox('Include listings with unknown publication time', 'date', 'publicationTime', filterDraft.includeUnknown.publicationTime) + '</div>' +
+        '</div><div class="filter-panel-actions"><span class="filter-error" id="filter-error">' + escapeHTML(facetLoadError) + '</span>' +
+        '<button class="button" type="button" id="refresh-filter-counts" ' + (!accessToken ? 'disabled' : '') + '>Refresh counts</button>' +
+        '<span class="filter-spacer"></span><button class="button" type="button" id="clear-filters">Clear all</button>' +
+        '<button class="button primary" type="button" id="apply-filters" ' + (!accessToken ? 'disabled title="Sign in before applying filters."' : '') + '>Apply filters</button></div></section>';
+    }
+
+    function readFilterDraftFromDOM() {
+      const readValues = name => Array.from(document.querySelectorAll('[data-filter-array="' + name + '"]:checked')).map(input => input.value);
+      filterDraft.excludeTerms = (document.getElementById('exclude-terms')?.value || '').split(/[\n,]/).map(value => value.trim()).filter(Boolean);
+      filterDraft.workplaceModes = readValues('workplaceModes');
+      filterDraft.degreeLevels = readValues('degreeLevels');
+      filterDraft.roleIDs = readValues('roleIDs').concat((document.getElementById('role-ids')?.value || '').split(/[\n,]/).map(value => value.trim()).filter(Boolean));
+      filterDraft.jobTypes = readValues('jobTypes');
+      filterDraft.employmentTypes = readValues('employmentTypes');
+      filterDraft.degreeRequirement = document.getElementById('degree-requirement')?.value || 'any';
+      filterDraft.visaSponsorship = document.getElementById('visa-sponsorship')?.value || 'any';
+      filterDraft.maxExperienceYears = document.getElementById('max-experience')?.value || '';
+      filterDraft.radiusKM = document.getElementById('location-radius')?.value || '';
+      filterDraft.includeUnknownExperience = document.querySelector('[data-unknown-filter="experience"]')?.checked || false;
+      ['location', 'company', 'degree', 'workplace', 'role', 'jobType', 'employmentType', 'publicationTime'].forEach(key => {
+        const input = document.querySelector('[data-unknown-filter="' + key + '"]');
+        filterDraft.includeUnknown[key] = Boolean(input?.checked);
+      });
+      filterDraft.roleIDs = Array.from(new Set(filterDraft.roleIDs));
+      return filterDraft;
+    }
+
+    function buildSearchPayload(filters, cursor = null) {
+      const body = {
+        query: searchTerm.trim(), sort: sortOrder, limit: 25,
+        exclude_terms: filters.excludeTerms,
+        workplace_modes: filters.workplaceModes,
+        company_ids: filters.companies.map(company => company.id),
+        excluded_company_ids: filters.excludedCompanies.map(company => company.id),
+        degree_levels: filters.degreeLevels,
+        degree_requirement: filters.degreeRequirement,
+        visa_sponsorship: filters.visaSponsorship,
+        role_ids: filters.roleIDs,
+        job_types: filters.jobTypes,
+        employment_types: filters.employmentTypes,
+        include_unknown_location: filters.includeUnknown.location,
+        include_unknown_company: filters.includeUnknown.company,
+        include_unknown_degree: filters.includeUnknown.degree,
+        include_unknown_workplace: filters.includeUnknown.workplace,
+        include_unknown_role: filters.includeUnknown.role,
+        include_unknown_job_type: filters.includeUnknown.jobType,
+        include_unknown_employment_type: filters.includeUnknown.employmentType,
+        include_unknown_experience: filters.includeUnknownExperience,
+        date: Object.assign(datePayload(), {include_unknown_publication_time: filters.includeUnknown.publicationTime})
+      };
+      if (filters.maxExperienceYears !== '' && Number.isFinite(Number(filters.maxExperienceYears))) body.max_experience_years = Number(filters.maxExperienceYears);
+      if (filters.locations.length) {
+        body.locations = filters.locations.map(place => {
+          const location = {location_id: place.id};
+          if (filters.radiusKM !== '' && Number(filters.radiusKM) > 0) location.radius_km = Number(filters.radiusKM);
+          return location;
+        });
+      } else if (locationTerm.trim()) {
+        body.locations = [{city: locationTerm.trim()}];
+      }
+      if (cursor) body.cursor = cursor;
+      return body;
+    }
+
+    async function loadFilterMetadata() {
+      if (!accessToken) return;
+      try {
+        const payload = await apiRequest('/jobs/filters');
+        metadataFacets = payload?.facets || {};
+        facetLoadError = '';
+      } catch (error) {
+        facetLoadError = error.message;
+      }
+      if (filtersOpen) {
+        readFilterDraftFromDOM();
+        render();
+      }
+    }
+
+    async function refreshDraftFacets() {
+      if (!accessToken) return;
+      readFilterDraftFromDOM();
+      try {
+        const payload = await apiRequest('/jobs/filters', {method: 'POST', body: JSON.stringify(buildSearchPayload(filterDraft))});
+        searchFacets = payload || {};
+        facetLoadError = '';
+      } catch (error) {
+        facetLoadError = error.message;
+      }
+      if (filtersOpen) render();
+    }
+
+    async function loadSuggestions(kind, query) {
+      const sequence = (suggestionSequence[kind] || 0) + 1;
+      suggestionSequence[kind] = sequence;
+      if (!accessToken || query.trim().length < 2) {
+        if (kind === 'location') locationSuggestions = [];
+        else companySuggestions[kind] = [];
+        const target = document.getElementById(kind === 'location' ? 'location-suggestions' : 'company-' + kind + '-suggestions');
+        if (target) target.innerHTML = '';
+        return;
+      }
+      const route = kind === 'location' ? '/locations/suggest?q=' : '/companies/search?q=';
+      try {
+        const payload = await apiRequest(route + encodeURIComponent(query.trim()) + '&limit=8');
+        if (sequence !== suggestionSequence[kind]) return;
+        if (kind === 'location') locationSuggestions = Array.isArray(payload?.items) ? payload.items : [];
+        else companySuggestions[kind] = Array.isArray(payload?.items) ? payload.items : [];
+        const target = document.getElementById(kind === 'location' ? 'location-suggestions' : 'company-' + kind + '-suggestions');
+        if (target) target.innerHTML = suggestionMarkup(kind, kind === 'location' ? locationSuggestions : companySuggestions[kind]);
+        bindSuggestionEvents();
+      } catch (error) {
+        facetLoadError = error.message;
+        const target = document.getElementById(kind === 'location' ? 'location-suggestions' : 'company-' + kind + '-suggestions');
+        if (target) target.textContent = 'Suggestions are unavailable: ' + error.message;
+      }
+    }
+
+    function scheduleSuggestions(kind, query) {
+      clearTimeout(suggestionTimers[kind]);
+      suggestionTimers[kind] = setTimeout(() => loadSuggestions(kind, query), 250);
+    }
+
+    function bindSuggestionEvents() {
+      document.querySelectorAll('.suggestion').forEach(button => {
+        button.onclick = () => {
+          readFilterDraftFromDOM();
+          const kind = button.dataset.suggestionKind;
+          const index = Number(button.dataset.index);
+          if (kind === 'location') {
+            const place = locationSuggestions[index];
+            if (!place || filterDraft.locations.some(item => item.id === place.id)) return;
+            if (filterDraft.locations.length >= 10) {
+              toast('The API supports up to 10 selected locations.');
+              return;
+            }
+            filterDraft.locations.push({id: place.id, label: place.label, city: place.city, region: place.region, country_code: place.country_code});
+            locationSuggestions = [];
+          } else {
+            const company = companySuggestions[kind]?.[index];
+            if (!company) return;
+            const property = kind === 'include' ? 'companies' : 'excludedCompanies';
+            if (filterDraft[property].length >= 100) {
+              toast('The API supports up to 100 companies in each list.');
+              return;
+            }
+            if (!filterDraft[property].some(item => item.id === company.id)) filterDraft[property].push({id: company.id, name: company.name});
+            const otherProperty = kind === 'include' ? 'excludedCompanies' : 'companies';
+            filterDraft[otherProperty] = filterDraft[otherProperty].filter(item => item.id !== company.id);
+            companySuggestions[kind] = [];
+          }
+          render();
+        };
+      });
+    }
+
+    function searchPayload(cursor = null) {
+      return buildSearchPayload(appliedFilters, cursor);
+    }
+
+    async function loadJobs() {
+      if (!accessToken) {
+        jobs = [];
+        selectedJob = null;
+        searchError = '';
+        render();
+        return;
+      }
+      const sequence = ++searchSequence;
+      loadingJobs = true;
+      searchError = '';
+      render();
+      try {
+        const payload = await apiRequest('/jobs/search', {method: 'POST', body: JSON.stringify(searchPayload())});
+        if (sequence !== searchSequence) return;
+        jobs = Array.isArray(payload?.items) ? payload.items : [];
+        searchFacets = payload?.facets || {};
+        selectedJob = jobs.find(job => job.id === selectedJob?.id) || jobs[0] || null;
+      } catch (error) {
+        if (sequence !== searchSequence) return;
+        jobs = [];
+        selectedJob = null;
+        searchError = error.message;
+      } finally {
+        if (sequence === searchSequence) {
+          loadingJobs = false;
+          render();
+        }
+      }
+    }
+
+    async function createApplication(jobID) {
+      const job = jobs.find(item => item.id === jobID);
+      if (!job || !canStartApplication(job) || !applicationContextReady || !selectedTenantID) return;
+      const idempotencyKey = crypto.randomUUID();
+      try {
+        const accepted = await apiRequest('/applications', {
+          method: 'POST', tenant: true,
+          headers: {'Idempotency-Key': idempotencyKey},
+          body: JSON.stringify({job_id: job.id, resume_version_id: APPLICATION_CONTEXT.resume_version_id, consent_id: APPLICATION_CONTEXT.consent_id, mode: 'review_before_submit'})
+        });
+        applications.unshift({id: accepted.workflow_id, job_id: job.id, status_url: accepted.status_url, status: accepted.status, message: accepted.message || 'Accepted by OneRole; employer submission is not yet confirmed.'});
+        activeView = 'My Applications';
+        render();
+        toast('OneRole accepted a review workflow. The employer has not been contacted.');
+        refreshApplicationStatuses();
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    async function refreshApplicationStatuses() {
+      if (statusLoading || !accessToken || !selectedTenantID || !applications.length) return;
+      statusLoading = true;
+      try {
+        await Promise.all(applications.map(async item => {
+          const path = item.status_url || `/api/v1/applications/${item.id}`;
+          try {
+            const current = await apiRequest(path, {tenant: true});
+            item.status = current.status || item.status;
+            item.pause_reason = current.pause_reason || '';
+            item.capability = current.capability || '';
+            item.updated_at = current.updated_at || '';
+          } catch (error) {
+            item.read_error = error.message;
+          }
+        }));
+      } finally {
+        statusLoading = false;
+        if (activeView === 'My Applications') render();
+      }
+    }
+
+    function activeFilterCount() {
+      return appliedFilters.excludeTerms.length + appliedFilters.locations.length + appliedFilters.workplaceModes.length +
+        appliedFilters.companies.length + appliedFilters.excludedCompanies.length + appliedFilters.degreeLevels.length +
+        appliedFilters.roleIDs.length + appliedFilters.jobTypes.length + appliedFilters.employmentTypes.length +
+        (appliedFilters.maxExperienceYears === '' ? 0 : 1) +
+        (appliedFilters.degreeRequirement === 'any' ? 0 : 1) + (appliedFilters.visaSponsorship === 'any' ? 0 : 1) +
+        Object.values(appliedFilters.includeUnknown).filter(Boolean).length + (appliedFilters.includeUnknownExperience ? 1 : 0);
+    }
+
+    function pageHeader(title, subtitle) {
+      const dateControl = activeView === 'Discover Jobs' ? `<select class="select" id="date-window" aria-label="Publication date window"><option value="any" ${datePreset === 'any' ? 'selected' : ''}>Any publication date</option><option value="last_6_hours" ${datePreset === 'last_6_hours' ? 'selected' : ''}>Last 6 hours</option><option value="last_24_hours" ${datePreset === 'last_24_hours' ? 'selected' : ''}>Last 24 hours</option><option value="last_7_days" ${datePreset === 'last_7_days' ? 'selected' : ''}>Last 7 days</option><option value="last_30_days" ${datePreset === 'last_30_days' ? 'selected' : ''}>Last 30 days</option><option value="last_60_days" ${datePreset === 'last_60_days' ? 'selected' : ''}>Last 60 days</option></select>` : '';
+      const filters = viewsWithSearch.has(activeView) ? `<div class="head-actions">${dateControl}<button class="button" id="filter-button" type="button" aria-expanded="${filtersOpen}">${icon('sliders')} Filters${activeFilterCount() ? ' · ' + activeFilterCount() : ''}</button></div>` : '';
+      return `<div class="page-head"><div><div class="eyebrow">${title === 'Discover Jobs' ? 'Your next chapter' : 'OneRole workspace'}</div><h1 class="page-title">${escapeHTML(title)}</h1><p class="page-subtitle">${escapeHTML(subtitle)}</p></div>${filters}</div>`;
+    }
+
+    function discoveryPage() {
+      const title = activeView === 'Discover Jobs' ? 'Discover Jobs' : 'New Jobs';
+      const subtitle = activeView === 'Discover Jobs' ? 'Search listings returned by the configured OneRole API.' : 'Listings first seen by OneRole in the last seven days.';
+      const list = jobs;
+      const resultState = searchError
+        ? stateBanner('error', 'Search could not be completed', searchError)
+        : loadingJobs
+          ? '<div class="job-state"><strong>Searching live listings…</strong>Waiting for the configured API.</div>'
+          : !accessToken
+            ? '<div class="job-state"><strong>Sign in to search</strong>Job listings are not shown until the API returns them for your session.</div>'
+            : list.length
+              ? list.map(jobCard).join('')
+              : '<div class="job-state"><strong>No listings returned</strong>The API returned no jobs for these filters. Try a broader search or check configured source coverage.</div>';
+      return `${pageHeader(title, subtitle)}${authBanner()}<div class="search-panel"><label class="search-field">${icon('search')}<input id="role-query" value="${escapeHTML(searchTerm)}" placeholder="Job title, company, or skill" /></label><label class="search-field">${icon('pin')}<input id="location-query" value="${escapeHTML(locationTerm)}" placeholder="City name" /></label><button class="button primary search-submit" id="search-submit" type="button">Search jobs</button></div><div class="tabs-row"><button class="tab ${activeView === 'Discover Jobs' ? 'active' : ''}" data-view="Discover Jobs">All listings</button><button class="tab ${activeView === 'New Jobs' ? 'active' : ''}" data-view="New Jobs">Recently discovered</button><button class="tab" data-view="Saved Jobs">Saved</button><div class="tab-end">API results · ${list.length} on this page</div></div><div class="results-layout"><div class="results-column"><div class="results-head"><div class="results-count"><strong>${list.length} listings</strong> returned${loadingJobs ? ' · loading' : ''}</div><button class="sort" id="sort-button" type="button">Sort: ${escapeHTML(humanize(sortOrder))}⌄</button></div><div class="job-list">${resultState}</div><div class="below-grid"><section class="mini-panel"><div class="mini-head"><h3>Source status</h3><button class="text-link" data-view="Settings" type="button">View details</button></div><p class="alert-body">The documented API does not expose source health or coverage. Listing cards show only records returned by search.</p></section><section class="mini-panel"><div class="mini-head"><h3>Application workflow</h3>${icon('shield')}</div><p class="alert-body">A review workflow is accepted by OneRole only when a supported capability, active workspace, resume version, and stored consent are available.</p></section></div></div>${detailHTML(selectedJob)}</div>`;
+    }
+
+    function applicationsPage() {
+      const rows = applications.map(item => {
+        const job = jobs.find(candidate => candidate.id === item.job_id);
+        const status = item.status || 'accepted';
+        const title = job ? `${job.title} · ${job.company}` : `Application ${item.id}`;
+        const label = statusLabels[status] || humanize(status);
+        const copy = status === 'submitted' ? 'The API reports employer confirmation.' : status === 'submission_unconfirmed' ? 'The employer result is ambiguous. Check the employer before taking another action.' : status === 'ready_for_review' ? 'The workflow is ready for review. Packet preview and submit authorization are not available in this UI.' : status === 'approved' ? 'Approval is recorded; employer submission is not confirmed.' : status === 'queued' || status === 'submitting' ? 'OneRole is processing the workflow; employer confirmation is pending.' : item.message || 'Accepted by OneRole; employer submission is not confirmed.';
+        return `<div class="app-row"><div class="company-logo">${escapeHTML(job ? (job.company || '?').slice(0, 1).toUpperCase() : 'A')}</div><div class="app-row-main"><b>${escapeHTML(title)}</b><span>${escapeHTML(copy)}${item.pause_reason ? ` · ${escapeHTML(item.pause_reason)}` : ''}${item.read_error ? ` · Status refresh unavailable: ${escapeHTML(item.read_error)}` : ''}</span></div><span class="status-pill ${status === 'submitted' ? 'applied' : 'preview'}">${escapeHTML(label)}</span></div>`;
+      }).join('');
+      const historyNote = '<div class="job-status warning">The documented API has no application-list endpoint. This tab can show workflows started during this browser session only.</div>';
+      const content = applications.length ? `<div>${rows}</div>${statusLoading ? '<p class="alert-body">Refreshing application status…</p>' : ''}` : '<div class="list-empty"><strong>No workflows started in this tab</strong>Application history is not available from the documented API.</div>';
+      return `${pageHeader('My Applications', 'Track OneRole workflows and employer-confirmed outcomes where available.')}<section class="alt-card application-tracker"><div class="mini-head"><h2>Application tracker</h2><button class="button" id="refresh-applications" type="button" ${!accessToken || !selectedTenantID ? 'disabled' : ''}>Refresh status</button></div>${historyNote}${content}<div class="submission-note"><strong>202 means accepted by OneRole.</strong> It does not mean the employer received or accepted an application. OneRole reports “Employer confirmed receipt” only when the API returns the submitted state.</div></section><section class="alt-card" style="margin-top:13px"><h2>Browse listings</h2><p>Search live listings and review each capability before starting a workflow.</p><button class="button primary" style="margin-top:13px" data-view="Discover Jobs" type="button">Back to Discover Jobs ${icon('chevron')}</button></section>`;
+    }
+
+    function unavailablePage(title, explanation) {
+      return `${pageHeader(title, explanation)}${stateBanner('warning', `${title} is not available yet`, 'No placeholder profile, saved listing, alert, or submission data is displayed. This view needs a documented API route before it can show or change account data.')}<section class="alt-card"><h2>Available API behavior</h2><p>OneRole exposes authenticated job search, job details, OAuth session routes, and application workflow routes. This screen will become interactive when its API contract is added.</p><button class="button primary" style="margin-top:14px" data-view="Discover Jobs" type="button">Open Discover Jobs ${icon('chevron')}</button></section>`;
+    }
+
+    function settingsPage() {
+      const providerText = providersLoaded ? `${providers.filter(item => item.enabled).length} sign-in provider(s) enabled` : apiError || 'Provider status has not loaded.';
+      return `${pageHeader('Settings', 'Review the current API connection and enabled sign-in providers.')}<section class="alt-card"><h2>API connection</h2><p>${escapeHTML(API_BASE)}</p><div class="alt-items"><div class="alt-item"><b>Session</b><span>${accessToken ? 'Authenticated with a short-lived in-memory access token.' : 'No active OneRole session.'}</span></div><div class="alt-item"><b>Workspace</b><span>${selectedTenantID ? 'An active tenant is selected for tenant-owned workflows.' : 'No active workspace is selected.'}</span></div><div class="alt-item"><b>Sign-in providers</b><span>${escapeHTML(providerText)}</span></div></div></section><section class="alt-card"><h2>Browser session origin</h2><p>Use the same origin, or same-site subdomains with the exact frontend origin in ALLOWED_ORIGINS. Cross-site frontends are unsupported because refresh cookies use SameSite=Strict.</p></section><section class="alt-card"><h2>Live data and source coverage</h2><p>Job search uses API records only. Source connection and coverage details are not exposed by the current API contract.</p></section>`;
+    }
+
+    function autoApplyPage() {
+      return `${pageHeader('Auto-apply', 'Automatic employer submission is not enabled from this prototype.')}<div class="auto-layout"><div class="auto-main"><section class="auto-hero"><div><div class="auto-status-line"><i></i>Unavailable · no auto-submit control is exposed</div><h2>Review every workflow before an employer is contacted.</h2><p>The documented API can accept a review workflow. It does not expose consent management, submission-rule settings, or a browser control to authorize automatic submission.</p></div><div class="auto-icon">${icon('shield')}</div></section><section class="alt-card" style="margin-top:0"><h2>Application safeguards</h2><div class="auto-safe"><div class="auto-safe-row">${icon('shield')}Stored consent and required evidence are checked before submission is queued.</div><div class="auto-safe-row">${icon('shield')}An ambiguous employer response is not blindly retried.</div><div class="auto-safe-row">${icon('shield')}A OneRole 202 response means workflow acceptance, not employer confirmation.</div></div></section></div></div>`;
+    }
+
+    function render() {
+      updateIdentity();
+      document.getElementById('crumb-current').textContent = activeView;
+      document.querySelectorAll('.nav-link, .mobile-nav button').forEach(button => button.classList.toggle('active', button.dataset.view === activeView));
+      const content = document.querySelector('.content');
+      if (viewsWithSearch.has(activeView)) {
+        content.innerHTML = discoveryPage();
+        content.querySelector('.search-panel')?.insertAdjacentHTML('afterend', filterPanelHTML());
+      }
+      else if (activeView === 'My Applications') content.innerHTML = applicationsPage();
+      else if (activeView === 'Auto-apply') content.innerHTML = autoApplyPage();
+      else if (activeView === 'Settings') content.innerHTML = settingsPage();
+      else {
+        const details = {
+          Overview: 'A personalized overview needs account and application-list endpoints.',
+          'Saved Jobs': 'Saved-job storage and listing routes are not in the documented API.',
+          'Recommended for You': 'Recommendations need profile and ranking endpoints.',
+          'Resume & Profile': 'Profile and resume management routes are not in the documented API.',
+          'Job Alerts': 'Alert preferences and delivery routes are not in the documented API.'
+        };
+        content.innerHTML = unavailablePage(activeView, details[activeView] || 'This view has no API-backed data yet.');
+      }
+      bindEvents();
+    }
+
+    function navigateTo(view) {
+      activeView = view;
+      activeTab = 'For you';
+      mobileDetail = false;
+      render();
+      if (viewsWithSearch.has(activeView)) loadJobs();
+      if (activeView === 'My Applications') refreshApplicationStatuses();
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function bindShellEvents() {
+      document.querySelectorAll('.sidebar .nav-link, .mobile-nav button').forEach(button => button.addEventListener('click', () => navigateTo(button.dataset.view)));
+      document.getElementById('global-search')?.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        searchTerm = event.target.value;
+        navigateTo('Discover Jobs');
+      });
+      document.getElementById('session-action')?.addEventListener('click', () => accessToken ? signOut() : toast('Sign in with an enabled provider to continue.'));
+      document.getElementById('tenant-select')?.addEventListener('change', event => {
+        selectedTenantID = event.target.value;
+        storeTenantSelection(selectedTenantID);
+        render();
+        if (activeView === 'My Applications') refreshApplicationStatuses();
+      });
+    }
+
+    function bindEvents() {
+      document.querySelector('.content')?.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => navigateTo(button.dataset.view)));
+      document.getElementById('filter-button')?.addEventListener('click', () => {
+        filtersOpen = !filtersOpen;
+        if (filtersOpen) {
+          filterDraft = cloneFilters(appliedFilters);
+          facetLoadError = '';
+          companySuggestions = {include: [], exclude: []};
+          locationSuggestions = [];
+          render();
+          loadFilterMetadata();
+        } else {
+          render();
+        }
+      });
+      document.getElementById('close-filters')?.addEventListener('click', () => { filtersOpen = false; render(); });
+      document.getElementById('refresh-filter-counts')?.addEventListener('click', refreshDraftFacets);
+      document.getElementById('apply-filters')?.addEventListener('click', () => {
+        readFilterDraftFromDOM();
+        appliedFilters = cloneFilters(filterDraft);
+        filtersOpen = false;
+        render();
+        loadJobs();
+      });
+      document.getElementById('clear-filters')?.addEventListener('click', () => {
+        appliedFilters = emptyFilters();
+        filterDraft = emptyFilters();
+        searchTerm = '';
+        locationTerm = '';
+        datePreset = 'any';
+        sortOrder = 'relevance';
+        filtersOpen = false;
+        document.getElementById('global-search').value = '';
+        render();
+        loadJobs();
+      });
+      document.getElementById('filter-location-query')?.addEventListener('input', event => scheduleSuggestions('location', event.target.value));
+      document.getElementById('company-include-query')?.addEventListener('input', event => scheduleSuggestions('include', event.target.value));
+      document.getElementById('company-exclude-query')?.addEventListener('input', event => scheduleSuggestions('exclude', event.target.value));
+      document.getElementById('filter-panel')?.addEventListener('input', () => readFilterDraftFromDOM());
+      document.getElementById('filter-panel')?.addEventListener('change', () => readFilterDraftFromDOM());
+      document.querySelectorAll('[data-remove-location]').forEach(button => button.addEventListener('click', () => {
+        readFilterDraftFromDOM();
+        filterDraft.locations.splice(Number(button.dataset.removeLocation), 1);
+        render();
+      }));
+      document.querySelectorAll('[data-remove-company]').forEach(button => button.addEventListener('click', () => {
+        readFilterDraftFromDOM();
+        const property = button.dataset.removeCompany === 'include' ? 'companies' : 'excludedCompanies';
+        filterDraft[property].splice(Number(button.dataset.index), 1);
+        render();
+      }));
+      bindSuggestionEvents();
+      document.querySelectorAll('.job-card').forEach(card => {
+        const select = () => {
+          selectedJob = jobs.find(job => job.id === card.dataset.job) || null;
+          mobileDetail = true;
+          render();
+        };
+        card.addEventListener('click', event => { if (!event.target.closest('button,a')) select(); });
+        card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); } });
+      });
+      document.getElementById('role-query')?.addEventListener('input', event => { searchTerm = event.target.value; });
+      document.getElementById('location-query')?.addEventListener('input', event => { locationTerm = event.target.value; });
+      document.getElementById('search-submit')?.addEventListener('click', () => {
+        searchTerm = document.getElementById('role-query')?.value || '';
+        locationTerm = document.getElementById('location-query')?.value || '';
+        activeView = 'Discover Jobs';
+        render();
+        loadJobs();
+      });
+      document.getElementById('date-window')?.addEventListener('change', event => { datePreset = event.target.value; loadJobs(); });
+      document.getElementById('sort-button')?.addEventListener('click', () => {
+        const order = ['relevance', 'published_desc', 'first_seen_desc', 'salary_desc'];
+        sortOrder = order[(order.indexOf(sortOrder) + 1) % order.length];
+        loadJobs();
+      });
+      document.getElementById('refresh-applications')?.addEventListener('click', refreshApplicationStatuses);
+      document.getElementById('mobile-close')?.addEventListener('click', () => { mobileDetail = false; render(); });
+      document.querySelectorAll('[data-apply]').forEach(button => button.addEventListener('click', event => {
+        event.stopPropagation();
+        createApplication(button.dataset.apply);
+      }));
+    }
+
+    async function signOut() {
+      const csrf = csrfToken || readCookie('onerole_csrf');
+      try {
+        if (accessToken && csrf) await apiRequest('/auth/logout', {method: 'POST', headers: {'X-CSRF-Token': csrf}, retry: false});
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        accessToken = '';
+        csrfToken = '';
+        currentUser = null;
+        selectedTenantID = '';
+        applications = [];
+        storeTenantSelection('');
+        jobs = [];
+        selectedJob = null;
+        await loadProviders();
+        render();
+      }
+    }
+
+    async function initialize() {
+      await loadProviders();
+      try {
+        await refreshAccessToken();
+        currentUser = await apiRequest('/auth/me', {retry: false});
+        chooseTenant(Array.isArray(currentUser?.memberships) ? currentUser.memberships : []);
+        apiError = '';
+      } catch (error) {
+        accessToken = '';
+        currentUser = null;
+        selectedTenantID = '';
+        if (error.status && error.status !== 401) apiError = error.message;
+      }
+      render();
+      if (accessToken) loadJobs();
+    }
+
+    document.addEventListener('keydown', event => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        document.getElementById('global-search')?.focus();
+      }
+      if (event.key === 'Escape' && mobileDetail) { mobileDetail = false; render(); }
+    });
+    bindShellEvents();
+    render();
+    initialize();
+  </script>
+</body>
+</html>

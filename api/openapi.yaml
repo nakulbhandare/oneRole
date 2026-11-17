@@ -1,0 +1,1679 @@
+openapi: 3.1.0
+info:
+  title: OneRole API
+  version: 0.1.0
+  description: >-
+    Design draft for OneRole's tenant-scoped job discovery and application workflow API.
+    A 202 response means workflow acceptance by OneRole, not employer submission confirmation.
+servers:
+  - url: /api/v1
+    description: Current host API
+  - url: http://localhost:8088/api/v1
+    description: Local development (:8088)
+security:
+  - bearerAuth: []
+tags:
+  - name: Authentication
+  - name: Health
+  - name: Jobs
+  - name: Companies
+  - name: Locations
+  - name: Applications
+  - name: Batches
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      security: []
+      summary: Process liveness
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /readyz:
+    get:
+      tags: [Health]
+      security: []
+      summary: Readiness including required dependencies
+      responses:
+        '200':
+          description: Ready to accept traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: One or more required dependencies are not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /auth/providers:
+    get:
+      tags: [Authentication]
+      security: []
+      summary: List enabled sign-in providers
+      responses:
+        '200':
+          description: Login buttons available in this OneRole deployment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthProviders'
+  /auth/dev-login:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Instant 1-click login for local development and testing
+      description: >-
+        Authenticates immediately as the requested email (defaults to onerole@gmail.com),
+        ensures an active tenant and membership exists, and returns a signed access JWT
+        plus session cookies. Only available outside production environments.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: onerole@gmail.com
+                name:
+                  type: string
+                  example: OneRole Candidate
+            example:
+              email: onerole@gmail.com
+              name: OneRole Candidate
+      responses:
+        '200':
+          description: Session established and JWT access token minted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, user_id, email, tenant_id]
+                properties:
+                  access_token:
+                    type: string
+                    example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImxvY2FsLTEifQ...
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    example: 600
+                  user_id:
+                    type: string
+                    format: uuid
+                    example: 22222222-2222-4222-8222-222222222222
+                  email:
+                    type: string
+                    example: onerole@gmail.com
+                  display_name:
+                    type: string
+                    example: OneRole Candidate
+                  tenant_id:
+                    type: string
+                    format: uuid
+                    example: 00000000-0000-4000-8000-000000000001
+                  csrf_token:
+                    type: string
+                    example: v1.8j7z...
+        '403':
+          description: Dev login is disabled in production
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  /auth/csrf:
+    get:
+      tags: [Authentication]
+      security: []
+      summary: Bootstrap the CSRF token for an allowed browser origin
+      description: >-
+        Requires a valid signed onerole_csrf cookie and an exact configured Origin.
+        Same-site subdomain frontends may call this endpoint with credentials to
+        receive the token for X-CSRF-Token. Different registrable domains are not
+        supported because the cookie uses SameSite=Strict.
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+        - $ref: '#/components/parameters/CSRFBootstrapCookie'
+      responses:
+        '200':
+          description: Signed double-submit token for the configured browser origin
+          headers:
+            Cache-Control:
+              description: Response is never cached
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CSRFBootstrap' }
+        '403':
+          description: Origin or CSRF cookie is missing, invalid, or not configured
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  /auth/oauth/{provider}/start:
+    get:
+      tags: [Authentication]
+      security: []
+      summary: Start Google or GitHub authorization-code sign-in
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '302':
+          description: Redirect to the selected identity provider
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /auth/oauth/{provider}/callback:
+    get:
+      tags: [Authentication]
+      security: []
+      summary: Complete the provider callback and establish a OneRole session
+      description: >-
+        Consumes the one-time state and code, validates provider identity, sets a
+        rotating HttpOnly refresh cookie scoped to /api/v1/auth and a signed,
+        JavaScript-readable CSRF cookie scoped to /, clears the browser-binding
+        cookie, and redirects only to a configured frontend route.
+        Provider access tokens are never returned to the browser.
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string, minLength: 32 }
+      responses:
+        '302':
+          description: Redirects to the fixed frontend callback route; sets the refresh and CSRF cookies
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      security:
+        - refreshCookie: []
+      summary: Rotate the refresh credential and mint a short-lived OneRole JWT
+      description: Requires the HttpOnly refresh cookie and CSRF/origin validation. The frontend reads the signed CSRF cookie (Path=/) and sends its value in X-CSRF-Token. The old refresh token is invalidated.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '200':
+          description: New short-lived access token; refresh cookie is rotated
+          headers:
+            Set-Cookie:
+              description: Rotated Secure, HttpOnly, SameSite refresh cookie
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Origin or CSRF token validation failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Revoke the active OneRole session
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '204':
+          description: Session revoked and refresh cookie cleared
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Origin or CSRF token validation failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get the authenticated OneRole identity and active tenant memberships
+      responses:
+        '200':
+          description: Current identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /companies/search:
+    get:
+      tags: [Companies]
+      summary: Search canonical employers for the Companies filter
+      parameters:
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Canonical company suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanySearchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /locations/suggest:
+    get:
+      tags: [Locations]
+      summary: Suggest normalized locations for the Location filter
+      parameters:
+        - $ref: '#/components/parameters/LocationQuery'
+        - name: country_code
+          in: query
+          schema: { type: string, minLength: 2, maxLength: 2 }
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Location suggestions with matching job counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationSuggestions'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: Search jobs with basic filters
+      parameters:
+        - $ref: '#/components/parameters/JobIDFilter'
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/DatePreset'
+        - $ref: '#/components/parameters/Workplace'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Matching jobs and cursor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /jobs/search:
+    get:
+      tags: [Jobs]
+      summary: Search with linkable query-string filters
+      description: Repeated query parameters are multi-select. For the full structured filter body, use POST.
+      parameters:
+        - $ref: '#/components/parameters/JobIDFilter'
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/ExcludeTerm'
+        - $ref: '#/components/parameters/DatePreset'
+        - $ref: '#/components/parameters/PublishedAfter'
+        - $ref: '#/components/parameters/PublishedBefore'
+        - $ref: '#/components/parameters/FirstSeenAfter'
+        - $ref: '#/components/parameters/IncludeUnknownPublicationTime'
+        - $ref: '#/components/parameters/Location'
+        - $ref: '#/components/parameters/RadiusKM'
+        - $ref: '#/components/parameters/IncludeUnknownLocation'
+        - $ref: '#/components/parameters/Workplace'
+        - $ref: '#/components/parameters/IncludeUnknownWorkplace'
+        - $ref: '#/components/parameters/CompanyID'
+        - $ref: '#/components/parameters/ExcludedCompanyID'
+        - $ref: '#/components/parameters/IncludeUnknownCompany'
+        - $ref: '#/components/parameters/DegreeLevel'
+        - $ref: '#/components/parameters/IncludeUnknownDegree'
+        - $ref: '#/components/parameters/DegreeRequirement'
+        - $ref: '#/components/parameters/MaxExperienceYears'
+        - $ref: '#/components/parameters/IncludeUnknownExperience'
+        - $ref: '#/components/parameters/VisaSponsorship'
+        - $ref: '#/components/parameters/RoleID'
+        - $ref: '#/components/parameters/IncludeUnknownRoles'
+        - $ref: '#/components/parameters/JobType'
+        - $ref: '#/components/parameters/IncludeUnknownJobType'
+        - $ref: '#/components/parameters/EmploymentType'
+        - $ref: '#/components/parameters/IncludeUnknownEmploymentType'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Matching jobs, applied filters, and facets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Jobs]
+      summary: Search with the complete structured filter set
+      description: Read-only search used by the Apply filters action in the OneRole UI.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobSearchRequest'
+      responses:
+        '200':
+          description: Matching jobs, applied filters, facet counts, and cursor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /jobs/filters:
+    get:
+      tags: [Jobs]
+      summary: Get supported filter choices and normalized facet values
+      responses:
+        '200':
+          description: Filter vocabularies and data-quality counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterMetadata'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Jobs]
+      summary: Get facet counts in the context of a draft search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobSearchRequest'
+      responses:
+        '200':
+          description: Facet values and counts conditioned on the supplied search
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacetSet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /jobs/recommendations:
+    get:
+      tags: [Jobs]
+      summary: Get AI/ATS-ranked job recommendations matching candidate resume and profile
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - name: min_score
+          in: query
+          required: false
+          schema: { type: integer, default: 50, example: 70 }
+          description: Minimum ATS match percentage filter (0-100)
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 20, example: 10 }
+          description: Maximum number of recommendations to return
+      responses:
+        '200':
+          description: Ranked list of recommended jobs with ATS match scores and skill alignments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer, example: 12 }
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScoredJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /jobs/{jobID}:
+    get:
+      tags: [Jobs]
+      summary: Get a normalized job and available application capabilities
+      parameters:
+        - $ref: '#/components/parameters/JobID'
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications:
+    get:
+      tags: [Applications]
+      summary: List user's tenant-scoped applications
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated list of applications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Application'
+                  total:
+                    type: integer
+                  next_cursor:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Applications]
+      summary: Start an application from the user's Apply action
+      description: >-
+        Persists application intent and queues preparation. Submission can be queued
+        only after consent, evidence, completeness, and employer capability checks pass.
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplication'
+      responses:
+        '202':
+          description: Workflow accepted by OneRole
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /applications/{applicationID}:
+    get:
+      tags: [Applications]
+      summary: Get application state, capability, pause reason, and next action
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ApplicationID'
+      responses:
+        '200':
+          description: Application state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications/{applicationID}/submit:
+    post:
+      tags: [Applications]
+      summary: Authorize submission of a ready application
+      description: >-
+        Creates a durable submission workflow only when the stored user consent is valid,
+        required facts are resolved, and the employer adapter supports the flow.
+        An ambiguous external response is never blindly retried.
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ApplicationID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Submission workflow accepted, not yet employer-confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /application-batches:
+    post:
+      tags: [Batches]
+      summary: Queue independent application workflows for a user-selected batch
+      description: A batch is not an all-or-nothing transaction and does not guarantee employer acceptance.
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBatch'
+      responses:
+        '202':
+          description: Batch accepted for asynchronous processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /application-batches/{batchID}:
+    get:
+      tags: [Batches]
+      summary: Get batch progress and independent item counts
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - name: batchID
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Batch state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Batch'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications/{applicationID}/timeline:
+    get:
+      tags: [Applications]
+      summary: Read append-only application events and lifecycle outcomes
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ApplicationID'
+      responses:
+        '200':
+          description: Event stream for the application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationTimeline'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications/{applicationID}/receipt:
+    get:
+      tags: [Applications]
+      summary: Read sanitized employer submission evidence or receipt
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ApplicationID'
+      responses:
+        '200':
+          description: Submission receipt evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationReceipt'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications/{applicationID}/resume:
+    get:
+      tags: [Applications]
+      summary: Download or view the exact vacancy-bound resume snapshot attached to this application
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ApplicationID'
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [html, text, json]
+            default: json
+          description: Desired format (html for browser rendered serif PDF/HTML, text for ATS plain text, json for metadata)
+      responses:
+        '200':
+          description: Vacancy-bound resume document or metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResumeView'
+            text/html:
+              schema:
+                type: string
+            text/plain:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /applications/auto-apply:
+    post:
+      tags: [Applications]
+      summary: 1-Click smart auto-apply using candidate profile and verified resume facts
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [job_id]
+              properties:
+                job_id: { type: string, example: "644150ef-1c41-41e5-b049-f4256bab80e7" }
+                application_id: { type: string, example: "6b4bb05b-fbae-40d6-a763-dfd8a1913011" }
+                resume_version_id: { type: string, example: "55555555-5555-4555-8555-555555555555" }
+                tailor_resume: { type: boolean, default: true, description: "Whether to tailor resume experience to the job description while strictly preserving the visual layout. Set false to submit un-tailored master resume." }
+      responses:
+        '200':
+          description: Application submitted with verified receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoApplyResult'
+  /applications/auto-apply/batch:
+    post:
+      tags: [Applications]
+      summary: High-throughput batch 1-click smart auto-apply
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [job_ids]
+              properties:
+                job_ids:
+                  type: array
+                  items: { type: string }
+                  example: ["644150ef-1c41-41e5-b049-f4256bab80e7", "f5da1e10-136e-42b9-85cf-e830f45f381b"]
+                resume_version_id: { type: string, example: "55555555-5555-4555-8555-555555555555" }
+                tailor_resume: { type: boolean, default: true, description: "Whether to tailor resume experience to each job description while preserving the visual layout." }
+      responses:
+        '200':
+          description: Batch submission results and statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoApplyBatchResult'
+  /profile:
+    get:
+      tags: [Profile]
+      summary: Get candidate profile evidence and verified facts
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: Current candidate profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateProfile'
+    patch:
+      tags: [Profile]
+      summary: Update candidate profile evidence and factual answers
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name: { type: string, example: "Jane" }
+                last_name: { type: string, example: "Doe" }
+                phone: { type: string, example: "555-019-2834" }
+                years_of_experience: { type: integer, example: 7 }
+                desired_salary_min: { type: integer, example: 150000 }
+                open_to_remote: { type: boolean, example: true }
+      responses:
+        '200':
+          description: Updated candidate profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateProfile'
+    put:
+      tags: [Profile]
+      summary: Replace or update candidate profile evidence
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateProfile'
+      responses:
+        '200':
+          description: Updated candidate profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateProfile'
+  /jobs/recent:
+    get:
+      tags: [Jobs]
+      summary: Sort jobs by recent publication or discovery time
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 25, maximum: 100 }
+      responses:
+        '200':
+          description: List of recent jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Job' } }
+                  next_cursor: { type: string, nullable: true }
+  /sources:
+    get:
+      tags: [Sources]
+      summary: List registered job ingestion sources and capabilities
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 50, maximum: 200 }
+      responses:
+        '200':
+          description: List of company job sources
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SourceSummary' }
+                  total: { type: integer, example: 18901 }
+  /sources/{sourceID}/health:
+    get:
+      tags: [Sources]
+      summary: Read health and sync metrics for a specific source
+      parameters:
+        - name: sourceID
+          in: path
+          required: true
+          schema: { type: string, example: "b3eda641-f3d1-481e-b389-cbbf2656839f" }
+      responses:
+        '200':
+          description: Source health information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceHealth'
+components:
+  securitySchemes:
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: onerole_refresh
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      schema: { type: string, enum: [google, github] }
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string, minLength: 32 }
+    CSRFBootstrapCookie:
+      name: onerole_csrf
+      in: cookie
+      required: true
+      schema: { type: string, minLength: 32, maxLength: 256 }
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      description: Must exactly match an origin in ALLOWED_ORIGINS.
+      schema: { type: string, minLength: 1, maxLength: 256 }
+    LocationQuery:
+      name: q
+      in: query
+      required: true
+      schema: { type: string, minLength: 2, maxLength: 160 }
+    SearchQuery:
+      name: q
+      in: query
+      schema: { type: string, maxLength: 200 }
+    ExcludeTerm:
+      name: exclude
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, maxItems: 30, items: { type: string, minLength: 1, maxLength: 100 } }
+    DatePreset:
+      name: date_preset
+      in: query
+      schema: { type: string, enum: [last_6_hours, last_24_hours, last_7_days, last_30_days, last_60_days, custom, any] }
+    PublishedAfter:
+      name: published_after
+      in: query
+      schema: { type: string, format: date-time }
+    IncludeUnknownPublicationTime:
+      name: include_unknown_publication_time
+      in: query
+      schema: { type: boolean, default: false }
+    PublishedBefore:
+      name: published_before
+      in: query
+      schema: { type: string, format: date-time }
+    FirstSeenAfter:
+      name: first_seen_after
+      in: query
+      schema: { type: string, format: date-time }
+    Location:
+      name: location
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, maxItems: 10, items: { type: string, minLength: 1, maxLength: 160 } }
+    RadiusKM:
+      name: radius_km
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 500 }
+    Workplace:
+      name: workplace
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { type: string, enum: [remote, hybrid, on_site, unknown] } }
+    JobIDFilter:
+      name: job_id
+      in: query
+      style: form
+      explode: true
+      description: Filter by one or more job IDs (UUID). Also accepts id or job_ids.
+      schema: { type: array, items: { type: string, format: uuid } }
+    CompanyID:
+      name: company_id
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { type: string, format: uuid } }
+    ExcludedCompanyID:
+      name: exclude_company_id
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { type: string, format: uuid } }
+    DegreeLevel:
+      name: degree_level
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { type: string, enum: [high_school, associate, bachelor, master, doctorate, no_degree_stated, unknown] } }
+    DegreeRequirement:
+      name: degree_requirement
+      in: query
+      schema: { type: string, enum: [required, preferred, any] }
+    MaxExperienceYears:
+      name: max_experience_years
+      in: query
+      schema: { type: integer, minimum: 0, maximum: 50 }
+    IncludeUnknownLocation:
+      name: include_unknown_location
+      in: query
+      schema: { type: boolean, default: false }
+    IncludeUnknownWorkplace:
+      name: include_unknown_workplace
+      in: query
+      schema: { type: boolean, default: false }
+    IncludeUnknownCompany:
+      name: include_unknown_company
+      in: query
+      schema: { type: boolean, default: false }
+    IncludeUnknownDegree:
+      name: include_unknown_degree
+      in: query
+      schema: { type: boolean, default: false }
+    IncludeUnknownExperience:
+      name: include_unknown_experience
+      in: query
+      schema: { type: boolean, default: false }
+    VisaSponsorship:
+      name: visa_sponsorship
+      in: query
+      schema: { type: string, enum: [yes, no, unknown, any] }
+    RoleID:
+      name: role_id
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, maxItems: 30, items: { type: string, maxLength: 80 } }
+    IncludeUnknownRoles:
+      name: include_unknown_role
+      in: query
+      schema: { type: boolean, default: false }
+    IncludeUnknownJobType:
+      name: include_unknown_job_type
+      in: query
+      schema: { type: boolean, default: false }
+    IncludeUnknownEmploymentType:
+      name: include_unknown_employment_type
+      in: query
+      schema: { type: boolean, default: false }
+    JobType:
+      name: job_type
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { type: string, enum: [internship, entry_level, associate, mid_level, senior, lead, manager, director, executive] } }
+    EmploymentType:
+      name: employment_type
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { type: string, enum: [full_time, part_time, contract, temporary, seasonal, freelance, internship, apprenticeship, other] } }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    Sort:
+      name: sort
+      in: query
+      schema: { type: string, enum: [relevance, published_desc, first_seen_desc, salary_desc], default: relevance }
+    JobID:
+      name: jobID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ApplicationID:
+      name: applicationID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TenantID:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: Active tenant scope; the API verifies current membership for every request.
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Same key and payload replays the original workflow; changed payload returns 409.
+      schema: { type: string, minLength: 16, maxLength: 200 }
+  schemas:
+    Health:
+      type: object
+      required: [status, service]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        service: { type: string, const: OneRole }
+        request_id: { type: string }
+    AuthProviders:
+      type: object
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items:
+            type: object
+            required: [id, label, enabled]
+            properties:
+              id: { type: string, enum: [google, github] }
+              label: { type: string, enum: [Continue with Google, Continue with GitHub] }
+              enabled: { type: boolean }
+    CSRFBootstrap:
+      type: object
+      required: [csrf_token]
+      properties:
+        csrf_token: { type: string, minLength: 32, maxLength: 256, description: Signed value to send in X-CSRF-Token for refresh and logout. }
+    AccessToken:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token: { type: string, description: Short-lived OneRole JWT; keep in browser memory. }
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer, minimum: 1 }
+    CurrentUser:
+      type: object
+      required: [user_id, display_name, memberships]
+      properties:
+        user_id: { type: string, format: uuid }
+        display_name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        memberships:
+          type: array
+          items:
+            type: object
+            required: [tenant_id, role]
+            properties:
+              tenant_id: { type: string, format: uuid }
+              role: { type: string, enum: [owner, admin, member] }
+    CompanySearchResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              logo_url: { type: [string, 'null'], format: uri }
+        next_cursor: { type: [string, 'null'] }
+    LocationSuggestions:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, label, country_code, matching_job_count]
+            properties:
+              id: { type: string }
+              label: { type: string }
+              city: { type: [string, 'null'] }
+              region: { type: [string, 'null'] }
+              country_code: { type: string, minLength: 2, maxLength: 2 }
+              matching_job_count: { type: integer, minimum: 0 }
+        next_cursor: { type: [string, 'null'] }
+    JobSearchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        job_ids:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        id: { type: string, format: uuid }
+        query: { type: string, maxLength: 200 }
+        exclude_terms:
+          type: array
+          maxItems: 30
+          items: { type: string, minLength: 1, maxLength: 100 }
+        date:
+          type: object
+          properties:
+            preset: { type: string, enum: [last_6_hours, last_24_hours, last_7_days, last_30_days, last_60_days, custom, any] }
+            published_after: { type: [string, 'null'], format: date-time }
+            published_before: { type: [string, 'null'], format: date-time }
+            first_seen_after: { type: [string, 'null'], format: date-time }
+            include_unknown_publication_time: { type: boolean, default: false }
+        include_unknown_location: { type: boolean, default: false }
+        include_unknown_company: { type: boolean, default: false }
+        include_unknown_degree: { type: boolean, default: false }
+        include_unknown_workplace: { type: boolean, default: false }
+        include_unknown_role: { type: boolean, default: false }
+        include_unknown_job_type: { type: boolean, default: false }
+        include_unknown_employment_type: { type: boolean, default: false }
+        location_ids:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { type: string, maxLength: 120 }
+        locations:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            properties:
+              location_id: { type: string, maxLength: 120 }
+              country_code: { type: string, minLength: 2, maxLength: 2 }
+              region: { type: string, maxLength: 100 }
+              city: { type: string, maxLength: 100 }
+              radius_km: { type: integer, minimum: 1, maximum: 500 }
+        workplace_modes:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [remote, hybrid, on_site, unknown] }
+        company_ids:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        excluded_company_ids:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        degree_levels:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [high_school, associate, bachelor, master, doctorate, no_degree_stated, unknown] }
+        degree_requirement: { type: string, enum: [required, preferred, any], default: any }
+        max_experience_years: { type: [integer, 'null'], minimum: 0, maximum: 50 }
+        include_unknown_experience: { type: boolean, default: false }
+        visa_sponsorship: { type: string, enum: [yes, no, unknown, any], default: any }
+        role_ids:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items: { type: string, maxLength: 80 }
+        job_types:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [internship, entry_level, associate, mid_level, senior, lead, manager, director, executive] }
+        employment_types:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [full_time, part_time, contract, temporary, seasonal, freelance, internship, apprenticeship, other] }
+        sort: { type: string, enum: [relevance, published_desc, first_seen_desc, salary_desc], default: relevance }
+        cursor: { type: [string, 'null'] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    JobSearchResponse:
+      type: object
+      required: [items, applied_filters, facets]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Job' }
+        applied_filters: { $ref: '#/components/schemas/JobSearchRequest' }
+        facets: { $ref: '#/components/schemas/FacetSet' }
+        next_cursor: { type: [string, 'null'] }
+    FilterMetadata:
+      type: object
+      required: [facets]
+      properties:
+        facets: { $ref: '#/components/schemas/FacetSet' }
+    FacetSet:
+      type: object
+      additionalProperties:
+        type: object
+        required: [options, unknown_count]
+        properties:
+          options:
+            type: array
+            items:
+              type: object
+              required: [value, label, count]
+              properties:
+                value: { type: string }
+                label: { type: string }
+                count: { type: integer, minimum: 0 }
+          unknown_count: { type: integer, minimum: 0 }
+          taxonomy_version: { type: [string, 'null'] }
+    Job:
+      type: object
+      required: [id, company, title, first_seen_at, application_capability]
+      properties:
+        id: { type: string, format: uuid }
+        company_id: { type: [string, 'null'], format: uuid }
+        company: { type: string }
+        title: { type: string }
+        description: { type: string }
+        location: { type: string }
+        country_code: { type: [string, 'null'], minLength: 2, maxLength: 2 }
+        region: { type: [string, 'null'] }
+        city: { type: [string, 'null'] }
+        workplace_modes:
+          type: array
+          items: { type: string, enum: [remote, hybrid, on_site, unknown] }
+        role_ids:
+          type: array
+          items: { type: string }
+        job_type: { type: [string, 'null'], enum: [internship, entry_level, associate, mid_level, senior, lead, manager, director, executive, null] }
+        employment_types:
+          type: array
+          items: { type: string, enum: [full_time, part_time, contract, temporary, seasonal, freelance, internship, apprenticeship, other] }
+        degree_levels:
+          type: array
+          items: { type: string, enum: [high_school, associate, bachelor, master, doctorate, no_degree_stated, unknown] }
+        degree_requirement: { type: [string, 'null'], enum: [required, preferred, any, null] }
+        experience_min_years: { type: [integer, 'null'], minimum: 0 }
+        experience_max_years: { type: [integer, 'null'], minimum: 0 }
+        visa_sponsorship: { type: string, enum: [yes, no, unknown] }
+        filter_provenance:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status: { type: string, enum: [source_explicit, normalized, inferred, unknown] }
+              source_url: { type: [string, 'null'], format: uri }
+              observed_at: { type: [string, 'null'], format: date-time }
+              confidence: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        published_at: { type: [string, 'null'], format: date-time }
+        publication_time_quality: { type: string, enum: [source_provided, unknown] }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        application_capability:
+          type: string
+          enum: [automated_supported, assisted_supported, manual_required, unsupported, requires_authentication, requires_information]
+        source_url: { type: string, format: uri }
+    JobPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Job' }
+        next_cursor: { type: [string, 'null'] }
+    CreateApplication:
+      type: object
+      additionalProperties: false
+      required: [job_id, resume_version_id, consent_id, mode]
+      properties:
+        job_id: { type: string, format: uuid }
+        resume_version_id: { type: string, format: uuid }
+        packet_id: { type: [string, 'null'], format: uuid }
+        consent_id: { type: string, format: uuid }
+        mode: { type: string, enum: [review_before_submit, submit_when_ready] }
+    CreateBatch:
+      type: object
+      additionalProperties: false
+      required: [job_ids, resume_version_id, consent_id, mode]
+      properties:
+        job_ids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        resume_version_id: { type: string, format: uuid }
+        consent_id: { type: string, format: uuid }
+        mode: { type: string, enum: [review_before_submit, submit_when_ready] }
+    WorkflowAccepted:
+      type: object
+      required: [workflow_id, status, status_url]
+      properties:
+        workflow_id: { type: string, format: uuid }
+        status: { type: string, enum: [accepted, preparing, queued] }
+        status_url: { type: string }
+        accepted_at: { type: string, format: date-time }
+        message: { type: string, const: Accepted by OneRole; employer submission is not yet confirmed. }
+    Application:
+      type: object
+      required: [id, job_id, status, capability, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        status: { type: string, enum: [preparing, needs_user_input, ready_for_review, approved, queued, submitting, submitted, submission_unconfirmed, requires_manual_action, failed_retryable, failed_permanent, duplicate, expired, skipped, rejected_by_user] }
+        capability: { type: string }
+        pause_reason: { type: [string, 'null'] }
+        updated_at: { type: string, format: date-time }
+    Batch:
+      type: object
+      required: [id, total, counts, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        total: { type: integer, minimum: 0 }
+        counts:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string, example: "invalid_request" }
+            message: { type: string, example: "The application request is invalid." }
+            request_id: { type: string, example: "req-98f219b2a1" }
+            details:
+              type: array
+              items: { type: object, additionalProperties: true }
+      example:
+        error:
+          code: "invalid_request"
+          message: "The application request is invalid."
+          request_id: "req-98f219b2a1"
+    CandidateProfile:
+      type: object
+      required: [id, user_id, tenant_id, first_name, last_name, email]
+      properties:
+        id: { type: string, example: "prof-00000000-0000-4000-8000-000000000001" }
+        user_id: { type: string, format: uuid, example: "00000000-0000-4000-8000-000000000001" }
+        tenant_id: { type: string, format: uuid, example: "00000000-0000-4000-8000-000000000002" }
+        first_name: { type: string, example: "OneRole" }
+        last_name: { type: string, example: "Candidate" }
+        email: { type: string, format: email, example: "onerole@gmail.com" }
+        phone: { type: string, example: "555-019-2834" }
+        city: { type: string, example: "San Francisco" }
+        state: { type: string, example: "CA" }
+        country: { type: string, example: "United States" }
+        postal_code: { type: string, example: "94105" }
+        linkedin_url: { type: string, format: uri, example: "https://linkedin.com/in/onerole-candidate" }
+        github_url: { type: string, format: uri, example: "https://github.com/onerole-candidate" }
+        portfolio_url: { type: string, format: uri, example: "https://onerole.me" }
+        authorized_to_work_in_us: { type: boolean, example: true }
+        requires_sponsorship: { type: boolean, example: false }
+        years_of_experience: { type: integer, example: 6 }
+        current_employer: { type: string, example: "Technology Solutions Inc" }
+        current_job_title: { type: string, example: "Senior Software Engineer" }
+        primary_skills:
+          type: array
+          items: { type: string }
+          example: ["Go", "Distributed Systems", "MongoDB", "High Throughput APIs", "Kubernetes"]
+        highest_degree: { type: string, example: "Bachelor's Degree" }
+        desired_salary_min: { type: integer, example: 145000 }
+        open_to_remote: { type: boolean, example: true }
+        notice_period_weeks: { type: integer, example: 2 }
+        resume_content_text: { type: string, example: "Experienced Senior Software Engineer specializing in Go, distributed microservices, and high-performance ingestion architectures." }
+      example:
+        id: "prof-00000000-0000-4000-8000-000000000001"
+        user_id: "00000000-0000-4000-8000-000000000001"
+        tenant_id: "00000000-0000-4000-8000-000000000002"
+        first_name: "OneRole"
+        last_name: "Candidate"
+        email: "onerole@gmail.com"
+        phone: "555-019-2834"
+        city: "San Francisco"
+        state: "CA"
+        country: "United States"
+        authorized_to_work_in_us: true
+        requires_sponsorship: false
+        years_of_experience: 6
+        current_employer: "Technology Solutions Inc"
+        current_job_title: "Senior Software Engineer"
+        primary_skills: ["Go", "Distributed Systems", "MongoDB", "High Throughput APIs"]
+        desired_salary_min: 145000
+        open_to_remote: true
+        highest_degree: "Bachelor's Degree"
+    AutoApplyResult:
+      type: object
+      required: [application_id, job_id, company, job_title, receipt_id, status, submitted_at, answers_count]
+      properties:
+        application_id: { type: string, format: uuid, example: "6b4bb05b-fbae-40d6-a763-dfd8a1913011" }
+        job_id: { type: string, format: uuid, example: "644150ef-1c41-41e5-b049-f4256bab80e7" }
+        company: { type: string, example: "Accenture" }
+        job_title: { type: string, example: "Senior Software Engineer - Go / Distributed Systems" }
+        receipt_id: { type: string, example: "APP-accenture-wd103-myworkdayjobs-com-1793766309359055000" }
+        status: { type: string, example: "submitted" }
+        submitted_at: { type: string, format: date-time, example: "2026-11-04T04:25:09Z" }
+        answers_count: { type: integer, example: 12 }
+        match_score: { type: integer, example: 95, description: "ATS match score percentage (0-100%)" }
+        match_level: { type: string, example: "exceptional" }
+        ats_verdict: { type: string, example: "Top Tier Candidate (92%+ ATS match)" }
+        matched_skills:
+          type: array
+          items: { type: string }
+          example: ["Go", "Kubernetes", "Kafka", "gRPC", "PostgreSQL", "Docker"]
+        missing_skills:
+          type: array
+          items: { type: string }
+          example: []
+        skill_fit:
+          $ref: '#/components/schemas/SkillFitAnalysis'
+        resume_version_id: { type: string, example: "af55a1d1-cda0-4c95-8a09-7ec89d881fc8" }
+        tailored_resume_used: { type: boolean, example: true }
+        resume_url: { type: string, example: "/api/v1/applications/6b4bb05b-fbae-40d6-a763-dfd8a1913011/resume" }
+        error: { type: string, example: "" }
+      example:
+        application_id: "6b4bb05b-fbae-40d6-a763-dfd8a1913011"
+        job_id: "644150ef-1c41-41e5-b049-f4256bab80e7"
+        company: "Accenture"
+        job_title: "Senior Software Engineer - Go / Distributed Systems"
+        receipt_id: "APP-accenture-wd103-myworkdayjobs-com-1793766309359055000"
+        status: "submitted"
+        submitted_at: "2026-11-04T04:25:09Z"
+        answers_count: 12
+        match_score: 95
+        match_level: "exceptional"
+        ats_verdict: "Top Tier Candidate (92%+ ATS match)"
+        matched_skills: ["Go", "Kubernetes", "Kafka", "gRPC", "PostgreSQL", "Docker"]
+        tailored_resume_used: true
+    ScoredJob:
+      type: object
+      required: [job, match_score, match]
+      properties:
+        job:
+          $ref: '#/components/schemas/Job'
+        match_score: { type: integer, example: 96 }
+        match:
+          type: object
+          properties:
+            score: { type: integer, example: 96 }
+            match_level: { type: string, example: "exceptional" }
+            ats_verdict: { type: string, example: "Top Tier Candidate (92%+ ATS match)" }
+            matched_skills:
+              type: array
+              items: { type: string }
+            missing_skills:
+              type: array
+              items: { type: string }
+            breakdown:
+              type: object
+              properties:
+                hard_skills_score: { type: integer, example: 38 }
+                title_seniority_score: { type: integer, example: 25 }
+                experience_work_score: { type: integer, example: 20 }
+                education_certs_score: { type: integer, example: 15 }
+            key_highlights:
+              type: array
+              items: { type: string }
+            tailor_keywords:
+              type: array
+              items: { type: string }
+    AutoApplyBatchResult:
+      type: object
+      required: [total_submitted, total_failed, duration_ms, results]
+      properties:
+        total_submitted: { type: integer, example: 5 }
+        total_failed: { type: integer, example: 0 }
+        duration_ms: { type: integer, example: 145 }
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/AutoApplyResult' }
+      example:
+        total_submitted: 5
+        total_failed: 0
+        duration_ms: 145
+        results:
+          - application_id: "6b4bb05b-fbae-40d6-a763-dfd8a1913011"
+            job_id: "644150ef-1c41-41e5-b049-f4256bab80e7"
+            company: "Accenture"
+            job_title: "Snowflake Solution Architect"
+            receipt_id: "APP-accenture-wd103-myworkdayjobs-com-1793766309359055000"
+            status: "submitted"
+            submitted_at: "2026-11-04T04:25:09Z"
+            answers_count: 10
+    ApplicationTimeline:
+      type: object
+      required: [application_id, events]
+      properties:
+        application_id: { type: string, format: uuid, example: "6b4bb05b-fbae-40d6-a763-dfd8a1913011" }
+        events:
+          type: array
+          items:
+            type: object
+            required: [id, tenant_id, application_id, event_type, to_status, occurred_at]
+            properties:
+              id: { type: string, example: "evt-1793766309359-6b4bb05b" }
+              tenant_id: { type: string, format: uuid, example: "00000000-0000-4000-8000-000000000002" }
+              application_id: { type: string, format: uuid, example: "6b4bb05b-fbae-40d6-a763-dfd8a1913011" }
+              event_type: { type: string, example: "application.submitted" }
+              from_status: { type: string, example: "preparing" }
+              to_status: { type: string, example: "submitted" }
+              receipt_id: { type: string, example: "APP-accenture-wd103-myworkdayjobs-com-1793766309359055000" }
+              actor_type: { type: string, example: "system_auto_apply" }
+              actor_id: { type: string, format: uuid, example: "00000000-0000-4000-8000-000000000001" }
+              occurred_at: { type: string, format: date-time, example: "2026-11-04T04:25:09Z" }
+      example:
+        application_id: "6b4bb05b-fbae-40d6-a763-dfd8a1913011"
+        events:
+          - id: "evt-1793766309359-6b4bb05b"
+            tenant_id: "00000000-0000-4000-8000-000000000002"
+            application_id: "6b4bb05b-fbae-40d6-a763-dfd8a1913011"
+            event_type: "application.submitted"
+            from_status: "preparing"
+            to_status: "submitted"
+            receipt_id: "APP-accenture-wd103-myworkdayjobs-com-1793766309359055000"
+            actor_type: "system_auto_apply"
+            occurred_at: "2026-11-04T04:25:09Z"
+    ApplicationReceipt:
+      type: object
+      required: [application_id, receipt_id, status, submitted_at]
+      properties:
+        application_id: { type: string, format: uuid, example: "6b4bb05b-fbae-40d6-a763-dfd8a1913011" }
+        receipt_id: { type: string, example: "APP-flooranddecoroutlets-wd1-myworkdayjobs-com-1793820702513933000" }
+        status: { type: string, example: "submitted" }
+        submitted_at: { type: string, format: date-time, example: "2026-11-04T19:31:42Z" }
+        answers:
+          type: object
+          additionalProperties: { type: string }
+        match_score: { type: integer, example: 85 }
+        match_level: { type: string, example: "strong" }
+        ats_verdict: { type: string, example: "Strong ATS Candidate (80-91% match)" }
+        skill_fit:
+          $ref: '#/components/schemas/SkillFitAnalysis'
+        resume_version_id: { type: string, example: "af55a1d1-cda0-4c95-8a09-7ec89d881fc8" }
+        tailored_resume_used: { type: boolean, example: true }
+        resume_url: { type: string, example: "/api/v1/applications/6b4bb05b-fbae-40d6-a763-dfd8a1913011/resume" }
+    SkillFitAnalysis:
+      type: object
+      required: [have, missing_have, missing_gap]
+      properties:
+        have:
+          type: array
+          items: { type: string }
+          example: ["Go", "Kubernetes", "Kafka", "PostgreSQL"]
+          description: Skills required by JD that are prominently highlighted on the resume
+        missing_have:
+          type: array
+          items: { type: string }
+          example: ["Redis", "Docker"]
+          description: Skills required by JD that candidate possesses in master evidence atoms but were omitted from this draft
+        missing_gap:
+          type: array
+          items: { type: string }
+          example: ["Ruby on Rails"]
+          description: True market skill gaps required by JD that candidate does not possess
+    ApplicationResumeView:
+      type: object
+      required: [application_id, job_id, resume_version_id, company_name, job_title, tailored, match_score, content_text, rendered_html, created_at]
+      properties:
+        application_id: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        resume_version_id: { type: string, format: uuid }
+        company_name: { type: string, example: "Flooranddecoroutlets" }
+        job_title: { type: string, example: "Senior Developer II, Application Platforms" }
+        tailored: { type: boolean, example: true }
+        match_score: { type: integer, example: 85 }
+        skill_fit:
+          $ref: '#/components/schemas/SkillFitAnalysis'
+        content_text: { type: string, description: "ATS-friendly machine-parsable plain text" }
+        rendered_html: { type: string, description: "Pixel-perfect frozen serif PDF/HTML resume layout" }
+        created_at: { type: string, format: date-time }
+    SourceSummary:
+      type: object
+      required: [id, company_id, source_type, provider_type, base_url, status]
+      properties:
+        id: { type: string, example: "b3eda641-f3d1-481e-b389-cbbf2656839f" }
+        company_id: { type: string, format: uuid, example: "01234567-89ab-cdef-0123-456789abcdef" }
+        company_name: { type: string, example: "Accenture" }
+        source_type: { type: string, example: "workday" }
+        provider_type: { type: string, example: "workday" }
+        base_url: { type: string, format: uri, example: "https://accenture.wd103.myworkdayjobs.com/AccentureCareers" }
+        status: { type: string, example: "active" }
+        last_sync_at: { type: string, format: date-time, example: "2026-11-04T04:20:00Z" }
+      example:
+        id: "b3eda641-f3d1-481e-b389-cbbf2656839f"
+        company_id: "01234567-89ab-cdef-0123-456789abcdef"
+        company_name: "Accenture"
+        source_type: "workday"
+        provider_type: "workday"
+        base_url: "https://accenture.wd103.myworkdayjobs.com/AccentureCareers"
+        status: "active"
+        last_sync_at: "2026-11-04T04:20:00Z"
+    SourceHealth:
+      type: object
+      required: [source_id, status, sync_lag_seconds, capability]
+      properties:
+        source_id: { type: string, example: "b3eda641-f3d1-481e-b389-cbbf2656839f" }
+        status: { type: string, example: "active" }
+        last_error_class: { type: string, example: "" }
+        last_sync_at: { type: string, format: date-time, example: "2026-11-04T04:20:00Z" }
+        sync_lag_seconds: { type: integer, example: 120 }
+        capability: { type: string, example: "workday" }
+      example:
+        source_id: "b3eda641-f3d1-481e-b389-cbbf2656839f"
+        status: "active"
+        last_error_class: ""
+        last_sync_at: "2026-11-04T04:20:00Z"
+        sync_lag_seconds: 120
+        capability: "workday"
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource not found in the caller's authorized scope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: Idempotency conflict, duplicate active workflow, or invalid transition
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    UnprocessableEntity:
+      description: Valid JSON that fails a domain or consent requirement
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }

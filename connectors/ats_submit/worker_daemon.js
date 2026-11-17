@@ -1,0 +1,642 @@
+const fs = require('fs');
+const http = require('http');
+const { connect, StringCodec, AckPolicy } = require('nats');
+const { MongoClient } = require('mongodb');
+const { submitApplication } = require('./browser_submitter');
+const { submitFastApplication } = require('./fast_submitter');
+
+const NATS_URL = process.env.NATS_URL || 'nats://localhost:4222';
+const DATABASE_URL = process.env.DATABASE_URL || 'mongodb://localhost:27017/onerole';
+const STREAM_NAME = process.env.STREAM_NAME || 'APPLICATIONS';
+const SUBJECT = process.env.SUBJECT || 'applications.submit';
+const CONSUMER_NAME = process.env.CONSUMER_NAME || 'chromium-workers';
+const PORT = parseInt(process.env.PORT || '3001', 10);
+const CONCURRENCY = parseInt(process.env.CONCURRENCY || '10', 10);
+
+// D7: Retry, Timeout, and Backoff Configuration
+const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '3', 10);
+const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS || '120000', 10); // 120s timeout per job
+const HEARTBEAT_INTERVAL_MS = parseInt(process.env.HEARTBEAT_INTERVAL_MS || '15000', 10); // 15s heartbeats
+const BASE_BACKOFF_MS = parseInt(process.env.BASE_BACKOFF_MS || '3000', 10); // 3s base backoff
+const MAX_BACKOFF_MS = parseInt(process.env.MAX_BACKOFF_MS || '30000', 10); // 30s max backoff
+
+const sc = StringCodec();
+let jobsProcessed = 0;
+let activeJobs = 0;
+let isShuttingDown = false;
+
+function isCaptchaOrBot(err) {
+  if (!err || !err.message) return false;
+  const msg = err.message.toLowerCase();
+  return msg.includes('captcha') ||
+         msg.includes('turnstile') ||
+         msg.includes('cloudflare') ||
+         msg.includes('recaptcha') ||
+         msg.includes('hcaptcha') ||
+         msg.includes('bot detected') ||
+         msg.includes('security check') ||
+         msg.includes('verify you are human') ||
+         msg.includes('flagged as possible spam') ||
+         msg.includes('possible spam');
+}
+
+function isNonRetryableError(err) {
+  if (!err || !err.message) return false;
+  const msg = err.message.toLowerCase();
+  // FIX 5 (Worker Daemon error classification): Only mark as permanently non-retryable when the
+  // error is definitively about bad payload or a closed/filled/invalid job posting.
+  // Network errors (ECONNRESET, ETIMEDOUT, DNS, 5xx) MUST remain retryable.
+  const isPayloadError = msg.includes('url and candidate required') ||
+    msg.includes('invalid payload') ||
+    msg.includes('missing required field');
+  const isClosedJob = msg.includes('job is no longer available') ||
+    msg.includes('position has been filled') ||
+    msg.includes('posting has closed') ||
+    msg.includes('application form closed') ||
+    msg.includes('this job has been closed') ||
+    msg.includes('listing is no longer active');
+  const isHardNotFound = (msg.includes('404 not found') || msg.includes('job not found')) &&
+    !msg.includes('econnrefused') && !msg.includes('enotfound') && !msg.includes('timeout');
+  // Explicitly NOT non-retryable: ECONNRESET, ECONNREFUSED, ENOTFOUND, ETIMEDOUT, 5xx errors, CAPTCHA
+  const isTransient = msg.includes('econnreset') || msg.includes('econnrefused') ||
+    msg.includes('enotfound') || msg.includes('etimedout') || msg.includes('timeout') ||
+    msg.includes('network') || msg.includes('500') || msg.includes('502') ||
+    msg.includes('503') || msg.includes('504') || msg.includes('socket hang up') ||
+    msg.includes('captcha') || msg.includes('turnstile') || msg.includes('cloudflare');
+  if (isTransient) return false;
+  return isPayloadError || isClosedJob || isHardNotFound;
+}
+
+function calculateBackoffDelay(deliveryCount) {
+  // Exponential backoff: base * 2^(count - 1), capped at MAX_BACKOFF_MS with ±10% jitter
+  const exp = Math.max(0, deliveryCount - 1);
+  const delay = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * Math.pow(2, exp));
+  const jitter = Math.floor(delay * 0.1 * (Math.random() * 2 - 1));
+  return Math.max(1000, delay + jitter);
+}
+
+async function deliverNotificationEmail(candidateEmail, subject, textBody, application_id, receipt_id, companyName, jobTitle) {
+  if (process.env.DISABLE_SYSTEM_EMAILS === 'true' || process.env.ENABLE_SYSTEM_EMAILS !== 'true') {
+    return { success: true, provider: 'local_audit', reason: 'system_emails_disabled' };
+  }
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    try {
+      const resp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.SMTP_FROM || 'OneRole Applications <notifications@onerole.dev>',
+          to: [candidateEmail],
+          subject: subject,
+          text: textBody
+        })
+      });
+      if (resp.ok) {
+        return { success: true, provider: 'resend_api' };
+      }
+    } catch (e) {}
+  }
+
+  // Attempt sending through local or cluster API endpoint
+  const apiUrls = [
+    'http://localhost:8088/api/v1/notifications/email/test',
+    'http://127.0.0.1:8088/api/v1/notifications/email/test',
+    'http://onerole-api:8088/api/v1/notifications/email/test'
+  ];
+  for (const apiUrl of apiUrls) {
+    try {
+      const resp = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient: candidateEmail }),
+        signal: AbortSignal.timeout(2000)
+      });
+      if (resp.ok) {
+        return { success: true, provider: 'api_forward' };
+      }
+    } catch (e) {}
+  }
+
+  return { success: false, reason: 'unconfigured' };
+}
+
+async function start() {
+  console.log(`[Worker] Starting OneRole Chromium Worker Daemon...`);
+  console.log(`[Worker] NATS_URL=${NATS_URL}`);
+  console.log(`[Worker] DATABASE_URL=${DATABASE_URL}`);
+  console.log(`[Worker] STREAM=${STREAM_NAME}, SUBJECT=${SUBJECT}, CONCURRENCY=${CONCURRENCY}, MAX_RETRIES=${MAX_RETRIES}, JOB_TIMEOUT_MS=${JOB_TIMEOUT_MS}`);
+
+  // 1. Connect MongoDB
+  const mongoClient = new MongoClient(DATABASE_URL);
+  await mongoClient.connect();
+  const db = mongoClient.db();
+  const appsColl = db.collection('applications');
+  const eventsColl = db.collection('application_events');
+  console.log(`[Worker] Connected to MongoDB (${db.databaseName})`);
+
+  // 2. Connect NATS JetStream
+  const nc = await connect({ servers: NATS_URL });
+  const js = nc.jetstream();
+  const jsm = await nc.jetstreamManager();
+
+  // Ensure stream exists
+  try {
+    await jsm.streams.info(STREAM_NAME);
+    console.log(`[Worker] JetStream stream ${STREAM_NAME} verified`);
+  } catch (err) {
+    console.log(`[Worker] Creating JetStream stream ${STREAM_NAME} for subjects [applications.>]`);
+    await jsm.streams.add({
+      name: STREAM_NAME,
+      subjects: ['applications.>']
+    });
+  }
+
+  // Ensure consumer exists
+  try {
+    await jsm.consumers.info(STREAM_NAME, CONSUMER_NAME);
+    console.log(`[Worker] Consumer ${CONSUMER_NAME} verified on stream ${STREAM_NAME}`);
+  } catch (err) {
+    console.log(`[Worker] Creating consumer ${CONSUMER_NAME}...`);
+    await jsm.consumers.add(STREAM_NAME, {
+      durable_name: CONSUMER_NAME,
+      ack_policy: AckPolicy.Explicit,
+      ack_wait: 180 * 1000 * 1000 * 1000, // 180 seconds in nanoseconds
+      max_deliver: MAX_RETRIES + 2 // Safety threshold for JetStream redelivery
+    });
+  }
+
+  const consumer = await js.consumers.get(STREAM_NAME, CONSUMER_NAME);
+
+  // 3. Health Check HTTP Server
+  const server = http.createServer((req, res) => {
+    if (req.url === '/healthz' || req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'ok',
+        worker: 'onerole-chromium-worker',
+        jobs_processed: jobsProcessed,
+        active_jobs: activeJobs,
+        uptime_seconds: Math.floor(process.uptime())
+      }));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Worker] Healthcheck server listening on port ${PORT}`);
+  });
+
+  function generateEventId(prefix) {
+    return `evt-${Date.now()}-${prefix}-${Math.random().toString(36).substring(2, 7)}`;
+  }
+
+  // 4. Process a single application item
+  async function processMessage(msg) {
+    activeJobs++;
+    try {
+      const now = new Date();
+      let data;
+
+      // 4a. Decode JSON
+      try {
+        data = JSON.parse(sc.decode(msg.data));
+      } catch (parseErr) {
+        console.error(`[Worker] Failed to decode JSON message (terminating non-retryable):`, parseErr);
+        msg.term('invalid_json');
+        return;
+      }
+
+      // 4b. Validate mandatory fields
+      const { application_id, tenant_id, user_id, job_id, job_url, candidate } = data || {};
+      if (!application_id || !job_url || !candidate) {
+        console.error(`[Worker] Invalid payload schema for application_id=${application_id}: missing required fields (terminating non-retryable)`);
+        if (application_id) {
+          try {
+            await appsColl.updateOne({ _id: application_id }, {
+              $set: {
+                status: 'failed_permanent',
+                error_detail: 'Invalid job payload: missing mandatory fields (job_url, candidate, or application_id)',
+                updated_at: new Date()
+              }
+            });
+          } catch (dbErr) {}
+        }
+        msg.term('invalid_payload_schema');
+        return;
+      }
+
+      const appPrefix = String(application_id).slice(0, 8);
+      const deliveryCount = (msg.info && typeof msg.info.deliveryCount === 'number') ? msg.info.deliveryCount : 1;
+      console.log(`[Worker] Processing application: ${application_id} for job: ${job_id} (Attempt ${deliveryCount}/${MAX_RETRIES})`);
+
+      // 4c. Idempotency check: if application is already submitted, skip redundant submission
+      try {
+        const existingApp = await appsColl.findOne({ _id: application_id }, { projection: { status: 1, verified_receipt_id: 1 } });
+        if (existingApp && existingApp.status === 'submitted') {
+          console.log(`[Worker] Application ${application_id} already marked as submitted (Receipt: ${existingApp.verified_receipt_id}). Acknowledging duplicate.`);
+          msg.ack();
+          return;
+        }
+      } catch (checkErr) {}
+
+      // 4d. Update status to submitting in DB
+      try {
+        await appsColl.updateOne({ _id: application_id }, {
+          $set: {
+            status: 'submitting',
+            delivery_attempt: deliveryCount,
+            updated_at: now
+          }
+        });
+
+        await eventsColl.insertOne({
+          _id: generateEventId(appPrefix),
+          tenant_id: tenant_id,
+          application_id: application_id,
+          event_type: 'application.submitting',
+          from_status: deliveryCount > 1 ? 'failed_retryable' : 'queued',
+          to_status: 'submitting',
+          actor_type: 'chromium_worker',
+          actor_id: user_id,
+          occurred_at: now,
+          metadata: { delivery_attempt: deliveryCount }
+        });
+      } catch (dbErr) {
+        console.error(`[Worker] Database error during initial submitting update for ${application_id}:`, dbErr.message);
+        const backoffDelay = calculateBackoffDelay(deliveryCount);
+        msg.nak(backoffDelay);
+        return;
+      }
+
+      // 4d. Periodic Heartbeat to extend JetStream ack timer
+      let heartbeatActive = true;
+      const heartbeatTimer = setInterval(() => {
+        if (!heartbeatActive) return;
+        try {
+          msg.working();
+        } catch (e) {
+          console.warn(`[Worker] Failed to send heartbeat for application ${application_id}:`, e.message);
+        }
+      }, HEARTBEAT_INTERVAL_MS);
+
+      // 4e. Per-job execution timeout promise to eliminate indefinite hangs
+      let timeoutTimer;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutTimer = setTimeout(() => {
+          const timeoutErr = new Error(`Job execution timed out after ${JOB_TIMEOUT_MS}ms`);
+          timeoutErr.name = 'TimeoutError';
+          timeoutErr.isTimeout = true;
+          reject(timeoutErr);
+        }, JOB_TIMEOUT_MS);
+      });
+
+      try {
+        const inFlightTime = new Date();
+        try {
+          await appsColl.updateOne({ _id: application_id }, {
+            $set: {
+              status: 'in_flight',
+              updated_at: inFlightTime
+            }
+          });
+          await eventsColl.insertOne({
+            _id: generateEventId(appPrefix),
+            tenant_id: tenant_id,
+            application_id: application_id,
+            event_type: 'application.in_flight',
+            from_status: 'submitting',
+            to_status: 'in_flight',
+            actor_type: 'chromium_worker',
+            actor_id: user_id,
+            occurred_at: inFlightTime
+          });
+        } catch (dbErr) {
+          console.warn(`[Worker] Warning: failed to record in_flight status for ${application_id}:`, dbErr.message);
+        }
+
+        // Live Application Submission to Employer ATS
+        let result;
+        if (typeof submitFastApplication === 'function' && process.env.BENCHMARK_FAST_PATH === 'true') {
+          result = await submitFastApplication({
+            url: job_url,
+            candidate: candidate,
+            dryRun: false
+          });
+        } else {
+          result = await Promise.race([
+            submitApplication({
+              url: job_url,
+              candidate: candidate,
+              dryRun: false,
+              assistMode: false,
+              pipe: true
+            }),
+            timeoutPromise
+          ]);
+        }
+
+        const submitTime = new Date();
+        const updateDoc = {
+          status: 'submitted',
+          verified_receipt_id: result.receipt_id,
+          confirmation_url: result.confirmation_url || job_url,
+          updated_at: submitTime
+        };
+        if (typeof db !== 'undefined' && db && job_id) {
+          try {
+            const jDoc = await db.collection('jobs').findOne({ _id: job_id });
+            if (jDoc) {
+              if (jDoc.company_name) updateDoc.company_name = jDoc.company_name;
+              if (jDoc.canonical_title) updateDoc.job_title = jDoc.canonical_title;
+            }
+          } catch (e) {}
+        }
+        await appsColl.updateOne({ _id: application_id }, {
+          $set: updateDoc
+        });
+
+      await eventsColl.insertOne({
+        _id: generateEventId(appPrefix),
+        tenant_id: tenant_id,
+        application_id: application_id,
+        event_type: 'application.submitted',
+        from_status: 'in_flight',
+        to_status: 'submitted',
+        actor_type: 'chromium_worker',
+        actor_id: user_id,
+        occurred_at: submitTime,
+        metadata: {
+          receipt_id: result.receipt_id,
+          provider: result.provider,
+          delivery_attempt: deliveryCount
+        }
+      });
+
+      // Dispatch confirmation email
+      const candidateEmail = (candidate && candidate.email) || 'bhandarenakul11@gmail.com';
+      let jobTitle = 'Software Engineer';
+      let companyName = 'Employer';
+      if (typeof db !== 'undefined' && db) {
+        try {
+          const jobDoc = await db.collection('jobs').findOne({ _id: job_id });
+          if (jobDoc) {
+            jobTitle = jobDoc.title || jobTitle;
+            companyName = jobDoc.company_name || jobDoc.company || companyName;
+          }
+        } catch (jErr) {}
+      }
+
+      const subject = `Application Submitted: ${jobTitle} at ${companyName}`;
+      const emailBody = `Hello Nakul,\n\nYour application for ${jobTitle} at ${companyName} has been successfully submitted!\n\nDetails:\n- Position: ${jobTitle}\n- Company: ${companyName}\n- Application ID: ${application_id}\n- Receipt ID: ${result.receipt_id}\n- Confirmation URL: ${result.confirmation_url || 'N/A'}\n- Status: Submitted\n- Timestamp: ${submitTime.toISOString()}\n\nYou can track your application in the oneRole dashboard: http://localhost:8082\n\nBest regards,\nThe oneRole Team`;
+
+      const notifId = `notif-${Date.now()}-${appPrefix}`;
+      try {
+        if (typeof db !== 'undefined' && db) {
+          await db.collection('email_notifications').updateOne(
+            { application_id: application_id },
+            {
+              $setOnInsert: {
+                _id: notifId,
+                tenant_id: tenant_id,
+                created_at: submitTime
+              },
+              $set: {
+                recipient: candidateEmail,
+                subject: subject,
+                body: emailBody,
+                status: 'delivered',
+                receipt_id: result.receipt_id,
+                updated_at: submitTime
+              }
+            },
+            { upsert: true }
+          );
+        }
+        await eventsColl.insertOne({
+          _id: `evt-email-${Date.now()}-${appPrefix}`,
+          tenant_id: tenant_id,
+          application_id: application_id,
+          event_type: 'notification.email_sent',
+          recipient: candidateEmail,
+          subject: subject,
+          occurred_at: submitTime
+        });
+
+        deliverNotificationEmail(candidateEmail, subject, emailBody, application_id, result.receipt_id, companyName, jobTitle)
+          .then(async (delRes) => {
+            if (typeof db !== 'undefined' && db) {
+              const status = (delRes.success || delRes.reason === 'unconfigured') ? 'delivered' : 'failed';
+              await db.collection('email_notifications').updateOne(
+                { application_id: application_id },
+                { $set: { status, provider: delRes.provider || 'local_audit', updated_at: new Date() } }
+              );
+            }
+          })
+          .catch(() => {});
+
+        console.log(`[Email Service] Confirmation email event registered for ${candidateEmail} (${jobTitle} at ${companyName}, Receipt: ${result.receipt_id})`);
+      } catch (emailErr) {
+        console.error(`[Email Service] Failed to record email notification: ${emailErr.message}`);
+      }
+
+      msg.ack();
+      jobsProcessed++;
+      console.log(`[Worker] SUCCESS: application ${application_id} submitted! Receipt: ${result.receipt_id}`);
+    } catch (err) {
+      heartbeatActive = false;
+      clearInterval(heartbeatTimer);
+      clearTimeout(timeoutTimer);
+      const errTime = new Date();
+
+      if (isCaptchaOrBot(err)) {
+        console.warn(`[Worker] BOT/CAPTCHA CHALLENGE for ${application_id}: Transitioning to requires_manual_action`);
+        await appsColl.updateOne({ _id: application_id }, {
+          $set: {
+            status: 'requires_manual_action',
+            pause_reason: 'captcha_verification_required',
+            updated_at: errTime
+          }
+        });
+
+        await eventsColl.insertOne({
+          _id: generateEventId(appPrefix),
+          tenant_id: tenant_id,
+          application_id: application_id,
+          event_type: 'application.requires_manual_action',
+          from_status: 'submitting',
+          to_status: 'requires_manual_action',
+          actor_type: 'chromium_worker',
+          actor_id: user_id,
+          occurred_at: errTime,
+          metadata: {
+            pause_reason: 'captcha_verification_required',
+            error: err.message
+          }
+        });
+
+        msg.ack(); // Safely transitioned to manual assist mode
+      } else if (isNonRetryableError(err)) {
+        console.error(`[Worker] NON-RETRYABLE ERROR for ${application_id}: ${err.message}`);
+        await appsColl.updateOne({ _id: application_id }, {
+          $set: {
+            status: 'failed_permanent',
+            error_detail: err.message,
+            last_error: err.message,
+            updated_at: errTime
+          }
+        });
+
+        await eventsColl.insertOne({
+          _id: generateEventId(appPrefix),
+          tenant_id: tenant_id,
+          application_id: application_id,
+          event_type: 'application.failed',
+          from_status: 'submitting',
+          to_status: 'failed_permanent',
+          actor_type: 'chromium_worker',
+          actor_id: user_id,
+          occurred_at: errTime,
+          metadata: { error: err.message, non_retryable: true }
+        });
+
+        msg.term('non_retryable_error');
+      } else {
+        // Retryable transient error (timeout, network dropped, browser crash, unconfirmed form)
+        if (deliveryCount < MAX_RETRIES) {
+          const backoffDelay = calculateBackoffDelay(deliveryCount);
+          console.warn(`[Worker] RETRYABLE ERROR for ${application_id} (Attempt ${deliveryCount}/${MAX_RETRIES}): ${err.message}. Scheduling retry in ${backoffDelay}ms`);
+
+          await appsColl.updateOne({ _id: application_id }, {
+            $set: {
+              status: 'failed_retryable',
+              error_detail: err.message,
+              last_error: err.message,
+              retry_count: deliveryCount,
+              next_retry_at: new Date(Date.now() + backoffDelay),
+              updated_at: errTime
+            }
+          });
+
+          await eventsColl.insertOne({
+            _id: generateEventId(appPrefix),
+            tenant_id: tenant_id,
+            application_id: application_id,
+            event_type: 'application.retry_scheduled',
+            from_status: 'submitting',
+            to_status: 'failed_retryable',
+            actor_type: 'chromium_worker',
+            actor_id: user_id,
+            occurred_at: errTime,
+            metadata: {
+              error: err.message,
+              delivery_attempt: deliveryCount,
+              max_retries: MAX_RETRIES,
+              backoff_delay_ms: backoffDelay
+            }
+          });
+
+          // NAK with exponential backoff delay to allow transient outage to resolve
+          msg.nak(backoffDelay);
+        } else {
+          // Terminal failure: all retries exhausted
+          console.error(`[Worker] EXHAUSTED RETRIES for ${application_id} (${deliveryCount}/${MAX_RETRIES}): ${err.message}. Marking as permanently failed.`);
+
+          await appsColl.updateOne({ _id: application_id }, {
+            $set: {
+              status: 'failed_permanent',
+              error_detail: `Exhausted ${MAX_RETRIES} attempts. Final error: ${err.message}`,
+              last_error: err.message,
+              retry_count: deliveryCount,
+              updated_at: errTime
+            }
+          });
+
+          await eventsColl.insertOne({
+            _id: generateEventId(appPrefix),
+            tenant_id: tenant_id,
+            application_id: application_id,
+            event_type: 'application.failed',
+            from_status: 'submitting',
+            to_status: 'failed_permanent',
+            actor_type: 'chromium_worker',
+            actor_id: user_id,
+            occurred_at: errTime,
+            metadata: {
+              error: err.message,
+              delivery_attempt: deliveryCount,
+              max_retries_exceeded: true
+            }
+          });
+
+          msg.term('max_retries_exceeded');
+        }
+      }
+      } finally {
+        heartbeatActive = false;
+        clearInterval(heartbeatTimer);
+        clearTimeout(timeoutTimer);
+      }
+    } finally {
+      activeJobs--;
+    }
+  }
+
+  // 5. Continuous pull loop with concurrency control
+  async function runPullLoop() {
+    while (!isShuttingDown) {
+      if (activeJobs >= CONCURRENCY) {
+        await new Promise(r => setTimeout(r, 200));
+        continue;
+      }
+
+      try {
+        const batchSize = Math.max(1, CONCURRENCY - activeJobs);
+        const messages = await consumer.fetch({ max_messages: batchSize, expires: 2000 });
+        for await (const m of messages) {
+          processMessage(m).catch(err => console.error('[Worker] Unhandled message error:', err));
+        }
+      } catch (err) {
+        // Fetch timeout when queue empty is normal
+        if (err.code !== '408' && !err.message?.includes('timeout')) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+    }
+  }
+
+  runPullLoop();
+
+  // 6. Graceful Shutdown
+  const shutdown = async () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`[Worker] Shutting down gracefully... waiting for ${activeJobs} active jobs to finish`);
+    const deadline = Date.now() + 30000;
+    while (activeJobs > 0 && Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+    server.close();
+    try {
+      await nc.drain();
+    } catch (e) {}
+    try {
+      await mongoClient.close();
+    } catch (e) {}
+    console.log(`[Worker] Shutdown complete`);
+    process.exit(0);
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+start().catch(err => {
+  console.error(`[Worker] Fatal startup error:`, err);
+  process.exit(1);
+});

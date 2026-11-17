@@ -1,0 +1,171 @@
+name: onerole-local
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.5", "--maxConns", "200"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-sd", "/data/jetstream", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  object-storage:
+    profiles: ["storage"]
+    image: quay.io/minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-onerole-local}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-localdev-minio-password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - object_storage_data:/data
+
+  onerole-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: onerole-api:latest
+    container_name: onerole_api
+    env_file:
+      - .env
+    environment:
+      - APP_MODE=all
+      - APP_ENV=development
+      - HTTP_ADDR=:8088
+      - DATABASE_URL=mongodb://mongodb:27017/onerole
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379/0
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - JWT_ISSUER=http://localhost:8088
+      - JWT_AUDIENCE=onerole-web
+      - JWT_SIGNING_KEY_ID=local-1
+      - JWT_SIGNING_PRIVATE_KEY_FILE=/app/.local/jwt-signing.pem
+      - FREEHIRE_API_KEY=fhk_3iPL8i5jT2SyM3OJhfjoNAqs4kKxggitQ3KC_p_vwTwAaY
+    volumes:
+      - ./.local:/app/.local:ro
+      - ./company.json:/app/company.json:ro
+      - ./oneRole_UI/public/Nakul_Bhandare_Resume.pdf:/app/oneRole_UI/public/Nakul_Bhandare_Resume.pdf:ro
+      - ./oneRole_UI/public/Nakul_Bhandare_Resume.pdf:/app/resumes/Nakul_Bhandare_Resume.pdf:ro
+    ports:
+      - "8088:8088"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  onerole-ui:
+    build:
+      context: ./oneRole_UI
+      dockerfile: Dockerfile
+    container_name: onerole_ui
+    environment:
+      - PORT=8082
+      - BACKEND_URL=http://onerole-api:8088
+      - NATS_MONITOR_URL=http://nats:8222
+    ports:
+      - "8082:8082"
+    depends_on:
+      - onerole-api
+      - nats
+    restart: unless-stopped
+
+  onerole-worker:
+    build:
+      context: .
+      dockerfile: connectors/ats_submit/Dockerfile
+    image: onerole-worker:latest
+    container_name: onerole_worker
+    env_file:
+      - .env
+    environment:
+      - NATS_URL=nats://nats:4222
+      - DATABASE_URL=mongodb://mongodb:27017/onerole
+      - PORT=3001
+      - CONCURRENCY=2
+      - JOB_TIMEOUT_MS=300000
+      - RESUME_FILE_PATH=/app/oneRole_UI/public/Nakul_Bhandare_Resume.pdf
+      - NODE_OPTIONS=--max-old-space-size=1536
+    volumes:
+      - ./oneRole_UI/public/Nakul_Bhandare_Resume.pdf:/app/oneRole_UI/public/Nakul_Bhandare_Resume.pdf:ro
+      - ./oneRole_UI/public/Nakul_Bhandare_Resume.pdf:/app/resumes/Nakul_Bhandare_Resume.pdf:ro
+      - ./oneRole_UI/public/Nakul_Bhandare_Resume.pdf:/app/Nakul_Bhandare_Resume.pdf:ro
+    ports:
+      - "3001:3001"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  elasticsearch:
+    image: elasticsearch:8.15.0
+    container_name: onerole_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  nats_data:
+  redis_data:
+  object_storage_data:
+  es_data:

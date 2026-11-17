@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: onerole
+  labels:
+    app.kubernetes.io/name: onerole
+    app.kubernetes.io/part-of: onerole-platform

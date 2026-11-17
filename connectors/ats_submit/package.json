@@ -1,0 +1,16 @@
+{
+  "name": "onerole-chromium-worker",
+  "version": "1.0.0",
+  "description": "OneRole Distributed Chromium Application Worker",
+  "main": "worker_daemon.js",
+  "scripts": {
+    "start": "node worker_daemon.js"
+  },
+  "dependencies": {
+    "mongodb": "^6.12.0",
+    "nats": "^2.29.1",
+    "puppeteer-core": "^24.2.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}

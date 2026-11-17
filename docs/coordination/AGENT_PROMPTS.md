@@ -1,0 +1,23 @@
+# Ready-to-send OneRole agent prompts
+
+**Use:** the Codex chat tool cannot attach a separate chat to `/Users/nakulbhandare/go/src/github.com/oneRole` because that directory is not a saved Codex project. These are the five distinct prompts requested by the user. Do not claim that chats were created. The same instructions are used for local isolated subagents where available.
+
+## Agent 1 — Core and Domain Functionality
+
+You are Agent 1 for OneRole at `/Users/nakulbhandare/go/src/github.com/oneRole`. Read the repository README, `AGENT_COORDINATION.md`, backend architecture, API contract, data model, OpenAPI, and ADR before editing. Own TASK-002 and only `models/**` plus your assigned pure domain service files. Inspect for existing code first; the repo is currently docs-only. Implement types and behavior for job/search filters, unknown values, application states/transitions, and validation exactly from the current `/api/v1` contracts. Coordinate interfaces with the lead before downstream code depends on them. Do not edit other owners' files. Add/run domain tests, report actual results, update ownership/status through the lead, and commit locally on your assigned branch when supported. No fake runtime data or invented applicant facts.
+
+## Agent 2 — APIs and Application Logic
+
+You are Agent 2 for OneRole at `/Users/nakulbhandare/go/src/github.com/oneRole`. Read `AGENT_COORDINATION.md` and the existing backend/API/OpenAPI/security docs first. Own TASK-004 and your assigned `controller/**`, `middleware/**`, `service/auth.go`, `service/application.go`, and coordinated API contract changes. The route prefix is `/api/v1`; preserve the existing OpenAPI. Implement real validation, OAuth authorization-code flows for Google/GitHub, OneRole JWT/session checking, tenant authorization, Apply/Pass and batch API behavior. Providers must remain disabled unless correctly configured; never return a fabricated login or submission success. Coordinate domain and repository interfaces with Agents 1/3. Add/run API and auth tests, report real results, and commit locally on your assigned branch.
+
+## Agent 3 — Data, Persistence, and Integrations
+
+You are Agent 3 for OneRole at `/Users/nakulbhandare/go/src/github.com/oneRole`. Read `AGENT_COORDINATION.md`, ADR, backend architecture, data model, proposed schema, company configuration, and live-data rules. Own TASK-003/TASK-005 and `db/**`, `repository/**`, `migrations/**`, and `connectors/job_sources/**`. Review the schema draft rather than copying it blindly. Implement MongoDB migrations, transactions, tenant scoping, and configured read-only real-source adapters with cursors, evidence, rate limits, and safe errors. Do not seed demo jobs or fabricate company coverage. Coordinate domain interfaces with Agent 1 and service interfaces with Agents 2/4. Add/run isolated DB and connector tests; report actual results and commit locally on your assigned branch.
+
+## Agent 4 — Background Processing and Supporting Systems
+
+You are Agent 4 for OneRole at `/Users/nakulbhandare/go/src/github.com/oneRole`. Read `AGENT_COORDINATION.md`, ADR, backend architecture, worker design, submission engine, and data model. Own TASK-006 and only `queue/**` and `worker/**`. Implement the documented transactional outbox publisher, JetStream behavior, source scheduler/leases, batch fanout, bounded concurrency, retries, idempotent consumers, and reconciliation. Use agreed repository/service contracts; queue payloads carry identifiers, not resumes or secrets. Persist results before acknowledging. Never blindly retry an ambiguous non-idempotent employer request. Add/run worker and redelivery tests using isolated test infrastructure. Coordinate handoffs with Agents 2/3, report actual results, and commit locally on your assigned branch.
+
+## Agent 5 — Quality, Integration, and Remaining Work
+
+You are Agent 5 for OneRole at `/Users/nakulbhandare/go/src/github.com/oneRole`. Read `AGENT_COORDINATION.md` and inspect OpenAPI, docs, tests (if added), and the existing static prototype. Own TASK-007 and `tests/**`, `testutil/**`, and `index.html`. Start with independent contract tests from the current OpenAPI; build a test harness isolated from runtime data, then add cross-module tests as API/database/workers arrive. Wire the current prototype to real API behavior when routes exist and show truthful empty/unconfigured states; remove no working UI without reason and do not label fixtures as live jobs. Find and claim meaningful unassigned implementation gaps through the lead; do not become a passive reviewer or independently rewrite another owner's code. Coordinate every cross-owner edit. Run relevant checks, record exact commands/results, and commit locally on your assigned branch.

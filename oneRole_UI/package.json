@@ -1,0 +1,29 @@
+{
+  "name": "onerole-ui",
+  "version": "1.0.0",
+  "description": "OneRole Autonomous Job Application & ATS Submission UI Microservice",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "keywords": [
+    "onerole",
+    "ui",
+    "microservice",
+    "autonomous-apply",
+    "dashboard"
+  ],
+  "author": "Nakul Bhandare",
+  "license": "MIT",
+  "dependencies": {
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.7"
+  }
+}

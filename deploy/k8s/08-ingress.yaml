@@ -1,0 +1,68 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: onerole-ingress
+  namespace: onerole
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
+spec:
+  rules:
+  - host: onerole.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: onerole-api
+            port:
+              number: 8088
+      - path: /telemetry
+        pathType: Prefix
+        backend:
+          service:
+            name: onerole-api
+            port:
+              number: 8088
+      - path: /docs
+        pathType: Prefix
+        backend:
+          service:
+            name: onerole-api
+            port:
+              number: 8088
+      - path: /swagger
+        pathType: Prefix
+        backend:
+          service:
+            name: onerole-api
+            port:
+              number: 8088
+      - path: /healthz
+        pathType: Exact
+        backend:
+          service:
+            name: onerole-nginx
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: onerole-ui
+            port:
+              number: 8082
+  - host: www.onerole.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: onerole-ui
+            port:
+              number: 8082

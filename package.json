@@ -1,0 +1,20 @@
+{
+  "name": "onerole",
+  "version": "1.0.0",
+  "description": "OneRole is a Go modular-monolith foundation for live job discovery and application workflows. The repository now contains a runnable API/worker, MongoDB migrations and repositories, authenticated catalog/application APIs, read-only Greenhouse/Lever/Ashby connectors, and an API-backed browser prototype.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@sparticuz/chromium-min": "^153.0.0",
+    "puppeteer-core": "^25.16.0"
+  }
+}
