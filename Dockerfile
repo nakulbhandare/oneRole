@@ -7,7 +7,7 @@ COPY oneRole_UI/ .
 RUN npm run build
 
 # Stage 2: Build Backend
-FROM golang:1.22 AS api-build
+FROM golang:1.24 AS api-build
 WORKDIR /app/api
 COPY go.mod go.sum ./
 RUN go mod download
