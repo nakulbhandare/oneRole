@@ -1,0 +1,17 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker Image
+        run: docker build -t onerole-app .
+      - name: Deploy to VM
+        run: |
+          ssh -o StrictHostKeyChecking=no azureuser@40.116.109.236 "docker stop onerole-app && docker rm onerole-app && docker run -d --name onerole-app --network onerole-net -p 80:8082 -e APP_MODE=all onerole-app"
