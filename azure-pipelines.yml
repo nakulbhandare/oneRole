@@ -1,0 +1,20 @@
+trigger:
+- master
+pool:
+  vmImage: 'ubuntu-latest'
+steps:
+- task: Docker@2
+  inputs:
+    command: buildAndPush
+    repository: oneroleacr.azurecr.io/onerole
+    dockerfile: '**/Dockerfile'
+    containerRegistry: 'oneroleacr-connection' # You will name your Service Connection this
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'onerole-vm-connection' # You will name your SSH Connection this
+    runOptions: 'inline'
+    inline: |
+      sudo docker pull oneroleacr.azurecr.io/onerole:latest
+      sudo docker stop onerole-app || true
+      sudo docker rm onerole-app || true
+      sudo docker run -d -p 80:8082 --name onerole-app oneroleacr.azurecr.io/onerole:latest
