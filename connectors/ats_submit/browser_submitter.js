@@ -1104,15 +1104,7 @@ async function fillSmartFields(page, candidate) {
         }, el);
         if (isReactSelect) {
           // Determine best option value from the same answer resolution path
-          const reactAns = answer ||
-            (q.includes('gender') ? 'Male' :
-             q.includes('veteran') ? 'Not a protected veteran' :
-             q.includes('disability') ? 'No' :
-             q.includes('country') ? 'United States' :
-             q.includes('authorized') || q.includes('right to work') ? 'Yes' :
-             q.includes('sponsorship') || q.includes('visa') ? 'No' :
-             q.includes('race') || q.includes('ethnicity') ? 'Asian' :
-             null);
+          const reactAns = answer || resolveReactSelectAnswer(q, candidate);
           if (reactAns) {
             await fillReactSelect(page, info.label || q, reactAns);
             await new Promise(r => setTimeout(r, 200));
@@ -1120,6 +1112,22 @@ async function fillSmartFields(page, candidate) {
           continue;
         }
       }
+
+// Helper to resolve React-Select answers robustly
+function resolveReactSelectAnswer(q, candidate) {
+  const allAnswers = Object.assign({}, candidate.answers || {}, candidate.custom_field_answers || {}, candidate.customAnswers || {});
+  for (const [key, val] of Object.entries(allAnswers)) {
+    if (matchAnswerKey(key, q)) return val;
+  }
+  if (matchAnswerKey('gender', q)) return 'Male';
+  if (matchAnswerKey('veteran', q)) return 'Not a protected veteran';
+  if (matchAnswerKey('disability', q)) return 'No';
+  if (matchAnswerKey('country', q)) return 'United States';
+  if (matchAnswerKey('authorized', q) || matchAnswerKey('right to work', q)) return 'Yes';
+  if (matchAnswerKey('sponsorship', q) || matchAnswerKey('visa', q)) return 'No';
+  if (matchAnswerKey('race', q) || matchAnswerKey('ethnicity', q)) return 'Asian';
+  return null;
+}
 
       // Handle Text Inputs and Textareas
       if (info.tag === 'INPUT' || info.tag === 'TEXTAREA') {
@@ -1576,7 +1584,26 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
       // Ensure the standard resume file input in the form has the resume file attached
       const explicitResumeInput = await page.$('input#_systemfield_resume, input#resume, input[name="resume"], div[data-field-path="_systemfield_resume"] input[type="file"], div[data-field-entry-id*="resume" i] input[type="file"]');
       if (explicitResumeInput) {
-        await explicitResumeInput.uploadFile(resumeFilePath).catch(() => {});
+// Helper to perform resilient file uploads
+async function retryableUpload(element, filePath, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await element.uploadFile(filePath);
+      return true;
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  return false;
+}
+
+// In the explicitResumeInput block:
+        try {
+          await retryableUpload(explicitResumeInput, resumeFilePath);
+        } catch (e) {
+          console.error('Failed to upload resume after retries:', e);
+        }
         await page.evaluate(el => {
           el.dispatchEvent(new Event('change', { bubbles: true }));
           el.dispatchEvent(new Event('input', { bubbles: true }));

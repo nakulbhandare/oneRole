@@ -9,7 +9,52 @@ export function AppProvider({ children }) {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // User Profile
+  // Auth State
+  const [auth, setAuth] = useState({
+    user: null,
+    isAuthenticated: false,
+    memberships: [],
+    loading: true
+  });
+
+  const login = useCallback((userData) => {
+    setAuth({
+      user: userData.user || userData,
+      isAuthenticated: true,
+      memberships: userData.memberships || [],
+      loading: false
+    });
+  }, []);
+
+  const logout = useCallback(() => {
+    setAuth({
+      user: null,
+      isAuthenticated: false,
+      memberships: [],
+      loading: false
+    });
+    localStorage.removeItem('onerole_auth_token');
+  }, []);
+  });
+
+  // Load initial auth state
+  useEffect(() => {
+    async function initAuth() {
+      try {
+        const user = await doDevLogin();
+        setAuth({
+          user: { name: user.display_name, email: user.email },
+          isAuthenticated: true,
+          memberships: user.memberships,
+          loading: false
+        });
+      } catch (e) {
+        setAuth({ user: null, isAuthenticated: false, memberships: [], loading: false });
+      }
+    }
+    initAuth();
+  }, []);
+
   const [userProfile] = useState({
     name: 'Nakul Bhandare',
     email: 'bhandarenakul11@gmail.com',
@@ -258,7 +303,11 @@ export function AppProvider({ children }) {
       setSidebarOpen,
       toggleSidebar: () => setSidebarOpen(prev => !prev),
       closeSidebar: () => setSidebarOpen(false),
-      userProfile,
+      // Authentication
+      ...auth,
+      login,
+      logout,
+
       searchTags,
       addSearchTag,
       removeSearchTag,

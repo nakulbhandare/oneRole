@@ -34,7 +34,7 @@ func TestAdversarialCasingUnicodePunctuation(t *testing.T) {
 		GitHubURL:            "https://github.com/nakulbhandare",
 	}
 
-	engine := NewSmartAnswerEngine()
+	engine := NewAnswerService()
 
 	tests := []struct {
 		name     string
@@ -194,7 +194,7 @@ func TestAdversarialEEOMultiOptions(t *testing.T) {
 		LastName:  "Bhandare",
 	}
 
-	engine := NewSmartAnswerEngine()
+	engine := NewAnswerService()
 
 	t.Run("EEO Gender Decline Placed Last in List", func(t *testing.T) {
 		q := ATSQuestion{
@@ -423,7 +423,7 @@ func TestConcurrentGoroutinesRaceDetector(t *testing.T) {
 		GitHubURL:            "https://github.com/nakulbhandare",
 	}
 
-	engine := NewSmartAnswerEngine()
+	engine := NewAnswerService()
 
 	questions := []ATSQuestion{
 		{Label: "Are you legally authorized to work in the United States?"},
@@ -509,7 +509,7 @@ func TestAdversarialFallbackNeverReturnsNA(t *testing.T) {
 		PrimarySkills:     []string{"Go", "Distributed Systems", "PostgreSQL", "Kafka"},
 	}
 
-	engine := NewSmartAnswerEngine()
+	engine := NewAnswerService()
 
 	bizarreQuestions := []ATSQuestion{
 		{Label: "If you were an animal in an agile sprint, which animal would you be and why?"},
@@ -544,7 +544,7 @@ func TestEmpiricalDefects(t *testing.T) {
 	}
 
 	t.Run("Defect1_CrossCompanyCachePoisoning", func(t *testing.T) {
-		engine := NewSmartAnswerEngine()
+		engine := NewAnswerService()
 		qWhy := ATSQuestion{Label: "Why do you want to work here?"}
 
 		// First apply to Stripe
@@ -568,7 +568,7 @@ func TestEmpiricalDefects(t *testing.T) {
 	})
 
 	t.Run("Defect2_EEOGenderBinaryFemaleMaleSubstringCollision", func(t *testing.T) {
-		engine := NewSmartAnswerEngine()
+		engine := NewAnswerService()
 		// When an ATS form offers only binary Female/Male (no decline option)
 		q := ATSQuestion{
 			Label:   "Gender",
@@ -582,7 +582,7 @@ func TestEmpiricalDefects(t *testing.T) {
 	})
 
 	t.Run("Defect3_EEORaceCaucasianAsianSubstringCollision", func(t *testing.T) {
-		engine := NewSmartAnswerEngine()
+		engine := NewAnswerService()
 		// When options list Caucasian before Asian
 		q := ATSQuestion{
 			Label:   "Race / Ethnicity",
@@ -643,7 +643,7 @@ func TestIteration2AdversarialProbes(t *testing.T) {
 		GitHubURL:            "https://github.com/nakulbhandare",
 	}
 
-	engine := NewSmartAnswerEngine()
+	engine := NewAnswerService()
 
 	// ------------------------------------------------------------------------
 	// PROBE 1: ADVERSARIAL OPTION MATCHING & DROPDOWN COLLISION RESISTANCE

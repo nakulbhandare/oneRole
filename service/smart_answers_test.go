@@ -6,7 +6,7 @@ import (
 	"github.com/oneRole/models"
 )
 
-func TestSmartAnswerEngine(t *testing.T) {
+func TestAnswerService(t *testing.T) {
 	profile := &models.CandidateProfile{
 		FirstName:            "John",
 		LastName:             "Doe",
@@ -27,7 +27,7 @@ func TestSmartAnswerEngine(t *testing.T) {
 		GitHubURL:            "https://github.com/johndoe",
 	}
 
-	engine := NewSmartAnswerEngine()
+	engine := NewAnswerService()
 
 	tests := []struct {
 		name     string
@@ -183,7 +183,7 @@ func TestSmartAnswerEngine(t *testing.T) {
 	})
 }
 
-func TestSmartAnswerEngine_UserPreferencesAndBasicQuestions(t *testing.T) {
+func TestAnswerService_UserPreferencesAndBasicQuestions(t *testing.T) {
 	profile := &models.CandidateProfile{
 		FirstName:            "Nakul",
 		LastName:             "Bhandare",
@@ -202,7 +202,7 @@ func TestSmartAnswerEngine_UserPreferencesAndBasicQuestions(t *testing.T) {
 		},
 	}
 
-	engine := NewSmartAnswerEngine()
+	engine := NewAnswerService()
 
 	// 1. Sponsorship should resolve to Yes based on candidate preference
 	qSpons := ATSQuestion{Label: "Will you now or in the future require visa sponsorship?", Options: []string{"Yes", "No"}}

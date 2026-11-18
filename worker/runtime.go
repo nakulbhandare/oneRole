@@ -54,7 +54,7 @@ func DefaultRuntimeConfig(workerID string) RuntimeConfig {
 		OutboxBatchSize: 100, OutboxConcurrency: 16,
 		OutboxLeaseDuration: 2 * time.Minute, OutboxPublishTimeout: 30 * time.Second, OutboxPollInterval: 250 * time.Millisecond,
 		OutboxFailureDelay: time.Second, OutboxMaxRetryDelay: time.Minute,
-		SourceBatchSize: 100, SourceConcurrency: 16,
+		SourceBatchSize: 500, SourceConcurrency: 50,
 		SourceLeaseDuration: 20 * time.Minute, SourcePollInterval: 30 * time.Second,
 		SourceMaxPages: 20, SourceMaxRecords: 10_000,
 		SourceRetryDelay: 5 * time.Minute, SourceMaxRetryDelay: 24 * time.Hour,

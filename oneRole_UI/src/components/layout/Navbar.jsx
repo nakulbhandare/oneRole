@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 export function Navbar() {
-  const { currentTab, setCurrentTab, toggleSidebar, setActiveModal } = useApp();
+  const { currentTab, setCurrentTab, toggleSidebar, setActiveModal, isAuthenticated } = useApp();
 
   const navTabs = [
     { id: 'dashboard', label: 'Dashboard' },
@@ -69,29 +69,40 @@ export function Navbar() {
 
       {/* Right: Settings & Credits & Profile */}
       <div className="flex items-center space-x-3">
-        <button
-          onClick={() => setCurrentTab('settings')}
-          className="text-xs text-[#526359] hover:text-[#18181b] font-medium transition"
-        >
-          Settings
-        </button>
+        {isAuthenticated ? (
+          <>
+            <button
+              onClick={() => setCurrentTab('settings')}
+              className="text-xs text-[#526359] hover:text-[#18181b] font-medium transition"
+            >
+              Settings
+            </button>
 
-        <div
-          onClick={() => setActiveModal('plans')}
-          className="flex items-center space-x-1.5 px-3 py-1 bg-[#143528] text-[#8ac5a0] text-xs font-semibold rounded-full shadow-sm cursor-pointer hover:bg-[#1c4737] transition"
-          title="View Subscription Plans"
-        >
-          <span>⚡</span>
-          <span>0 left</span>
-        </div>
+            <div
+              onClick={() => setActiveModal('plans')}
+              className="flex items-center space-x-1.5 px-3 py-1 bg-[#143528] text-[#8ac5a0] text-xs font-semibold rounded-full shadow-sm cursor-pointer hover:bg-[#1c4737] transition"
+              title="View Subscription Plans"
+            >
+              <span>⚡</span>
+              <span>0 left</span>
+            </div>
 
-        <button
-          onClick={() => setCurrentTab('profile')}
-          className="w-7 h-7 rounded-full bg-[#e3d0c1] text-[#6b472e] flex items-center justify-center text-xs font-bold shadow-xs hover:ring-2 hover:ring-[#174a38] transition"
-          title="Nakul Bhandare (Profile)"
-        >
-          NB
-        </button>
+            <button
+              onClick={() => setCurrentTab('profile')}
+              className="w-7 h-7 rounded-full bg-[#e3d0c1] text-[#6b472e] flex items-center justify-center text-xs font-bold shadow-xs hover:ring-2 hover:ring-[#174a38] transition"
+              title="Nakul Bhandare (Profile)"
+            >
+              NB
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setCurrentTab('login')}
+            className="px-3.5 py-1.5 bg-[#152c25] hover:bg-[#254b3e] text-white text-xs font-bold rounded-[7px] transition"
+          >
+            Login
+          </button>
+        )}
       </div>
     </header>
   );

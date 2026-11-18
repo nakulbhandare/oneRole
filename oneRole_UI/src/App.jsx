@@ -13,9 +13,19 @@ import { JobDetailModal } from './components/modals/JobDetailModal';
 import { PlansModal } from './components/modals/PlansModal';
 import { AddRoleModal } from './components/modals/AddRoleModal';
 import { ToastContainer } from './components/common/Toast';
+import LoginPage from './components/auth/LoginPage';
+import SignupPage from './components/auth/SignupPage';
 
 export function App() {
-  const { currentTab } = useApp();
+  const { currentTab, auth } = useApp();
+
+  if (auth.loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!auth.isAuthenticated) {
+    return currentTab === 'signup' ? <SignupPage /> : <LoginPage />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f7f8f6]">

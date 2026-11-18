@@ -6,7 +6,7 @@ import { computeRealtimeATSScore } from '../../services/atsEngine';
 export function JobCatalogGrid() {
   const { jobs, loading, handleApplyCard, setSelectedJob, setActiveModal } = useApp();
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 12;
+  const rowsPerPage = 50;
 
   const totalPages = Math.ceil(jobs.length / rowsPerPage) || 1;
   const paginatedJobs = jobs.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);

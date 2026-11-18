@@ -14,6 +14,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+type AnswerService struct {
+	db       *mongo.Database
+	memCache sync.Map
+}
 
 var (
 	rxSponsorship        = regexp.MustCompile(`(?i)(sponsor|visa|require.*sponsor|future.*sponsor|employment visa)`)
@@ -76,24 +80,62 @@ type ATSQuestion struct {
 	Description string   `json:"description,omitempty"`
 }
 
-// SmartAnswerEngine matches employer questions to candidate profile facts, generates human-like, accurate answers,
-// and continuously learns every question into a persistent question bank.
-type SmartAnswerEngine struct {
-	db       *mongo.Database
-	memCache sync.Map
+// AnswerScreeningQuestion handles auto-filling using the screening question schema and saving to UserAnswer.
+func (e *AnswerService) AnswerScreeningQuestion(ctx context.Context, profile *models.CandidateProfile, q models.ScreeningQuestion) (models.UserAnswer, error) {
+	// 1. Check for existing answer
+	if e.db != nil {
+		var existing models.UserAnswer
+		err := e.db.Collection("user_answers").FindOne(ctx, bson.M{
+			"user_id":     profile.UserID,
+			"question_id": q.ID,
+		}).Decode(&existing)
+		if err == nil {
+			return existing, nil
+		}
+	}
+
+	// 2. Synthesize answer using existing ATS logic (converting models.ScreeningQuestion to ATSQuestion)
+	atsQ := ATSQuestion{
+		ID:    q.ID,
+		Label: q.Question,
+	}
+	
+	// Apply pattern from model if needed
+	if q.Pattern != "" {
+		atsQ.Pattern = q.Pattern
+	}
+
+	ansText := e.AnswerQuestion(atsQ, profile)
+
+	// 3. Save and return
+	ans := models.UserAnswer{
+		UserID:     profile.UserID,
+		QuestionID: q.ID,
+		Answer:     ansText,
+	}
+
+	if e.db != nil {
+		_, _ = e.db.Collection("user_answers").InsertOne(ctx, ans)
+	}
+
+	return ans, nil
 }
 
-func NewSmartAnswerEngine() *SmartAnswerEngine {
-	return &SmartAnswerEngine{}
+func NewAnswerService() *AnswerService {
+	return &AnswerService{}
 }
 
-func (e *SmartAnswerEngine) WithDB(database *mongo.Database) *SmartAnswerEngine {
+func NewSmartAnswerEngine() *AnswerService {
+	return NewAnswerService()
+}
+
+func (e *AnswerService) WithDB(database *mongo.Database) *AnswerService {
 	e.db = database
 	e.preloadLearnedQuestions()
 	return e
 }
 
-func (e *SmartAnswerEngine) preloadLearnedQuestions() {
+func (e *AnswerService) preloadLearnedQuestions() {
 	if e.db == nil {
 		return
 	}
@@ -121,12 +163,12 @@ func (e *SmartAnswerEngine) preloadLearnedQuestions() {
 }
 
 // AnswerQuestion determines the smartest truthful response based on the candidate's verified profile and resume.
-func (e *SmartAnswerEngine) AnswerQuestion(q ATSQuestion, p *models.CandidateProfile) string {
+func (e *AnswerService) AnswerQuestion(q ATSQuestion, p *models.CandidateProfile) string {
 	return e.AnswerQuestionWithJob(q, p, JobAnswerContext{})
 }
 
 // AnswerQuestionWithJob tailors truthful answers to candidate facts, job context, and learned memory.
-func (e *SmartAnswerEngine) AnswerQuestionWithJob(q ATSQuestion, p *models.CandidateProfile, job JobAnswerContext) string {
+func (e *AnswerService) AnswerQuestionWithJob(q ATSQuestion, p *models.CandidateProfile, job JobAnswerContext) string {
 	if p == nil {
 		return ""
 	}
@@ -213,7 +255,7 @@ func (e *SmartAnswerEngine) AnswerQuestionWithJob(q ATSQuestion, p *models.Candi
 	return answer
 }
 
-func (e *SmartAnswerEngine) synthesizeAnswer(q ATSQuestion, p *models.CandidateProfile, job JobAnswerContext, label, id string) string {
+func (e *AnswerService) synthesizeAnswer(q ATSQuestion, p *models.CandidateProfile, job JobAnswerContext, label, id string) string {
 
 	// 0. Core Identity Fields
 	if id == "first_name" || strings.Contains(label, "first name") || label == "first_name" {

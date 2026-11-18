@@ -76,7 +76,8 @@ spec:
   - metadata:
       name: mongo-storage
     spec:
+      storageClassName: managed-premium
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 10Gi
+          storage: 50Gi

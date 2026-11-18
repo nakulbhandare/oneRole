@@ -60,7 +60,7 @@ type autoApplyQueueItem struct {
 // AutoApplyEngine coordinates smart question answering, asynchronous queuing, and direct ATS submission.
 type AutoApplyEngine struct {
 	db           *mongo.Database
-	answerEngine *SmartAnswerEngine
+	answerEngine *AnswerService
 	inspector    *ats_inspector.ATSFormInspector
 	submitClient *ats_submit.Client
 	jobMatcher   *JobMatcher
@@ -120,7 +120,7 @@ func NewAutoApplyEngine(database *mongo.Database) *AutoApplyEngine {
 	ctx, cancel := context.WithCancel(context.Background())
 	engine := &AutoApplyEngine{
 		db:           database,
-		answerEngine: NewSmartAnswerEngine().WithDB(database),
+		answerEngine: NewAnswerService().WithDB(database),
 		inspector:    ats_inspector.NewATSFormInspector(),
 		submitClient: ats_submit.NewClient(),
 		jobMatcher:   NewJobMatcher(),

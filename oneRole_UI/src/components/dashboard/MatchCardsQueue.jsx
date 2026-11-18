@@ -1,10 +1,12 @@
 import React from 'react';
 import { MatchCard } from './MatchCard';
+import { SkeletonCard } from '../common/SkeletonCard';
 import { useApp } from '../../context/AppContext';
 
 export function MatchCardsQueue() {
   const {
     activeCards,
+    loading,
     resetMatchQueue,
     handleApplyToAll5,
     setActiveModal,
@@ -46,8 +48,8 @@ export function MatchCardsQueue() {
 
           <button
             onClick={handleApplyToAll5}
-            disabled={activeCards.length === 0}
-            className={`px-3.5 py-1.5 bg-[#152c25] hover:bg-[#254b3e] text-white text-xs font-bold rounded-[7px] flex items-center space-x-1.5 shadow-sm transition ${activeCards.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+            disabled={loading || activeCards.length === 0}
+            className={`px-3.5 py-1.5 bg-[#152c25] hover:bg-[#254b3e] text-white text-xs font-bold rounded-[7px] flex items-center space-x-1.5 shadow-sm transition ${loading || activeCards.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
             title="Submit applications to all 5 match cards in parallel"
           >
             <span>⚡</span>
@@ -57,8 +59,14 @@ export function MatchCardsQueue() {
         </div>
       </div>
 
-      {/* Cards Row / Empty State */}
-      {activeCards.length === 0 ? (
+      {/* Cards Row / Loading / Empty State */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          {[...Array(5)].map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : activeCards.length === 0 ? (
         <div className="w-full card p-8 text-center text-[#78827e] text-xs bg-[#fafbfa] rounded-[10px] border border-[#e8ece9] flex flex-col items-center justify-center space-y-3">
           <div className="font-medium text-[#2d3a33]">
             ✓ All queued job matches have been submitted to employer ATS portals and confirmed in your Application Tracker!
@@ -74,7 +82,9 @@ export function MatchCardsQueue() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
           {activeCards.map(card => (
-            <MatchCard key={card.key} card={card} />
+            <div key={card.key} className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out fill-mode-forwards">
+              <MatchCard card={card} />
+            </div>
           ))}
         </div>
       )}
