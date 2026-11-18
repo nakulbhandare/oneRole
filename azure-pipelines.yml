@@ -1,17 +1,20 @@
 trigger:
 - master
+
 pool:
   vmImage: 'ubuntu-latest'
+
 steps:
 - task: Docker@2
   inputs:
     command: buildAndPush
     repository: oneroleacr.azurecr.io/onerole
     dockerfile: '**/Dockerfile'
-    containerRegistry: 'oneroleacr-connection' # You will name your Service Connection this
+    containerRegistry: 'oneroleacr-connection'
+
 - task: SSH@0
   inputs:
-    sshEndpoint: 'onerole-vm-connection' # You will name your SSH Connection this
+    sshEndpoint: 'onerole-vm-connection'
     runOptions: 'inline'
     inline: |
       sudo docker pull oneroleacr.azurecr.io/onerole:latest
