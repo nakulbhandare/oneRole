@@ -186,12 +186,25 @@ func (e *AutoApplyEngine) processQueueItem(item autoApplyQueueItem) {
 	if err != nil {
 		now := time.Now().UTC()
 		errReason := err.Error()
+
+		// Distinguish between transient and permanent failures
+		isTransient := strings.Contains(strings.ToLower(errReason), "timeout") ||
+			strings.Contains(strings.ToLower(errReason), "connection refused") ||
+			strings.Contains(strings.ToLower(errReason), "429")
+
 		targetStatus := string(models.ApplicationFailedRetryable)
 		pauseReason := "submission_failed"
+
 		if isCaptchaOrBotChallenge(err) {
 			targetStatus = string(models.ApplicationRequiresManualAction)
 			pauseReason = "captcha_verification_required"
+		} else if isTransient && item.RetryCount < 3 {
+			// Increment retry count and requeue
+			item.RetryCount++
+			e.queueChan <- item
+			return
 		}
+
 		_, _ = e.db.Collection("applications").UpdateOne(ctx, bson.M{
 			"_id": item.ApplicationID,
 		}, bson.M{
@@ -213,8 +226,48 @@ func (e *AutoApplyEngine) processQueueItem(item autoApplyQueueItem) {
 			"actor_id":       item.Scope.UserID,
 			"occurred_at":    now,
 		})
+
+		// Perform automated failure research
+		go e.researchFailure(context.Background(), item.ApplicationID, err)
 	}
 }
+
+func (e *AutoApplyEngine) researchFailure(ctx context.Context, appID string, err error) {
+	fmt.Printf("[AutoApplyEngine] Researching failure for application %s: %v\n", appID, err)
+
+	var app struct {
+		JobID string `bson:"job_id"`
+	}
+	if err := e.db.Collection("applications").FindOne(ctx, bson.M{"_id": appID}).Decode(&app); err != nil {
+		return
+	}
+
+	var job struct {
+		SourceURL string `bson:"source_url"`
+	}
+	_ = e.db.Collection("jobs").FindOne(ctx, bson.M{"_id": app.JobID}).Decode(&job)
+
+	errMsg := strings.ToLower(err.Error())
+	diagnostics := "No automated diagnostics available."
+
+	if strings.Contains(errMsg, "missing") || strings.Contains(errMsg, "required") {
+		diagnostics = "ATS submission failed due to missing required fields. ATS form inspection recommended."
+		if job.SourceURL != "" {
+			// Trigger inspector logic if possible, or just note it for the agent
+			diagnostics += fmt.Sprintf(" Triggered inspection for: %s", job.SourceURL)
+		}
+	} else if strings.Contains(errMsg, "connection") || strings.Contains(errMsg, "timeout") {
+		diagnostics = "ATS submission failed due to connectivity issues (timeout/connection reset). Environment health check recommended."
+	}
+
+	_, _ = e.db.Collection("applications").UpdateOne(ctx, bson.M{"_id": appID}, bson.M{
+		"$set": bson.M{
+			"automated_diagnostics": diagnostics,
+			"diagnostics_updated_at": time.Now().UTC(),
+		},
+	})
+}
+
 
 func isCaptchaOrBotChallenge(err error) bool {
 	if err == nil {
@@ -230,7 +283,10 @@ func isCaptchaOrBotChallenge(err error) bool {
 		strings.Contains(msg, "possible spam") ||
 		strings.Contains(msg, "timeout") ||
 		strings.Contains(msg, "security") ||
-		strings.Contains(msg, "bot")
+		strings.Contains(msg, "bot") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "dns") ||
+		strings.Contains(msg, "network unreachable")
 }
 
 func (e *AutoApplyEngine) pauseForManualAction(ctx context.Context, scope ActorScope, appID, jobID, company, title, reason string, answers map[string]string, resumeVersionID string, shouldTailor bool, matchResult JobMatchResult) (*AutoApplyResult, error) {
