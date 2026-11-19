@@ -787,7 +787,7 @@ func RunDiscoveryForAll(ctx context.Context, database *mongo.Database) (*Discove
 		wg     sync.WaitGroup
 	)
 
-	const workerPoolSize = 25
+	const workerPoolSize = 6
 	srcChan := make(chan job_sources.SourceConfig, len(claimedSources))
 	for _, s := range claimedSources {
 		srcChan <- s
@@ -846,6 +846,7 @@ func RunDiscoveryForAll(ctx context.Context, database *mongo.Database) (*Discove
 					"provider", source.Provider,
 					"board", source.BoardIdentifier,
 				)
+				time.Sleep(100 * time.Millisecond)
 			}
 		}()
 	}

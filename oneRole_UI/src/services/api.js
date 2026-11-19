@@ -67,7 +67,7 @@ export async function doDevLogin(email = 'bhandarenakul11@gmail.com') {
 
 export async function searchJobs(filters = {}) {
   const params = new URLSearchParams();
-  params.set('limit', '100');
+  params.set('limit', '30');
   params.set('sort', 'published_desc');
 
   let queryParts = [];
