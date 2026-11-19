@@ -1,23 +1,126 @@
+# ==============================================================================
+# Azure DevOps Pipeline — OneRole AKS Automated Deployment
+# Independent microservice deployments:
+# - UI changes -> deploy only to onerole-ui pods
+# - API/Backend changes -> deploy only to onerole-api pods
+# ==============================================================================
+
 trigger:
-- master
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - oneRole_UI/**
+      - '**/*.go'
+      - go.mod
+      - go.sum
+      - Dockerfile.api
+      - api/**
+      - controller/**
+      - service/**
+      - worker/**
+      - repository/**
+      - models/**
+      - config/**
+      - k8s/**
 
-pool:
-  vmImage: 'ubuntu-latest'
+variables:
+  acrName: 'oneroleacr'
+  acrRegistry: 'oneroleacr.azurecr.io'
+  aksResourceGroup: 'oneRole-aks-rg'
+  aksCluster: 'onerole-aks'
+  azureSubscriptionServiceConnection: 'AzureSubscriptionServiceConnection'
 
-steps:
-- task: Docker@2
-  inputs:
-    command: buildAndPush
-    repository: oneroleacr.azurecr.io/onerole
-    dockerfile: '**/Dockerfile'
-    containerRegistry: 'oneroleacr-connection'
+stages:
+# ------------------------------------------------------------------------------
+# Stage 1: Deploy UI Pods (Only if UI files changed)
+# ------------------------------------------------------------------------------
+- stage: DeployUI
+  displayName: 'Build & Deploy UI to AKS'
+  jobs:
+  - job: BuildAndDeployUI
+    displayName: 'Deploy onerole-ui'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
+      fetchDepth: 2
 
-- task: SSH@0
-  inputs:
-    sshEndpoint: 'onerole-vm-connection'
-    runOptions: 'inline'
-    inline: |
-      sudo docker pull oneroleacr.azurecr.io/onerole:latest
-      sudo docker stop onerole-app || true
-      sudo docker rm onerole-app || true
-      sudo docker run -d -p 80:8082 --name onerole-app oneroleacr.azurecr.io/onerole:latest
+    - script: |
+        DIFF=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "oneRole_UI/")
+        echo "Changed files in commit:"
+        echo "$DIFF"
+        if echo "$DIFF" | grep -q "^oneRole_UI/"; then
+          echo "##vso[task.setvariable variable=UI_CHANGED]true"
+          echo "UI changes detected. Proceeding with UI deployment."
+        else
+          echo "##vso[task.setvariable variable=UI_CHANGED]false"
+          echo "No UI changes detected in this commit."
+        fi
+      displayName: 'Check for UI changes'
+
+    - task: AzureCLI@2
+      displayName: 'Build, Push, and Rollout UI'
+      condition: eq(variables['UI_CHANGED'], 'true')
+      inputs:
+        azureSubscription: '$(azureSubscriptionServiceConnection)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az acr login --name $(acrName)
+          IMAGE_TAG=$(Build.SourceVersion)
+
+          docker build -t $(acrRegistry)/onerole-ui:${IMAGE_TAG} -t $(acrRegistry)/onerole-ui:latest -f oneRole_UI/Dockerfile oneRole_UI
+          docker push $(acrRegistry)/onerole-ui:${IMAGE_TAG}
+          docker push $(acrRegistry)/onerole-ui:latest
+
+          az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksCluster) --overwrite-existing
+          kubectl set image deployment/onerole-ui ui=$(acrRegistry)/onerole-ui:${IMAGE_TAG} -n onerole
+          kubectl rollout status deployment/onerole-ui -n onerole --timeout=180s
+
+# ------------------------------------------------------------------------------
+# Stage 2: Deploy API Pods (Only if Backend/API files changed)
+# ------------------------------------------------------------------------------
+- stage: DeployAPI
+  displayName: 'Build & Deploy API to AKS'
+  jobs:
+  - job: BuildAndDeployAPI
+    displayName: 'Deploy onerole-api'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
+      fetchDepth: 2
+
+    - script: |
+        DIFF=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "main.go")
+        echo "Changed files in commit:"
+        echo "$DIFF"
+        if echo "$DIFF" | grep -v "^oneRole_UI/" | grep -qE "(\.go$|go\.mod|go\.sum|Dockerfile\.api|api/|controller/|service/|worker/|repository/|models/|config/|connectors/)"; then
+          echo "##vso[task.setvariable variable=API_CHANGED]true"
+          echo "API/Backend changes detected. Proceeding with API deployment."
+        else
+          echo "##vso[task.setvariable variable=API_CHANGED]false"
+          echo "No API/Backend changes detected in this commit."
+        fi
+      displayName: 'Check for API changes'
+
+    - task: AzureCLI@2
+      displayName: 'Build, Push, and Rollout API'
+      condition: eq(variables['API_CHANGED'], 'true')
+      inputs:
+        azureSubscription: '$(azureSubscriptionServiceConnection)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az acr login --name $(acrName)
+          IMAGE_TAG=$(Build.SourceVersion)
+
+          docker build -t $(acrRegistry)/onerole-api:${IMAGE_TAG} -t $(acrRegistry)/onerole-api:latest -f Dockerfile.api .
+          docker push $(acrRegistry)/onerole-api:${IMAGE_TAG}
+          docker push $(acrRegistry)/onerole-api:latest
+
+          az aks get-credentials --resource-group $(aksResourceGroup) --name $(aksCluster) --overwrite-existing
+          kubectl set image deployment/onerole-api api=$(acrRegistry)/onerole-api:${IMAGE_TAG} -n onerole
+          kubectl rollout status deployment/onerole-api -n onerole --timeout=180s

@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+**/node_modules
+oneRole_UI/node_modules
+connectors/ats_submit/node_modules
+graphify-env
+*.pem
+/tmp
+*.log

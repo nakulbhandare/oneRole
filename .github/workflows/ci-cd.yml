@@ -1,17 +1,120 @@
-name: CI/CD Pipeline
+name: AKS CI/CD Automated Deployment
 
 on:
   push:
     branches:
       - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  build:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ui: ${{ steps.filter.outputs.ui }}
+      api: ${{ steps.filter.outputs.api }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ui:
+              - 'oneRole_UI/**'
+            api:
+              - '**.go'
+              - 'go.mod'
+              - 'go.sum'
+              - 'Dockerfile.api'
+              - 'api/**'
+              - 'controller/**'
+              - 'service/**'
+              - 'worker/**'
+              - 'repository/**'
+              - 'models/**'
+              - 'config/**'
+              - 'connectors/**'
+              - 'k8s/**'
+
+  deploy-ui:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.ui == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Build Docker Image
-        run: docker build -t onerole-app .
-      - name: Deploy to VM
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push UI Image
         run: |
-          ssh -o StrictHostKeyChecking=no azureuser@40.116.109.236 "docker stop onerole-app && docker rm onerole-app && docker run -d --name onerole-app --network onerole-net -p 80:8082 -e APP_MODE=all onerole-app"
+          docker build \
+            -t ${{ secrets.ACR_REGISTRY }}/onerole-ui:${{ github.sha }} \
+            -t ${{ secrets.ACR_REGISTRY }}/onerole-ui:latest \
+            -f oneRole_UI/Dockerfile oneRole_UI
+          docker push ${{ secrets.ACR_REGISTRY }}/onerole-ui:${{ github.sha }}
+          docker push ${{ secrets.ACR_REGISTRY }}/onerole-ui:latest
+
+      - name: Set AKS Context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Deploy UI Pods
+        run: |
+          kubectl set image deployment/onerole-ui ui=${{ secrets.ACR_REGISTRY }}/onerole-ui:${{ github.sha }} -n onerole
+          kubectl rollout status deployment/onerole-ui -n onerole --timeout=180s
+
+  deploy-api:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push API Image
+        run: |
+          docker build \
+            -t ${{ secrets.ACR_REGISTRY }}/onerole-api:${{ github.sha }} \
+            -t ${{ secrets.ACR_REGISTRY }}/onerole-api:latest \
+            -f Dockerfile.api .
+          docker push ${{ secrets.ACR_REGISTRY }}/onerole-api:${{ github.sha }}
+          docker push ${{ secrets.ACR_REGISTRY }}/onerole-api:latest
+
+      - name: Set AKS Context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Deploy API Pods
+        run: |
+          kubectl set image deployment/onerole-api api=${{ secrets.ACR_REGISTRY }}/onerole-api:${{ github.sha }} -n onerole
+          kubectl rollout status deployment/onerole-api -n onerole --timeout=180s

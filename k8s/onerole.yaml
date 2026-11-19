@@ -17,6 +17,9 @@ stringData:
   CSRF_SIGNING_SECRET: "12345678901234567890123456789012"
   IDEMPOTENCY_HMAC_SECRET: "ABCDEFGHIJABCDEFGHIJABCDEFGHIJAB"
 ---
+# ----------------------------------------------------------------------------
+# MongoDB Database (with persistent Azure disk)
+# ----------------------------------------------------------------------------
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -80,6 +83,9 @@ spec:
   selector:
     app: mongodb
 ---
+# ----------------------------------------------------------------------------
+# NATS JetStream Message Broker
+# ----------------------------------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -128,37 +134,38 @@ spec:
   selector:
     app: nats
 ---
+# ----------------------------------------------------------------------------
+# OneRole Backend API Microservice
+# ----------------------------------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: onerole-app
+  name: onerole-api
   namespace: onerole
+  labels:
+    app: onerole-api
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: onerole-app
+      app: onerole-api
   template:
     metadata:
       labels:
-        app: onerole-app
+        app: onerole-api
     spec:
       containers:
-        - name: onerole-app
-          image: oneroleacr.azurecr.io/onerole-app:latest
+        - name: api
+          image: oneroleacr.azurecr.io/onerole-api:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8082
+            - containerPort: 8088
               name: http
           env:
             - name: PORT
-              value: "8082"
+              value: "8088"
             - name: HTTP_ADDR
-              value: ":8080"
-            - name: BACKEND_URL
-              value: "http://127.0.0.1:8080"
-            - name: NATS_MONITOR_URL
-              value: "http://nats:8222"
+              value: ":8088"
             - name: DATABASE_URL
               value: "mongodb://mongodb:27017/onerole"
             - name: NATS_URL
@@ -207,8 +214,110 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: onerole-api
+  namespace: onerole
+spec:
+  ports:
+    - port: 8088
+      targetPort: 8088
+      name: http
+  selector:
+    app: onerole-api
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: onerole-api-hpa
+  namespace: onerole
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: onerole-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+---
+# ----------------------------------------------------------------------------
+# OneRole Frontend UI Microservice
+# ----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onerole-ui
+  namespace: onerole
+  labels:
+    app: onerole-ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: onerole-ui
+  template:
+    metadata:
+      labels:
+        app: onerole-ui
+    spec:
+      containers:
+        - name: ui
+          image: oneroleacr.azurecr.io/onerole-ui:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            - name: PORT
+              value: "8082"
+            - name: NODE_ENV
+              value: "production"
+            - name: BACKEND_URL
+              value: "http://onerole-api:8088"
+            - name: NATS_MONITOR_URL
+              value: "http://nats:8222"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: onerole-ui-hpa
+  namespace: onerole
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: onerole-ui
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+---
+# ----------------------------------------------------------------------------
+# Public LoadBalancer with Free Azure CloudApp Domain
+# ----------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
   name: onerole-service
   namespace: onerole
+  annotations:
+    service.beta.kubernetes.io/azure-dns-label-name: onerole-portal
 spec:
   type: LoadBalancer
   ports:
@@ -216,4 +325,4 @@ spec:
       targetPort: 8082
       name: http
   selector:
-    app: onerole-app
+    app: onerole-ui
