@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/oneRole/connectors/job_sources"
@@ -95,6 +97,38 @@ func TestExtractATSProviderAndBoard(t *testing.T) {
 			wantProvider: job_sources.ProviderWorkday,
 			wantBoard:    "accenturecareers",
 		},
+		{
+			name:         "SmartRecruiters Freehire job URL",
+			ats:          "smartrecruiters",
+			url:          "https://jobs.smartrecruiters.com/Dominos/744000162592564-general-manager-09450-2430-us-hwy-27?utm_source=freehire.me",
+			host:         "jobs.smartrecruiters.com",
+			wantProvider: job_sources.ProviderSmartRecruiters,
+			wantBoard:    "Dominos",
+		},
+		{
+			name:         "Greenhouse API boards URL",
+			ats:          "greenhouse",
+			url:          "https://boards-api.greenhouse.io/v1/boards/stripe",
+			host:         "boards-api.greenhouse.io",
+			wantProvider: job_sources.ProviderGreenhouse,
+			wantBoard:    "stripe",
+		},
+		{
+			name:         "Lever with job path",
+			ats:          "lever",
+			url:          "https://jobs.lever.co/netflix/12345?utm_source=freehire.me",
+			host:         "jobs.lever.co",
+			wantProvider: job_sources.ProviderLever,
+			wantBoard:    "netflix",
+		},
+		{
+			name:         "Ashby with job path",
+			ats:          "ashby",
+			url:          "https://jobs.ashbyhq.com/sentry/abc-123",
+			host:         "jobs.ashbyhq.com",
+			wantProvider: job_sources.ProviderAshby,
+			wantBoard:    "sentry",
+		},
 	}
 
 	for _, tt := range tests {
@@ -116,5 +150,87 @@ func TestCleanSlug(t *testing.T) {
 	}
 	if got := cleanSlug("4mAnalytics!#$"); got != "4manalytics" {
 		t.Errorf("cleanSlug() = %v, want %v", got, "4manalytics")
+	}
+}
+
+func TestUnmarshalCompaniesJSONFormats(t *testing.T) {
+	// 1. Envelope format {"companies": [...]}
+	envelopeJSON := []byte(`{
+		"companies": [
+			{"name": "Dominos", "provider": "smartrecruiters", "board": "Dominos", "host": "jobs.smartrecruiters.com", "job_board_url": "https://jobs.smartrecruiters.com/Dominos"}
+		]
+	}`)
+	var records []rawCompanyRecord
+	if err := json.Unmarshal(envelopeJSON, &records); err != nil {
+		var env struct {
+			Companies []rawCompanyRecord `json:"companies"`
+		}
+		if envErr := json.Unmarshal(envelopeJSON, &env); envErr != nil || len(env.Companies) == 0 {
+			t.Fatalf("failed to unmarshal envelope: %v", envErr)
+		}
+		records = env.Companies
+	}
+	if len(records) != 1 || records[0].Name != "Dominos" || records[0].Provider != "smartrecruiters" {
+		t.Errorf("unexpected record parsed: %+v", records)
+	}
+
+	// 2. Direct array format [...]
+	arrayJSON := []byte(`[
+		{"company_name": "Netflix", "base_job_url": "https://jobs.lever.co/netflix", "ats": "lever", "host": "jobs.lever.co"}
+	]`)
+	var arrRecords []rawCompanyRecord
+	if err := json.Unmarshal(arrayJSON, &arrRecords); err != nil {
+		t.Fatalf("failed to unmarshal array: %v", err)
+	}
+	if len(arrRecords) != 1 || *arrRecords[0].CompanyName != "Netflix" {
+		t.Errorf("unexpected record parsed: %+v", arrRecords)
+	}
+}
+
+func TestParseIngestedCompaniesJSON(t *testing.T) {
+	// Path relative to worker package
+	paths := []string{"../companies.json", "../config/companies.json"}
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			t.Skipf("File not found at %s: %v", p, err)
+			continue
+		}
+
+		var envelope struct {
+			Companies []rawCompanyRecord `json:"companies"`
+		}
+		if err := json.Unmarshal(data, &envelope); err != nil {
+			t.Fatalf("failed to unmarshal %s: %v", p, err)
+		}
+
+		if len(envelope.Companies) == 0 {
+			t.Fatalf("expected companies in %s, got 0", p)
+		}
+
+		validCount := 0
+		for _, c := range envelope.Companies {
+			rawName := c.Name
+			if rawName == "" && c.CompanyName != nil {
+				rawName = *c.CompanyName
+			}
+			urlStr := c.JobBoardURL
+			if urlStr == "" {
+				urlStr = c.BaseJobURL
+			}
+			providerStr := c.Provider
+			if providerStr == "" {
+				providerStr = c.ATS
+			}
+
+			provider, board, endpoint, allowedHosts := extractATSProviderAndBoard(providerStr, urlStr, c.Host)
+			if provider != "" && board != "" && endpoint != "" && len(allowedHosts) > 0 {
+				validCount++
+			}
+		}
+
+		if validCount < len(envelope.Companies) {
+			t.Errorf("expected all %d companies to produce valid provider & board, but only %d did", len(envelope.Companies), validCount)
+		}
 	}
 }

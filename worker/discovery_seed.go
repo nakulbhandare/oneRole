@@ -253,11 +253,18 @@ var DefaultCompanySeeds = []CompanySeedConfig{
 type rawCompanyRecord struct {
 	ID                    int64   `json:"id"`
 	CompanyName           *string `json:"company_name"`
+	Name                  string  `json:"name,omitempty"`
 	BaseJobURL            string  `json:"base_job_url"`
+	JobBoardURL           string  `json:"job_board_url,omitempty"`
+	FinalURL              *string `json:"final_url,omitempty"`
 	ATS                   string  `json:"ats"`
+	Provider              string  `json:"provider,omitempty"`
+	Board                 string  `json:"board,omitempty"`
 	Host                  string  `json:"host"`
+	Website               string  `json:"website,omitempty"`
 	SourceRow             int64   `json:"source_row"`
 	AddedForMissingJobURL bool    `json:"added_for_missing_job_url"`
+	VerifiedStatus        *string `json:"verified_status,omitempty"`
 }
 
 var (
@@ -291,7 +298,9 @@ func extractATSProviderAndBoard(ats, baseJobURL, host string) (job_sources.Provi
 		if val := u.Query().Get("for"); val != "" {
 			board = val
 		} else if len(pathParts) > 0 {
-			if (pathParts[0] == "embed" || pathParts[0] == "jobs") && len(pathParts) > 1 {
+			if pathParts[0] == "v1" && len(pathParts) > 2 && pathParts[1] == "boards" {
+				board = pathParts[2]
+			} else if (pathParts[0] == "embed" || pathParts[0] == "jobs") && len(pathParts) > 1 {
 				board = pathParts[1]
 			} else {
 				board = pathParts[0]
@@ -400,6 +409,9 @@ func extractATSProviderAndBoard(ats, baseJobURL, host string) (job_sources.Provi
 		if boardSlug == "" || !safeBoardIDPattern.MatchString(boardSlug) {
 			boardSlug = cleanSlug(u.Hostname())
 		}
+		if len(boardSlug) > 64 {
+			boardSlug = boardSlug[:64]
+		}
 		if boardSlug != "" && safeBoardIDPattern.MatchString(boardSlug) {
 			endpoint := u.String()
 			if u.Scheme == "http" {
@@ -426,7 +438,14 @@ func MigrateCompaniesFromJSON(ctx context.Context, database *mongo.Database, fil
 
 	var records []rawCompanyRecord
 	if err := json.Unmarshal(data, &records); err != nil {
-		return 0, 0, fmt.Errorf("unmarshal company json: %w", err)
+		var envelope struct {
+			Companies []rawCompanyRecord `json:"companies"`
+		}
+		if envErr := json.Unmarshal(data, &envelope); envErr == nil && len(envelope.Companies) > 0 {
+			records = envelope.Companies
+		} else {
+			return 0, 0, fmt.Errorf("unmarshal company json: %w", err)
+		}
 	}
 
 	slog.Info("Loaded company.json records", "total_records", len(records))
@@ -505,11 +524,28 @@ func MigrateCompaniesFromJSON(ctx context.Context, database *mongo.Database, fil
 
 	for _, item := range records {
 		rawName := ""
-		if item.CompanyName != nil {
+		if item.CompanyName != nil && *item.CompanyName != "" {
 			rawName = strings.TrimSpace(*item.CompanyName)
+		} else if item.Name != "" {
+			rawName = strings.TrimSpace(item.Name)
 		}
 		rawURL := strings.TrimSpace(item.BaseJobURL)
+		if rawURL == "" && item.FinalURL != nil && *item.FinalURL != "" {
+			rawURL = strings.TrimSpace(*item.FinalURL)
+		}
+		if rawURL == "" && item.JobBoardURL != "" {
+			rawURL = strings.TrimSpace(item.JobBoardURL)
+		}
+		rawATS := strings.TrimSpace(item.ATS)
+		if rawATS == "" && item.Provider != "" {
+			rawATS = strings.TrimSpace(item.Provider)
+		}
 		rawHost := strings.TrimSpace(item.Host)
+		if rawHost == "" && rawURL != "" {
+			if pu, perr := url.Parse(rawURL); perr == nil {
+				rawHost = pu.Hostname()
+			}
+		}
 
 		// Deduplicate identical company name + URL combinations
 		dedupKey := strings.ToLower(rawName) + "|" + strings.ToLower(rawURL)
@@ -590,7 +626,7 @@ func MigrateCompaniesFromJSON(ctx context.Context, database *mongo.Database, fil
 		}
 
 		// Check if ATS is supported (Greenhouse, Lever, Ashby, SmartRecruiters, BambooHR, Breezy, Recruitee, Workday, Generic)
-		provider, board, endpoint, allowedHosts := extractATSProviderAndBoard(item.ATS, rawURL, rawHost)
+		provider, board, endpoint, allowedHosts := extractATSProviderAndBoard(rawATS, rawURL, rawHost)
 		if provider != "" && board != "" {
 			srcKey := companyID + "|" + string(provider) + "|" + board
 			if !existingSources[srcKey] {
