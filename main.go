@@ -234,6 +234,8 @@ func buildAPIHandler(ctx context.Context, cfg config.Config, database *mongo.Dat
 	catalog.WithSources(repository.NewJobSourceStore(database))
 	profileService := service.NewProfileService(database)
 	autoApplyEngine := service.NewAutoApplyEngine(database).WithNATS(natsConn)
+	enterpriseService := service.NewEnterpriseService(database)
+	enterpriseHandler := controller.NewEnterpriseHandler(enterpriseService)
 
 	verifier, err := middleware.NewJWTVerifier(cfg.JWTIssuer, cfg.JWTAudience,
 		cfg.JWTVerificationKeys, authRepositories.Sessions)
@@ -250,6 +252,7 @@ func buildAPIHandler(ctx context.Context, cfg config.Config, database *mongo.Dat
 		AllowedOrigins: cfg.AllowedOrigins,
 		Readiness:      readinessChecker{database: database, nats: natsConn},
 		Catalog:        catalog,
+		Enterprise:     enterpriseHandler,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("initialize HTTP API: %w", err)

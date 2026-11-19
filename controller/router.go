@@ -31,6 +31,7 @@ type HTTPDependencies struct {
 	AllowedOrigins []string
 	Readiness      ReadinessChecker
 	Catalog        CatalogAPI
+	Enterprise     *EnterpriseHandler
 }
 
 // NewHTTPHandler registers the documented /api/v1 authentication and
@@ -139,6 +140,55 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 		mux.Handle("GET /api/v1/locations/suggest", deps.JWT.Middleware(http.HandlerFunc(catalogHandler.Locations)))
 		mux.Handle("GET /api/v1/sources", deps.JWT.Middleware(http.HandlerFunc(catalogHandler.Sources)))
 		mux.Handle("GET /api/v1/sources/{sourceID}/health", deps.JWT.Middleware(http.HandlerFunc(catalogHandler.SourceHealth)))
+	}
+
+	if deps.Enterprise != nil {
+		ent := deps.Enterprise
+		// 1. Jobs & Catalogue
+		mux.Handle("GET /api/v1/jobs/changes", deps.JWT.Middleware(http.HandlerFunc(ent.JobChanges)))
+		mux.Handle("POST /api/v1/jobs/resolve", deps.JWT.Middleware(http.HandlerFunc(ent.ResolveJob)))
+
+		// 2. Search & Discovery
+		mux.Handle("GET /api/v1/jobs/facets", http.HandlerFunc(ent.JobFacets))
+		mux.Handle("GET /api/v1/suggest", http.HandlerFunc(ent.Suggest))
+		mux.Handle("GET /api/v1/geo/cities", http.HandlerFunc(ent.GeoCities))
+
+		// 3. Fit & AI Matching
+		mux.Handle("GET /api/v1/jobs/{id}/match", tenantScope(http.HandlerFunc(ent.JobMatch)))
+		mux.Handle("POST /api/v1/jobs/{id}/match-analysis", tenantScope(http.HandlerFunc(ent.JobMatch)))
+		mux.Handle("GET /api/v1/jobs/{id}/match-analysis/stream", tenantScope(http.HandlerFunc(ent.MatchAnalysisStream)))
+
+		// 4. Companies & Intelligence
+		mux.Handle("GET /api/v1/companies/{slug}", deps.JWT.Middleware(http.HandlerFunc(ent.CompanyIntelligence)))
+		mux.Handle("GET /api/v1/companies/{slug}/feedback", deps.JWT.Middleware(http.HandlerFunc(ent.CompanyIntelligence)))
+		mux.Handle("GET /api/v1/jobs/{id}/reality", deps.JWT.Middleware(http.HandlerFunc(ent.JobReality)))
+		mux.Handle("POST /api/v1/jobs/{id}/ghost-report", tenantScope(http.HandlerFunc(ent.GhostReport)))
+
+		// 5. Submissions & Dynamic ATS Forms
+		mux.Handle("GET /api/v1/jobs/{id}/apply-form", tenantScope(http.HandlerFunc(ent.ATSApplyForm)))
+		mux.Handle("POST /api/v1/jobs/{id}/direct-apply", tenantScope(http.HandlerFunc(ent.DirectApply)))
+		mux.Handle("POST /api/v1/jobs/{id}/apply", tenantScope(http.HandlerFunc(ent.DirectApply)))
+		mux.Handle("GET /api/v1/me/auto-apply", tenantScope(http.HandlerFunc(ent.AutoApplySettings)))
+		mux.Handle("PUT /api/v1/me/auto-apply", tenantScope(http.HandlerFunc(ent.AutoApplySettings)))
+		mux.Handle("POST /api/v1/me/auto-apply", tenantScope(http.HandlerFunc(ent.AutoApplySettings)))
+
+		// 6. Tracking & Pipeline
+		mux.Handle("GET /api/v1/me/tracking/pipeline", tenantScope(http.HandlerFunc(ent.TrackingPipeline)))
+		mux.Handle("GET /api/v1/me/timeline", tenantScope(http.HandlerFunc(ent.Timeline)))
+
+		// 7. Market Insights
+		mux.Handle("GET /api/v1/insights/salary", http.HandlerFunc(ent.InsightsSalary))
+		mux.Handle("GET /api/v1/insights/roles", http.HandlerFunc(ent.InsightsRoles))
+		mux.Handle("GET /api/v1/insights/velocity", http.HandlerFunc(ent.InsightsVelocity))
+
+		// 8. CV & Answer Bank
+		mux.Handle("GET /api/v1/me/answer-bank", tenantScope(http.HandlerFunc(ent.AnswerBank)))
+		mux.Handle("PUT /api/v1/me/answer-bank", tenantScope(http.HandlerFunc(ent.AnswerBank)))
+		mux.Handle("POST /api/v1/me/answer-bank", tenantScope(http.HandlerFunc(ent.AnswerBank)))
+		mux.Handle("GET /api/v1/me/cvs", tenantScope(http.HandlerFunc(ent.CandidateCVs)))
+
+		// 9. Mailbox & Triage
+		mux.Handle("GET /api/v1/me/mailbox", tenantScope(http.HandlerFunc(ent.Mailbox)))
 	}
 	return LoggingMiddleware(cors(mux)), nil
 }
