@@ -1,0 +1,219 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: onerole
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: onerole-secrets
+  namespace: onerole
+type: Opaque
+data:
+  private.pem: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRQ1lwWkhndFkrZ2dUSFAKQUZYN1dPdHMzcDZXTHFxaTBEQWliVW84THN5aHR5cVFQTTV2bDNGWUJGbmFNazB5b25OYU4rTTNOYTBLRDUwRQo5VVk2em1ZUERaRmd4aDg0b1NOelFmQVNpbmh1WFBaeGVXMjU5cWhNUW8zRExRU3FVODR4V1RRdk5OaG8zVmtYClpBbUNlSEdxTTNUY25kR1NqL2Zsc2g5WFdSODJZWVdyK0pWd0IrN0NxSG8xVHNXV0JTV0hjVis1U0RQeHFrVXIKS3kxdG1CdklkS3BBVjRZdHlFZ1ZMMkR2REJYRWp4Qm55ZUxzOXVXZDB5YmZ2K29uZmkwQ3JwR0hEc2dUbWZGbApMcnBmSWhBNGk4WHduOVhjZk80eUhxU2JYNzdnb3R6WnVjWml5WldvVDJFTmpZV01CbzAvV2hXSjZYNmZzWFpCCjk5Mnl0eHd0QWdNQkFBRUNnZ0VBR0NzcTZEbkhCbUkrU1NpajlIcDFPQlVkWmVqNG9uTzFFMVpiaVNEZHpJTU0KVGE4YS9tY3Jqb1NOMTNMY2J6WnliaWZvSlY4dHlTaUVzM3JFUmw1VW9YQ0VBcDhMNVhMNkFtOC92Q2ZKZnF2ZwpaMElUSWYwUVU1YThERm1ONGd3SDJ4OWxHRTVWTDNGUWdGZ1orMXJub0V1cVpwM2tSMERkUHJTUHFzeFZHVTVqCjlzMkF1SHp3Rlh3M2M5ekpVNDdYbEIrU2JMdmRLbzhWZ2NTOHNQK0UvWS9xdXBaeE5sejRaZ05iajBDVFdjLzEKMkwwbVJDQ2JDajRYajM4WHhkTEJHOER4aFE2NndldlNYK1pZVVY5a1h6M2c5ZGhZaXpROE5hWmR0ZU9MdGRrZwo1eVYxa0E3N3M0VXhrSGR2SVVFSVlPd01PdU5uSXRsdm5wU3I2S2lJRVFLQmdRREtRdnR3TmErcXpnTm03VnVrCmRSYUl4RkFxbWFsM3pNSzE0UHpoUEh5dEozbkxTWFBBTSs0SUNEWFkwblBQcjQ2MW9yU3loL0xOemF5d011ck8KbVc1RVVFYmRLcDFVUzBMOUVXV1Vidnc4eHdvK2xINS9INE1aUFd1UHlHdGFwQitBU2V5c2V3bThDbHpkQVBpYQo2NFJxOTRPT0NmbWxTUm5GR0hYcDQ3M0ZoUUtCZ1FEQk0vdldWNW5RbTQveUxzcW0yWnFLeHg5cTdIZzg5RHdMClhWSFROZ3hyaDlSODRsdndZL1ZrOGw5NGxCa3oybE5reUFzY1d0UjVQajN1UVFEa2FzSFFic0Z0Ty9VZFJRQTkKaTdXenRKTDZNc3hRZGdvcHZKK21EeEkwVDNuU3FyOXEwSnB5T2p4NFNnNUV6UDN0UXh5YjRyLzJ1eXRFejlNZwpKUkp0UVo5SWlRS0JnRVRpYXgvY0tPZlRJZlY4QVNvUmRvczkwTSt4WmJZWFZuajdGeVRlcE5lVUNqYmgzVG9vCmRYam0wdS8xUE53T3ZsdTkvaXlQZ0hIM0NrazREaUF1d1E4akIvOXE5QW94VjY4NHJZL1AvTGYyVWRiZVcvYVAKbE9hVHRINVRrN3hiQ1I5NERkTHdWSEJtVnhvdHFuMlltSkNWbTRoVWZXRjljL2xjUzB4TTgrVEJBb0dCQUkxNgpPcVZuK3F2bTdvN2pNdVRobmlpWHplcm5oTmpsNUg1UjlOUmMxTlY5WHQyZ2lNRE5BZXJORFpwbm9OajJ2SENsCmlIVllFaFZDdmVrVlVzanhZRUg0aU00cnhMK05RckxPOXR6RWs0aUI0Rm5mUm12dncxeS8xbzNWMFJpeWpuOXkKaUZhelRJcXRlQ3RyalZyTDlVdzF6R3FwL3ZKaDJYSEZrK3ZMelE4NUFvR0JBS1VzaVFmbDFla3R3U3RTaHRsZwp2N0JVdUxhN2RQcmNocXZEL3BQSk5FTEtJNlYxS1Q1VnpEMmROOG5qNTNzNFltWCtlcWZZK0RYUm9EUlFkY0x3CnlSc1NJZHk0ZmpjeiszMVREei9sbFhWQ0MyNDNtYUQrM1ErOVJkUFBZMUVmYk85cG4wOWtYaWVQbUtOU1FJTngKS3JiZ2lrdU50MmJkdzRUUmswK2E0cVN5Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K
+  public.pem: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFtS1dSNExXUG9JRXh6d0JWKzFqcgpiTjZlbGk2cW90QXdJbTFLUEM3TW9iY3FrRHpPYjVkeFdBUloyakpOTXFKeldqZmpOeld0Q2crZEJQVkdPczVtCkR3MlJZTVlmT0tFamMwSHdFb3A0Ymx6MmNYbHR1ZmFvVEVLTnd5MEVxbFBPTVZrMEx6VFlhNjFaRjJRSmduaHgKcWpOMDNKM1Jrby8zNWJJZlYxa2ZObUdGcS9pVmNBZnV3cWg2TlU3RmxnVWxoM0ZmdVVnejhhcEZLeXN0YlpnYgp5SFNxUUZlR0xjaElGUzlnN3d3VnhJOFFaOG5pN1BibG5kTW0zNy9xSjM0dEFxNlJodzdJRTVueFpTNjZYeUlRCk9JdkY4Si9WM0h6dU1oNmttMSsrNEtMYzJibkdZc21WcUU5aERZMkZqQWFOUDFvVmllbCtuN0YyUWZmZHNyY2MKTFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+stringData:
+  AUTH_ENCRYPTION_KEY: "siT1udCns6L8Aydi94Ikb0ZcmCDOACboLgAt1SLNDOQ="
+  CSRF_SIGNING_SECRET: "12345678901234567890123456789012"
+  IDEMPOTENCY_HMAC_SECRET: "ABCDEFGHIJABCDEFGHIJABCDEFGHIJAB"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+  namespace: onerole
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: default
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: onerole
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7
+          command: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.5", "--maxConns", "200"]
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+      volumes:
+        - name: mongodb-data
+          persistentVolumeClaim:
+            claimName: mongodb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: onerole
+spec:
+  ports:
+    - port: 27017
+      targetPort: 27017
+  selector:
+    app: mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats
+  namespace: onerole
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      containers:
+        - name: nats
+          image: nats:2.10-alpine
+          args: ["-js", "-m", "8222"]
+          ports:
+            - containerPort: 4222
+              name: client
+            - containerPort: 8222
+              name: monitor
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: onerole
+spec:
+  ports:
+    - port: 4222
+      name: client
+      targetPort: 4222
+    - port: 8222
+      name: monitor
+      targetPort: 8222
+  selector:
+    app: nats
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onerole-app
+  namespace: onerole
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: onerole-app
+  template:
+    metadata:
+      labels:
+        app: onerole-app
+    spec:
+      containers:
+        - name: onerole-app
+          image: oneroleacr.azurecr.io/onerole-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            - name: PORT
+              value: "8082"
+            - name: HTTP_ADDR
+              value: ":8080"
+            - name: BACKEND_URL
+              value: "http://127.0.0.1:8080"
+            - name: NATS_MONITOR_URL
+              value: "http://nats:8222"
+            - name: DATABASE_URL
+              value: "mongodb://mongodb:27017/onerole"
+            - name: NATS_URL
+              value: "nats://nats:4222"
+            - name: APP_MODE
+              value: "all"
+            - name: APP_ENV
+              value: "development"
+            - name: COOKIE_SECURE
+              value: "false"
+            - name: JWT_SIGNING_PRIVATE_KEY_FILE
+              value: "/app/secrets/private.pem"
+            - name: JWT_SIGNING_PUBLIC_KEY_FILE
+              value: "/app/secrets/public.pem"
+            - name: AUTH_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: onerole-secrets
+                  key: AUTH_ENCRYPTION_KEY
+            - name: CSRF_SIGNING_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: onerole-secrets
+                  key: CSRF_SIGNING_SECRET
+            - name: IDEMPOTENCY_HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: onerole-secrets
+                  key: IDEMPOTENCY_HMAC_SECRET
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/secrets
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: onerole-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: onerole-service
+  namespace: onerole
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8082
+      name: http
+  selector:
+    app: onerole-app
