@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { FormError } from '../common/FormError';
 
 export function AddRoleModal() {
   const { activeModal, setActiveModal, showToast, handleApplyCard } = useApp();
   const [url, setUrl] = useState('');
   const [company, setCompany] = useState('');
   const [title, setTitle] = useState('');
+  const [error, setError] = useState('');
 
   if (activeModal !== 'addRole') return null;
 
   function handleSubmit(e) {
     e.preventDefault();
     if (!url.trim() && !title.trim()) {
-      showToast('Please provide a job URL or role title', 'error');
+      setError('Please provide a job URL or role title');
       return;
     }
+    setError('');
 
     const customJob = {
       id: 'custom-' + Date.now(),
@@ -47,42 +50,52 @@ export function AddRoleModal() {
           ✕
         </button>
 
-        <h2 className="text-lg font-bold text-[#1d2825] mb-1">Add Job Vacancy</h2>
-        <p className="text-xs text-[#78827e] mb-4">
+        <h2 className="text-lg font-bold text-[var(--ink-primary)] mb-1">Add Job Vacancy</h2>
+        <p className="text-xs text-[var(--ink-muted)] mb-4">
           Paste any job posting URL to queue an automated ATS application submission.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+          <FormError message={error} />
           <div>
-            <label className="font-bold text-[#1d2825] block mb-1">Job Posting URL</label>
+            <label className="font-bold text-[var(--ink-primary)] block mb-1">Job Posting URL</label>
             <input
               type="url"
               placeholder="https://boards.greenhouse.io/... or https://jobs.ashbyhq.com/..."
               value={url}
-              onChange={e => setUrl(e.target.value)}
-              className="w-full px-3 py-2 border border-[#e8ece9] rounded-lg outline-none focus:border-[#152c25]"
+              onChange={e => {
+                setUrl(e.target.value);
+                if (error) setError('');
+              }}
+              className="w-full px-3 py-2 border border-[var(--card-border)] rounded-lg outline-none focus:border-[#152c25]"
             />
           </div>
 
           <div>
-            <label className="font-bold text-[#1d2825] block mb-1">Company Name (Optional)</label>
+            <label className="font-bold text-[var(--ink-primary)] block mb-1">Company Name (Optional)</label>
             <input
               type="text"
               placeholder="e.g. Anthropic, Stripe, OpenAI"
               value={company}
-              onChange={e => setCompany(e.target.value)}
-              className="w-full px-3 py-2 border border-[#e8ece9] rounded-lg outline-none focus:border-[#152c25]"
+              onChange={e => {
+                setCompany(e.target.value);
+                if (error) setError('');
+              }}
+              className="w-full px-3 py-2 border border-[var(--card-border)] rounded-lg outline-none focus:border-[#152c25]"
             />
           </div>
 
           <div>
-            <label className="font-bold text-[#1d2825] block mb-1">Job Title (Optional)</label>
+            <label className="font-bold text-[var(--ink-primary)] block mb-1">Job Title (Optional)</label>
             <input
               type="text"
               placeholder="e.g. Senior Backend Engineer (Go)"
               value={title}
-              onChange={e => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-[#e8ece9] rounded-lg outline-none focus:border-[#152c25]"
+              onChange={e => {
+                setTitle(e.target.value);
+                if (error) setError('');
+              }}
+              className="w-full px-3 py-2 border border-[var(--card-border)] rounded-lg outline-none focus:border-[#152c25]"
             />
           </div>
 
@@ -96,7 +109,7 @@ export function AddRoleModal() {
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 bg-[#152c25] hover:bg-[#254b3e] text-white rounded-lg font-bold shadow-sm transition"
+              className="px-4 py-1.5 bg-[var(--sidebar-bg)] hover:bg-[var(--sidebar-active)] text-white rounded-lg font-bold shadow-sm transition"
             >
               Queue Auto-Apply
             </button>

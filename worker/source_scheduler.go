@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/oneRole/connectors/job_sources"
 	"github.com/oneRole/repository"
 )
 
@@ -49,29 +50,44 @@ func (s SourceSyncScheduler) ScheduleOnce(ctx context.Context) (started, failed 
 	if err != nil {
 		return 0, 0, fmt.Errorf("claim due sources: %w", err)
 	}
+	// Grouping sources by company
+	sourcesByCompany := make(map[string][]job_sources.SourceConfig)
+	for _, source := range sources {
+		sourcesByCompany[source.CompanyID] = append(sourcesByCompany[source.CompanyID], source)
+	}
+
 	var startedCount atomic.Int64
 	var failedCount atomic.Int64
 	var workers sync.WaitGroup
-	semaphore := make(chan struct{}, s.Concurrency)
-	for _, claimed := range sources {
-		source := claimed
+
+	// Company-level concurrency control
+	companySemaphore := make(chan struct{}, s.Concurrency)
+
+	for companyID, companySources := range sourcesByCompany {
+		companyID := companyID
+		companySources := companySources
+
 		select {
-		case semaphore <- struct{}{}:
+		case companySemaphore <- struct{}{}:
 		case <-ctx.Done():
-			failedCount.Add(1)
-			s.report(fmt.Errorf("source %s was not started before shutdown", source.ID))
+			failedCount.Add(int64(len(companySources)))
 			continue
 		}
+
 		workers.Add(1)
 		go func() {
 			defer workers.Done()
-			defer func() { <-semaphore }()
-			if _, err := s.Store.StartSourceSync(ctx, source, nowFn().UTC()); err != nil {
-				failedCount.Add(1)
-				s.report(fmt.Errorf("start source sync %s: SOURCE_SYNC_START_FAILED", source.ID))
-				return
+			defer func() { <-companySemaphore }()
+
+			// Process sources for this company
+			for _, source := range companySources {
+				if _, err := s.Store.StartSourceSync(ctx, source, nowFn().UTC()); err != nil {
+					failedCount.Add(1)
+					s.report(fmt.Errorf("start source sync %s (company %s): SOURCE_SYNC_START_FAILED", source.ID, companyID))
+					continue
+				}
+				startedCount.Add(1)
 			}
-			startedCount.Add(1)
 		}()
 	}
 	workers.Wait()

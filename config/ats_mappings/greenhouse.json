@@ -1,0 +1,15 @@
+{
+  "provider": "greenhouse",
+  "fields": {
+    "external_id": "id",
+    "title": "title",
+    "canonical_url": "absolute_url",
+    "apply_url": "apply_url",
+    "published_at": "updated_at"
+  },
+  "pagination": {
+    "type": "offset",
+    "limit_param": "limit",
+    "offset_param": "offset"
+  }
+}

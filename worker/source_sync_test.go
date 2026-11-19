@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/oneRole/connectors/job_sources"
+	"github.com/oneRole/models"
 	"github.com/oneRole/queue"
 	"github.com/oneRole/repository"
 )
@@ -34,6 +35,24 @@ type fakeSourceStore struct {
 	failedClass   string
 	retryAt       time.Time
 	seenCursor    string
+}
+
+var _ repository.JobSourceSyncStore = (*fakeSourceStore)(nil)
+
+func (s *fakeSourceStore) CountJobsPerCompany(_ context.Context, _ string) (int64, error) {
+	return 0, nil
+}
+
+func (s *fakeSourceStore) GetStuckSources(_ context.Context, _ int) ([]models.SourceSummary, error) {
+	return nil, nil
+}
+
+func (s *fakeSourceStore) GetStuckSourcesX(_ context.Context, _ int) ([]models.SourceSummary, error) {
+	return nil, nil
+}
+
+func (s *fakeSourceStore) HealSource(_ context.Context, _ string) error {
+	return nil
 }
 
 func (s *fakeSourceStore) ClaimDueSources(_ context.Context, owner string, _ int, _, _ time.Time) ([]job_sources.SourceConfig, error) {

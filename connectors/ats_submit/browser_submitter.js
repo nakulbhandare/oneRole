@@ -14,6 +14,24 @@ try {
 const activeBrowsers = new Set();
 const activeTempFiles = new Set();
 
+class SubmissionContext {
+  constructor(url) {
+    this.url = url;
+    this.startTime = Date.now();
+    this.steps = [];
+    this.errors = [];
+  }
+  logStep(name) {
+    this.steps.push({ name, time: Date.now() - this.startTime });
+  }
+  logError(error) {
+    this.errors.push({ error: error.toString(), time: Date.now() - this.startTime });
+  }
+  isStuck(timeoutMs = 60000) {
+    return (Date.now() - this.startTime) > timeoutMs;
+  }
+}
+
 async function closeBrowserSafely(browser) {
   if (!browser) return;
   activeBrowsers.delete(browser);
@@ -105,6 +123,35 @@ function matchAnswerKey(key, targetText) {
   }
 
   return false;
+}
+
+async function submitApplication(browser, url, candidate) {
+  const context = new SubmissionContext(url);
+  const page = await browser.newPage();
+  try {
+    context.logStep('page_created');
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    context.logStep('navigated');
+
+    if (context.isStuck()) throw new Error('Timeout during navigation');
+
+    await handleAccountCreationAndVerification(page, candidate);
+    context.logStep('account_verified');
+
+    await fillContainerAwareFields(page, candidate);
+    context.logStep('fields_filled');
+
+    await fillComboboxes(page, candidate);
+    context.logStep('comboboxes_filled');
+
+    await fillButtonsAndPills(page);
+    context.logStep('buttons_filled');
+  } catch (e) {
+    context.logError(e);
+    console.error(`Submission failed for ${url}: ${e}`);
+  } finally {
+    await page.close();
+  }
 }
 
 async function handleAccountCreationAndVerification(page, candidate) {

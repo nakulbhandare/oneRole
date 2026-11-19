@@ -6,16 +6,16 @@ export function MatchCard({ card }) {
   const { handlePassCard, handleApplyCard, setSelectedJob, setActiveModal } = useApp();
 
   const themeStyles = {
-    'card-mint': 'bg-[#eaf4ee] border-[#d2e7d8] hover:border-[#b8dac2]',
-    'card-pink': 'bg-[#fbebee] border-[#f6d7dd] hover:border-[#edbcc6]',
-    'card-aqua': 'bg-[#e3f4f2] border-[#ccece9] hover:border-[#b0e2dc]',
-    'card-peach': 'bg-[#faece0] border-[#f3dac6] hover:border-[#ebd8bf]',
-    'card-butter': 'bg-[#fbf4dc] border-[#f4e7be] hover:border-[#ecd99f]'
-  }[card.theme] || 'bg-[#eaf4ee] border-[#d2e7d8]';
+    'card-mint': 'bg-[#cef3df] border-[#b5ebd0] hover:border-[#a0dcc5]',
+    'card-pink': 'bg-[#ffdce4] border-[#fbc7d2] hover:border-[#f9b5c3]',
+    'card-aqua': 'bg-[#d1f5ea] border-[#b8f0df] hover:border-[#a0e8d2]',
+    'card-peach': 'bg-[#fde6ca] border-[#fad7b1] hover:border-[#f8c898]',
+    'card-butter': 'bg-[#fef0be] border-[#fde499] hover:border-[#fcd97d]'
+  }[card.theme] || 'bg-[#cef3df] border-[#b5ebd0]';
 
   return (
     <div
-      className={`card-match-item ${card.theme || 'card-mint'} rounded-[14px] p-4 flex flex-col justify-between border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${themeStyles}`}
+      className={`job-match-card ${card.theme || 'card-mint'} rounded-[18px] p-4 flex flex-col justify-between border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${themeStyles}`}
       style={{ minHeight: '190px' }}
       onClick={() => {
         setSelectedJob(card.rawJob || card);
@@ -42,7 +42,7 @@ export function MatchCard({ card }) {
         </div>
 
         {/* ATS Match Score Circle Badge */}
-        <div className="w-10 h-10 rounded-full border border-black/80 bg-white/50 flex flex-col items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 rounded-full border-[1.8px] border-black/80 bg-white/50 flex flex-col items-center justify-center flex-shrink-0">
           <span className="text-[11px] font-black text-black leading-none">{card.score}%</span>
           <span className="text-[7px] font-black text-black uppercase tracking-tighter leading-none mt-0.5">MATCH</span>
         </div>
@@ -69,9 +69,19 @@ export function MatchCard({ card }) {
           <button
             onClick={(e) => {
               e.stopPropagation();
+              window.open(card.sourceUrl, '_blank');
+            }}
+            className="px-2.5 py-1 text-[11px] font-semibold text-[#374151] hover:text-[#111827] bg-white border border-black/5 hover:bg-gray-50 rounded-full transition shadow-sm focus:outline-none"
+            title="View in ATS portal"
+          >
+            View
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
               handlePassCard(card.key);
             }}
-            className="px-2 py-1 text-[11px] font-medium text-[#4b5952] hover:text-[#18181b] bg-white/70 hover:bg-white rounded-[6px] transition shadow-2xs"
+            className="px-2.5 py-1 text-[11px] font-semibold text-[#374151] hover:text-[#111827] bg-white border border-black/5 hover:bg-gray-50 rounded-full transition shadow-sm focus:outline-none focus:ring-2 focus:ring-[#174a38] focus:ring-opacity-50"
             title="Pass on this job"
           >
             Pass
@@ -81,7 +91,7 @@ export function MatchCard({ card }) {
               e.stopPropagation();
               handleApplyCard(card);
             }}
-            className="px-2.5 py-1 text-[11px] font-bold text-white bg-[#152c25] hover:bg-[#254b3e] rounded-[6px] transition shadow-2xs flex items-center space-x-1"
+            className="btn-card-apply px-3 py-1 text-[11px] font-bold text-white bg-[#18181b] hover:bg-black rounded-full transition shadow-sm flex items-center space-x-1 focus:outline-none focus:ring-2 focus:ring-[#174a38] focus:ring-opacity-50"
             title="Auto apply to this job"
           >
             <span>Apply</span>

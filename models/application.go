@@ -22,6 +22,7 @@ const (
 	ApplicationRequiresManualAction  ApplicationStatus = "requires_manual_action"
 	ApplicationFailedRetryable       ApplicationStatus = "failed_retryable"
 	ApplicationFailedPermanent       ApplicationStatus = "failed_permanent"
+	ApplicationStuck                 ApplicationStatus = "stuck"
 	ApplicationDuplicate             ApplicationStatus = "duplicate"
 	ApplicationExpired               ApplicationStatus = "expired"
 	ApplicationSkipped               ApplicationStatus = "skipped"
@@ -44,6 +45,7 @@ const (
 	PublicApplicationRequiresManualAction  PublicApplicationStatus = "requires_manual_action"
 	PublicApplicationFailedRetryable       PublicApplicationStatus = "failed_retryable"
 	PublicApplicationFailedPermanent       PublicApplicationStatus = "failed_permanent"
+	PublicApplicationStuck                 PublicApplicationStatus = "stuck"
 	PublicApplicationDuplicate             PublicApplicationStatus = "duplicate"
 	PublicApplicationExpired               PublicApplicationStatus = "expired"
 	PublicApplicationSkipped               PublicApplicationStatus = "skipped"
@@ -119,7 +121,7 @@ func isPublicApplicationStatus(value string) bool {
 		PublicApplicationInFlight,
 		PublicApplicationSubmitted, PublicApplicationSubmissionUnconfirmed,
 		PublicApplicationRequiresManualAction, PublicApplicationFailedRetryable,
-		PublicApplicationFailedPermanent, PublicApplicationDuplicate, PublicApplicationExpired,
+		PublicApplicationFailedPermanent, PublicApplicationStuck, PublicApplicationDuplicate, PublicApplicationExpired,
 		PublicApplicationSkipped, PublicApplicationRejectedByUser:
 		return true
 	default:

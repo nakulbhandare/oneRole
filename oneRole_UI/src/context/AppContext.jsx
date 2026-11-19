@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { doDevLogin, searchJobs, fetchFilterMetadata, fetchApplications, submitJobApplication } from '../services/api';
+import { doDevLogin, searchJobs, fetchFilterMetadata, fetchApplications, submitJobApplication, authenticatedFetch } from '../services/api';
 import { computeRealtimeATSScore } from '../services/atsEngine';
 
 const AppContext = createContext();
@@ -108,7 +108,7 @@ export function AppProvider({ children }) {
   // Map raw backend job into card format
   const convertJobToCard = useCallback((job, idx = 0) => {
     const themes = ['card-mint', 'card-pink', 'card-aqua', 'card-peach', 'card-butter'];
-    const score = computeRealtimeATSScore(job);
+    const { score } = computeRealtimeATSScore(job);
     const domain = (job.company || '').toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
     const badge = idx === 4 ? 7 : (idx === 2 ? 3 : null);
 
@@ -231,6 +231,19 @@ export function AppProvider({ children }) {
     }
   }, [replenishCards, showToast, userProfile.email]);
 
+  const assistApplication = useCallback(async (applicationId) => {
+    showToast(`🔍 Attempting autonomous resolution for ${applicationId}...`, 'info');
+    try {
+      const res = await authenticatedFetch(`/api/v1/applications/${applicationId}/assist`, {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Assistance request failed');
+      showToast('✓ Autonomous resolution triggered successfully!', 'success');
+    } catch (e) {
+      showToast('Failed to trigger assistance: ' + e.message, 'error');
+    }
+  }, [showToast]);
+
   // Handle Apply to all 5 cards
   const handleApplyToAll5 = useCallback(async () => {
     if (activeCards.length === 0) return;
@@ -332,6 +345,7 @@ export function AppProvider({ children }) {
       resetMatchQueue,
       handlePassCard,
       handleApplyCard,
+      assistApplication,
       handleApplyToAll5,
       activeModal,
       setActiveModal,

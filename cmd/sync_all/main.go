@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sync"
 )
 
 type Company struct {
@@ -27,13 +28,30 @@ func main() {
 		return
 	}
 
+	var wg sync.WaitGroup
+	const workerCount = 5
+	jobs := make(chan string, len(companies))
+
+	// Start workers
+	for w := 0; w < workerCount; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for companyName := range jobs {
+				fmt.Printf("Syncing %s...\n", companyName)
+				cmd := exec.Command("./server", "discover", "--company", companyName)
+				if out, err := cmd.CombinedOutput(); err != nil {
+					fmt.Printf("Error syncing %s: %s\n", companyName, out)
+				}
+			}
+		}()
+	}
+
 	for _, c := range companies {
 		if c.Company_name != "" {
-			fmt.Printf("Syncing %s...\n", c.Company_name)
-			cmd := exec.Command("./server", "discover", "--company", c.Company_name)
-			if out, err := cmd.CombinedOutput(); err != nil {
-				fmt.Printf("Error syncing %s: %s\n", c.Company_name, out)
-			}
+			jobs <- c.Company_name
 		}
 	}
+	close(jobs)
+	wg.Wait()
 }

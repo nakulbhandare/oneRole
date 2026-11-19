@@ -18,14 +18,13 @@ import (
 	"github.com/oneRole/models"
 )
 
-// SubmitResult represents the receipt received upon successful ATS application submission.
 type SubmitResult struct {
-	Success      bool              `json:"success"`
-	ReceiptID    string            `json:"receipt_id"`
-	SubmissionURL string           `json:"submission_url"`
-	Provider     string            `json:"provider"`
-	SubmittedAt  time.Time         `json:"submitted_at"`
-	Details      map[string]string `json:"details,omitempty"`
+	Success       bool              `json:"success"`
+	ReceiptID     string            `json:"receipt_id"`
+	SubmissionURL string            `json:"submission_url"`
+	Provider      string            `json:"provider"`
+	SubmittedAt   time.Time         `json:"submitted_at"`
+	Details       map[string]string `json:"details,omitempty"`
 }
 
 type Client struct {
@@ -38,13 +37,29 @@ func NewClient() *Client {
 	return &Client{
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 10 {
+					return fmt.Errorf("stopped after 10 redirects")
+				}
+				return nil
+			},
 		},
 		greenhouseBaseURL: "https://boards-api.greenhouse.io",
 		leverBaseURL:      "https://api.lever.co",
 	}
 }
 
-// WithBaseURLs overrides default API endpoints for testing with httptest.Server.
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
 func (c *Client) WithBaseURLs(greenhouseURL, leverURL string) *Client {
 	if greenhouseURL != "" {
 		c.greenhouseBaseURL = greenhouseURL
@@ -55,7 +70,6 @@ func (c *Client) WithBaseURLs(greenhouseURL, leverURL string) *Client {
 	return c
 }
 
-// WithHTTPClient overrides the underlying http.Client for hermetic roundtrip testing.
 func (c *Client) WithHTTPClient(httpClient *http.Client) *Client {
 	if httpClient != nil {
 		c.httpClient = httpClient
@@ -63,10 +77,6 @@ func (c *Client) WithHTTPClient(httpClient *http.Client) *Client {
 	return c
 }
 
-// resolveApplicationEmail determines the applicant email passed to external ATS platforms.
-// External applicant tracking systems (Greenhouse, Lever, Ashby, Workday) automatically
-// trigger confirmation receipt emails. Routing submissions via an application alias (e.g. +onerole@)
-// or user-configured setting prevents flooding the candidate's primary inbox.
 func resolveApplicationEmail(profile *models.CandidateProfile) string {
 	if profile != nil {
 		if profile.ApplicationEmail != "" {
@@ -92,28 +102,7 @@ func emailTrimmed(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// SubmitGreenhouse posts an application directly to Greenhouse's public job board API.
-// Endpoint: POST https://boards-api.greenhouse.io/v1/boards/{board}/jobs/{job_id}
-func (c *Client) SubmitGreenhouse(ctx context.Context, board, jobID string, profile *models.CandidateProfile, answers map[string]string) (*SubmitResult, error) {
-	if idx := strings.IndexAny(board, "?#"); idx != -1 {
-		board = board[:idx]
-	}
-	if idx := strings.IndexAny(jobID, "?#"); idx != -1 {
-		jobID = jobID[:idx]
-	}
-	board = strings.Trim(strings.TrimSpace(board), "/")
-	jobID = strings.Trim(strings.TrimSpace(jobID), "/")
-
-	if board == "" || jobID == "" || profile == nil {
-		return nil, fmt.Errorf("board, jobID, and profile are required")
-	}
-
-	baseURL := c.greenhouseBaseURL
-	if baseURL == "" {
-		baseURL = "https://boards-api.greenhouse.io"
-	}
-	endpoint := fmt.Sprintf("%s/v1/boards/%s/jobs/%s", baseURL, board, jobID)
-
+func generateGreenhouseMultipart(profile *models.CandidateProfile, answers map[string]string) (*bytes.Buffer, string, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -153,69 +142,12 @@ func (c *Client) SubmitGreenhouse(ctx context.Context, board, jobID string, prof
 	}
 
 	if err := w.Close(); err != nil {
-		return nil, fmt.Errorf("prepare multipart body: %w", err)
+		return nil, "", fmt.Errorf("prepare multipart body: %w", err)
 	}
-
-	for i := 0; i < 3; i++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &b)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Content-Type", w.FormDataContentType())
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
-
-		resp, err := c.httpClient.Do(req)
-		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-				receiptID := fmt.Sprintf("GH-%s-%s-%d", board, jobID, time.Now().Unix())
-				return &SubmitResult{
-					Success:       true,
-					ReceiptID:     receiptID,
-					SubmissionURL: endpoint,
-					Provider:      "greenhouse",
-					SubmittedAt:   time.Now().UTC(),
-					Details:       map[string]string{"response": string(respBody)},
-				}, nil
-			}
-			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
-				time.Sleep(time.Duration(i+1) * time.Second)
-				continue
-			}
-			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-			// Log Greenhouse API errors with detail
-	fmt.Printf("[Greenhouse] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
-	return nil, fmt.Errorf("greenhouse submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
-		}
-		time.Sleep(time.Duration(i+1) * time.Second)
-	}
-
-	return nil, fmt.Errorf("greenhouse submission failed after retries")
+	return &b, w.FormDataContentType(), nil
 }
 
-// SubmitLever posts an application directly to Lever's public postings API.
-// Endpoint: POST https://api.lever.co/v0/postings/{board}/{job_id}
-func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *models.CandidateProfile, answers map[string]string) (*SubmitResult, error) {
-	if idx := strings.IndexAny(board, "?#"); idx != -1 {
-		board = board[:idx]
-	}
-	if idx := strings.IndexAny(jobID, "?#"); idx != -1 {
-		jobID = jobID[:idx]
-	}
-	board = strings.Trim(strings.TrimSpace(board), "/")
-	jobID = strings.Trim(strings.TrimSpace(jobID), "/")
-
-	if board == "" || jobID == "" || profile == nil {
-		return nil, fmt.Errorf("board, jobID, and profile are required")
-	}
-
-	baseURL := c.leverBaseURL
-	if baseURL == "" {
-		baseURL = "https://api.lever.co"
-	}
-	endpoint := fmt.Sprintf("%s/v0/postings/%s/%s", baseURL, board, jobID)
-
+func generateLeverMultipart(profile *models.CandidateProfile, answers map[string]string) (*bytes.Buffer, string, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -227,7 +159,6 @@ func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *
 		_ = w.WriteField("org", profile.CurrentEmployer)
 	}
 
-	// Add URLs
 	urls := make(map[string]string)
 	if profile.LinkedInURL != "" {
 		urls["LinkedIn"] = profile.LinkedInURL
@@ -258,19 +189,143 @@ func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *
 	}
 
 	if err := w.Close(); err != nil {
-		return nil, fmt.Errorf("prepare multipart body: %w", err)
+		return nil, "", fmt.Errorf("prepare multipart body: %w", err)
+	}
+	return &b, w.FormDataContentType(), nil
+}
+
+func (c *Client) SubmitGreenhouse(ctx context.Context, board, jobID string, profile *models.CandidateProfile, answers map[string]string) (*SubmitResult, error) {
+	if idx := strings.IndexAny(board, "?#"); idx != -1 {
+		board = board[:idx]
+	}
+	if idx := strings.IndexAny(jobID, "?#"); idx != -1 {
+		jobID = jobID[:idx]
+	}
+	board = strings.Trim(strings.TrimSpace(board), "/")
+	jobID = strings.Trim(strings.TrimSpace(jobID), "/")
+
+	if board == "" || jobID == "" || profile == nil {
+		return nil, fmt.Errorf("board, jobID, and profile are required")
 	}
 
+	baseURL := c.greenhouseBaseURL
+	if baseURL == "" {
+		baseURL = "https://boards-api.greenhouse.io"
+	}
+	endpoint := fmt.Sprintf("%s/v1/boards/%s/jobs/%s", baseURL, board, jobID)
+
 	for i := 0; i < 3; i++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &b)
+		b, contentType, err := generateGreenhouseMultipart(profile, answers)
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("Content-Type", w.FormDataContentType())
+		
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, b)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", contentType)
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
 
 		resp, err := c.httpClient.Do(req)
 		if err == nil {
+			if resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusFound {
+				endpoint = resp.Header.Get("Location")
+				resp.Body.Close()
+				continue
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+				receiptID := fmt.Sprintf("GH-%s-%s-%d", board, jobID, time.Now().Unix())
+				return &SubmitResult{
+					Success:       true,
+					ReceiptID:     receiptID,
+					SubmissionURL: endpoint,
+					Provider:      "greenhouse",
+					SubmittedAt:   time.Now().UTC(),
+					Details:       map[string]string{"response": string(respBody)},
+				}, nil
+			}
+			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+				delay := parseRetryAfter(resp.Header)
+				if delay == 0 {
+					delay = time.Duration(i+1) * time.Second
+				}
+				if err := sleepWithContext(ctx, delay); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+			// Log Greenhouse API errors with detail
+			fmt.Printf("[Greenhouse] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
+			return nil, fmt.Errorf("greenhouse submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
+		}
+		if err := sleepWithContext(ctx, time.Duration(i+1)*time.Second); err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, fmt.Errorf("greenhouse submission failed")
+}
+
+func parseRetryAfter(header http.Header) time.Duration {
+	retryAfter := header.Get("Retry-After")
+	if retryAfter == "" {
+		return 0
+	}
+	seconds, err := strconv.Atoi(retryAfter)
+	if err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+	t, err := http.ParseTime(retryAfter)
+	if err == nil {
+		return time.Until(t)
+	}
+	return 0
+}
+
+func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *models.CandidateProfile, answers map[string]string) (*SubmitResult, error) {
+	if idx := strings.IndexAny(board, "?#"); idx != -1 {
+		board = board[:idx]
+	}
+	if idx := strings.IndexAny(jobID, "?#"); idx != -1 {
+		jobID = jobID[:idx]
+	}
+	board = strings.Trim(strings.TrimSpace(board), "/")
+	jobID = strings.Trim(strings.TrimSpace(jobID), "/")
+
+	if board == "" || jobID == "" || profile == nil {
+		return nil, fmt.Errorf("board, jobID, and profile are required")
+	}
+
+	baseURL := c.leverBaseURL
+	if baseURL == "" {
+		baseURL = "https://api.lever.co"
+	}
+	endpoint := fmt.Sprintf("%s/v0/postings/%s/%s", baseURL, board, jobID)
+
+	for i := 0; i < 3; i++ {
+		b, contentType, err := generateLeverMultipart(profile, answers)
+		if err != nil {
+			return nil, err
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, b)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+
+		resp, err := c.httpClient.Do(req)
+		if err == nil {
+			if resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusFound {
+				endpoint = resp.Header.Get("Location")
+				resp.Body.Close()
+				continue
+			}
 			defer resp.Body.Close()
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
@@ -285,21 +340,28 @@ func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *
 				}, nil
 			}
 			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
-				time.Sleep(time.Duration(i+1) * time.Second)
+				delay := parseRetryAfter(resp.Header)
+				if delay == 0 {
+					delay = time.Duration(i+1) * time.Second
+				}
+				if err := sleepWithContext(ctx, delay); err != nil {
+					return nil, err
+				}
 				continue
 			}
 			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 			// Log Lever API errors with detail
-	fmt.Printf("[Lever] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
-	return nil, fmt.Errorf("lever submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
+			fmt.Printf("[Lever] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
+			return nil, fmt.Errorf("lever submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
 		}
-		time.Sleep(time.Duration(i+1) * time.Second)
+		if err := sleepWithContext(ctx, time.Duration(i+1)*time.Second); err != nil {
+			return nil, err
+		}
 	}
 
-	return nil, fmt.Errorf("lever submission failed after retries")
+	return nil, fmt.Errorf("lever submission failed")
 }
 
-// SubmitGenericWeb records an automated verified application attempt for general career URLs.
 func (c *Client) SubmitGenericWeb(ctx context.Context, jobURL string, profile *models.CandidateProfile) (*SubmitResult, error) {
 	if jobURL == "" || profile == nil {
 		return nil, fmt.Errorf("jobURL and profile are required")
@@ -326,13 +388,11 @@ func (c *Client) SubmitGenericWeb(ctx context.Context, jobURL string, profile *m
 	}, nil
 }
 
-// SubmitBrowserAutomated uses Chrome to fill and submit interactive ATS forms (Ashby, Workday, etc.).
 func (c *Client) SubmitBrowserAutomated(ctx context.Context, jobURL string, profile *models.CandidateProfile, answers map[string]string) (*SubmitResult, error) {
 	visible := os.Getenv("ONEROLE_VISIBLE_BROWSER") == "true"
 	return c.runBrowserSubmitter(ctx, jobURL, profile, answers, visible)
 }
 
-// SubmitBrowserAssist uses headful Chrome with pre-filled fields to assist in completing applications requiring CAPTCHA verification.
 func (c *Client) SubmitBrowserAssist(ctx context.Context, jobURL string, profile *models.CandidateProfile, answers map[string]string) (*SubmitResult, error) {
 	return c.runBrowserSubmitter(ctx, jobURL, profile, answers, true)
 }

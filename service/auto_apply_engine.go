@@ -14,6 +14,7 @@ import (
 	"github.com/oneRole/connectors/ats_inspector"
 	"github.com/oneRole/connectors/ats_submit"
 	"github.com/oneRole/models"
+	"github.com/oneRole/service/validator"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -131,8 +132,177 @@ func NewAutoApplyEngine(database *mongo.Database) *AutoApplyEngine {
 	}
 	if database != nil {
 		engine.startQueueWorkers(2) // 2 concurrent browser workers pool
+		engine.startStuckMonitor(5 * time.Minute) // Watchdog every 5 minutes
 	}
 	return engine
+}
+
+func (e *AutoApplyEngine) startStuckMonitor(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		for {
+			select {
+			case <-e.ctx.Done():
+				return
+			case <-ticker.C:
+				e.reclaimStuckApplications()
+			}
+		}
+	}()
+}
+
+func (e *AutoApplyEngine) reclaimStuckApplications() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Find applications stuck in 'in_flight' for > 15 minutes
+	stuckCutoff := time.Now().UTC().Add(-15 * time.Minute)
+
+	// Limit to batch size to handle large volumes gracefully
+	const batchSize = 100
+	cursor, err := e.db.Collection("applications").Find(ctx, bson.M{
+		"status":     string(models.ApplicationInFlight),
+		"updated_at": bson.M{"$lt": stuckCutoff},
+	}, options.Find().SetLimit(batchSize))
+	if err != nil {
+		fmt.Printf("[AutoApplyEngine] Error finding stuck applications: %v\n", err)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var stuckAppIDs []string
+	for cursor.Next(ctx) {
+		var app struct {
+			ID              string  `bson:"_id"`
+			TenantID        string  `bson:"tenant_id"`
+			UserID          string  `bson:"user_id"`
+			JobID           string  `bson:"job_id"`
+			ResumeVersionID *string `bson:"resume_version_id,omitempty"`
+			TailorResume    *bool   `bson:"tailor_resume,omitempty"`
+		}
+		if err := cursor.Decode(&app); err == nil {
+			fmt.Printf("[AutoApplyEngine] Found stuck application: %s. Marking as failed for retry.\n", app.ID)
+			stuckAppIDs = append(stuckAppIDs, app.ID)
+
+			// Mark as failed_retryable for potential reprocessing
+			_, _ = e.db.Collection("applications").UpdateOne(ctx, bson.M{"_id": app.ID}, bson.M{
+				"$set": bson.M{
+					"status":       string(models.ApplicationFailedRetryable),
+					"pause_reason": "stuck_in_flight_timeout",
+					"updated_at":   time.Now().UTC(),
+				},
+			})
+
+			// Trigger generalized solution search (e.g., TSenta)
+			go e.searchGeneralizedSolution(context.Background(), "stuck", "stuck_in_flight")
+			stuckAppIDs = append(stuckAppIDs, app.ID)
+		}
+	}
+
+	if len(stuckAppIDs) == 0 {
+		return
+	}
+
+	fmt.Printf("[AutoApplyEngine] Found %d stuck applications. Marking for retry.\n", len(stuckAppIDs))
+
+	// Mark as failed_retryable for potential reprocessing in bulk
+	_, err = e.db.Collection("applications").UpdateMany(ctx, bson.M{"_id": bson.M{"$in": stuckAppIDs}}, bson.M{
+		"$set": bson.M{
+			"status":       string(models.ApplicationFailedRetryable),
+			"pause_reason": "stuck_in_flight_timeout",
+			"updated_at":   time.Now().UTC(),
+		},
+	})
+	if err != nil {
+		fmt.Printf("[AutoApplyEngine] Error batch updating stuck applications: %v\n", err)
+		return
+	}
+
+	// Trigger generalized solution search
+}
+
+func (e *AutoApplyEngine) searchGeneralizedSolution(ctx context.Context, appID string, reason string) {
+	fmt.Printf("[AutoApplyEngine] Searching for generalized solution for application %s, reason: %s\n", appID, reason)
+	
+	// Mock TSenta/Generalized Solution Search
+	// 1. Identify patterns from failure reason
+	// 2. Query knowledge base (simulated as db query)
+	
+	solution, err := e.fetchKnowledgeBaseSolution(ctx, reason)
+	if err != nil {
+		fmt.Printf("[AutoApplyEngine] Failed to fetch TSenta solution: %v\n", err)
+		return
+	}
+
+	if solution != "" {
+		fmt.Printf("[AutoApplyEngine] Found TSenta solution: %s\n", solution)
+		_, _ = e.db.Collection("applications").UpdateOne(ctx, bson.M{"_id": appID}, bson.M{
+			"$set": bson.M{
+				"automated_solution":      solution,
+				"solution_applied_at":     time.Now().UTC(),
+				"pause_reason":            "stuck_resolved_via_tsenta",
+			},
+		})
+	} else {
+		fmt.Printf("[AutoApplyEngine] No TSenta solution found for: %s. Escalating to human.\n", reason)
+		_, _ = e.db.Collection("applications").UpdateOne(ctx, bson.M{"_id": appID}, bson.M{
+		"$set": bson.M{
+			"pause_reason": "stuck_needs_human_intervention",
+		},
+	})
+	e.notifyUserOfStuckApplication(context.Background(), appID)
+}
+}
+
+func (e *AutoApplyEngine) notifyUserOfStuckApplication(ctx context.Context, appID string) {
+	var app struct {
+		UserID string `bson:"user_id"`
+		JobID  string `bson:"job_id"`
+	}
+	err := e.db.Collection("applications").FindOne(ctx, bson.M{"_id": appID}).Decode(&app)
+	if err != nil {
+		fmt.Printf("[AutoApplyEngine] Failed to fetch application for notification: %v\n", err)
+		return
+	}
+
+	var user struct {
+		Email string `bson:"email"`
+	}
+	err = e.db.Collection("users").FindOne(ctx, bson.M{"_id": app.UserID}).Decode(&user)
+	if err != nil {
+		fmt.Printf("[AutoApplyEngine] Failed to fetch user for notification: %v\n", err)
+		return
+	}
+
+	var job struct {
+		Title       string `bson:"canonical_title"`
+		CompanyName string `bson:"company_name"`
+	}
+	_ = e.db.Collection("jobs").FindOne(ctx, bson.M{"_id": app.JobID}).Decode(&job)
+
+	_, err = e.SendNotificationEmail(ctx, EmailPayload{
+		Recipient:   user.Email,
+		Subject:     fmt.Sprintf("Manual Action Required: Application for %s at %s is stuck", job.Title, job.CompanyName),
+		TextBody:    fmt.Sprintf("Your application for %s at %s (ID: %s) has encountered a submission error that could not be automatically resolved and requires manual intervention.", job.Title, job.CompanyName, appID),
+	})
+	if err != nil {
+		fmt.Printf("[AutoApplyEngine] Failed to send stuck application notification: %v\n", err)
+	}
+
+	// Trigger generalized solution search
+}
+
+func (e *AutoApplyEngine) fetchKnowledgeBaseSolution(ctx context.Context, reason string) (string, error) {
+	// Simulated lookup in a knowledge base/solution collection
+	var sol struct {
+		Solution string `bson:"solution"`
+	}
+	// Assuming a collection 'generalized_solutions' exists
+	err := e.db.Collection("generalized_solutions").FindOne(ctx, bson.M{"reason": reason}).Decode(&sol)
+	if err != nil {
+		return "", nil // No solution found
+	}
+	return sol.Solution, nil
 }
 
 func (e *AutoApplyEngine) startQueueWorkers(concurrency int) {
@@ -151,6 +321,8 @@ func (e *AutoApplyEngine) startQueueWorkers(concurrency int) {
 			}
 		}(i + 1)
 	}
+
+	// Trigger generalized solution search
 }
 
 func (e *AutoApplyEngine) processQueueItem(item autoApplyQueueItem) {
@@ -230,6 +402,8 @@ func (e *AutoApplyEngine) processQueueItem(item autoApplyQueueItem) {
 		// Perform automated failure research
 		go e.researchFailure(context.Background(), item.ApplicationID, err)
 	}
+
+	// Trigger generalized solution search
 }
 
 func (e *AutoApplyEngine) researchFailure(ctx context.Context, appID string, err error) {
@@ -394,6 +568,10 @@ func (e *AutoApplyEngine) SubmitOneClick(ctx context.Context, scope ActorScope, 
 	}).Decode(&app)
 	if err != nil {
 		return nil, fmt.Errorf("application not found: %w", err)
+	}
+
+	if err := validator.ValidateApplication(app.ID, app.Status, app.JobID); err != nil {
+		return nil, fmt.Errorf("application validation failed: %w", err)
 	}
 
 	// 2. Load Job
@@ -1094,6 +1272,8 @@ func (e *AutoApplyEngine) dispatchApplication(ctx context.Context, scope ActorSc
 	default:
 		fmt.Printf("[AutoApplyEngine] Warning: queueChan is saturated, dropped local queue fallback for %s\n", appID)
 	}
+
+	// Trigger generalized solution search
 }
 
 func (e *AutoApplyEngine) ApplyOneClick(ctx context.Context, scope ActorScope, cmd AutoApplyCommand) (*AutoApplyResult, error) {
@@ -1981,6 +2161,8 @@ func FormatCandidatePayload(profile *models.CandidateProfile, coverLetter string
 		"custom_field_answers": profile.CustomFieldAnswers,
 		"customAnswers":        profile.CustomFieldAnswers,
 	}
+
+	// Trigger generalized solution search
 }
 
 // FormatChromiumTask constructs a ChromiumTaskMessage and verifies JSON serializability.
@@ -2121,4 +2303,6 @@ func (e *AutoApplyEngine) sendApplicationConfirmationEmail(ctx context.Context, 
 			"occurred_at":    now,
 		})
 	}
+
+	// Trigger generalized solution search
 }

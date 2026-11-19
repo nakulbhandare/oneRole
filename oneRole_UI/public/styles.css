@@ -7,8 +7,12 @@
   --sidebar-active: #254b3e;
   --sidebar-accent-bar: #88b79d;
   --sidebar-text: #adbbb4;
-  --sidebar-muted: #82968c;
+  --sidebar-muted: #a0b5ab;
   --sidebar-border: #233e33;
+  
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-text: #991b1b;
   
   --body-bg: #f7f8f6;
   --card-bg: #ffffff;
@@ -30,6 +34,10 @@
   --amber-bg: #fffbeb;
   --amber-border: #fef3c7;
   --amber-text: #b45309;
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --animation-fade: 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -105,7 +113,7 @@ html, body {
   z-index: 999;
   box-shadow: 0 20px 30px rgba(0, 0, 0, 0.45);
   transform: translateX(-100%);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
   visibility: hidden;
   pointer-events: none;
 }
@@ -209,7 +217,7 @@ html, body {
 
 .view-panel.active {
   display: block !important;
-  animation: fadeInView 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeInView var(--animation-fade);
 }
 
 @keyframes fadeInView {
@@ -372,7 +380,8 @@ input:checked + .switch-slider:before {
 }
 
 /* Filter Dropdown Pill Buttons */
-.filter-dropdown-btn {
+/* Filter Buttons (Consolidated & Accessible) */
+.filter-dropdown-btn, .filter-btn-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -387,14 +396,18 @@ input:checked + .switch-slider:before {
   transition: all 0.15s ease-in-out;
   white-space: nowrap;
 }
-.filter-dropdown-btn:hover {
+.filter-dropdown-btn:hover, .filter-btn-pill:hover {
   background: #f4f4f5;
   color: #18181b;
 }
-.filter-dropdown-btn.active {
+.filter-dropdown-btn.active, .filter-btn-pill.active {
   background: #18181b;
   color: #ffffff;
   border-color: #18181b;
+}
+.filter-dropdown-btn:focus, .filter-btn-pill:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(23, 74, 56, 0.5);
 }
 
 .filter-pills-row {

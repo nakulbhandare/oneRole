@@ -55,6 +55,9 @@ type JobSourceSyncStore interface {
 	IngestSourcePage(ctx context.Context, input SourcePageInput) (SourcePageResult, error)
 	CompleteSourceSync(ctx context.Context, run SourceSyncRun, now time.Time) error
 	FailSourceSync(ctx context.Context, run SourceSyncRun, status, errorClass string, retryAt, now time.Time) error
+	CountJobsPerCompany(ctx context.Context, companyID string) (int64, error)
+	GetStuckSourcesX(ctx context.Context, limit int) ([]models.SourceSummary, error)
+	HealSource(ctx context.Context, sourceID string) error
 }
 
 const maxSourceLeaseExtension = 30 * time.Minute
@@ -88,6 +91,7 @@ func (r *JobSourceRepository) ListSources(ctx context.Context, limit int) ([]mod
 			Endpoint     string     `bson:"source_endpoint"`
 			Status       string     `bson:"status"`
 			LastSyncAt   *time.Time `bson:"last_sync_at"`
+			LogCount     int64      `bson:"log_count"`
 		}
 		if err := cur.Decode(&doc); err != nil {
 			return nil, err
@@ -105,6 +109,7 @@ func (r *JobSourceRepository) ListSources(ctx context.Context, limit int) ([]mod
 			BaseURL:      doc.Endpoint,
 			Status:       doc.Status,
 			LastSyncAt:   doc.LastSyncAt,
+			LogCount:     doc.LogCount,
 		})
 	}
 	return items, nil
@@ -120,6 +125,7 @@ func (r *JobSourceRepository) GetSourceHealth(ctx context.Context, sourceID stri
 		LastErrorClass string     `bson:"last_error_class"`
 		LastSyncAt     *time.Time `bson:"last_sync_at"`
 		ProviderType   string     `bson:"provider_type"`
+		LogCount       int64      `bson:"log_count"`
 	}
 	err := r.db.Collection("company_sources").FindOne(ctx, bson.M{"_id": sourceID}).Decode(&doc)
 	if err != nil {
@@ -136,6 +142,7 @@ func (r *JobSourceRepository) GetSourceHealth(ctx context.Context, sourceID stri
 		LastSyncAt:     doc.LastSyncAt,
 		SyncLagSeconds: lag,
 		Capability:     doc.ProviderType,
+		LogCount:       doc.LogCount,
 	}, nil
 }
 
@@ -163,6 +170,7 @@ type sourceDoc struct {
 	PollIntervalSeconds int        `bson:"poll_interval_seconds"`
 	LastErrorAt         *time.Time `bson:"last_error_at,omitempty"`
 	LastErrorClass      *string    `bson:"last_error_class,omitempty"`
+	LogCount            int64      `bson:"log_count"`
 }
 
 type sourceSyncRunDoc struct {
@@ -537,6 +545,16 @@ func (r *JobSourceRepository) IngestSourcePage(ctx context.Context, input Source
 		if res.MatchedCount != 1 {
 			return ErrSourceLeaseLost
 		}
+
+		_, err = r.db.Collection("company_sources").UpdateOne(sessCtx, bson.M{
+			"_id": input.Run.Source.ID,
+		}, bson.M{
+			"$inc": bson.M{"log_count": result.RecordsSeen},
+		})
+		if err != nil {
+			return fmt.Errorf("increment source log count: %w", err)
+		}
+
 		return nil
 	})
 
@@ -763,6 +781,59 @@ func (r *JobSourceRepository) FailSourceSync(ctx context.Context, run SourceSync
 		return ErrSourceLeaseLost
 	}
 	return nil
+}
+
+func (r *JobSourceRepository) CountJobsPerCompany(ctx context.Context, companyID string) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, db.ErrNilDB
+	}
+	return r.db.Collection("jobs").CountDocuments(ctx, bson.M{"company_id": companyID})
+}
+
+func (r *JobSourceRepository) GetStuckSources(ctx context.Context, limit int) ([]models.SourceSummary, error) {
+	if r == nil || r.db == nil {
+		return nil, db.ErrNilDB
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	filter := bson.M{
+		"status": bson.M{"$in": []string{"degraded", "paused"}},
+	}
+	cur, err := r.db.Collection("company_sources").Find(ctx, filter, options.Find().SetLimit(int64(limit)).SetSort(bson.D{{Key: "last_error_at", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	var items []models.SourceSummary
+	for cur.Next(ctx) {
+		var doc struct {
+			ID           string     `bson:"_id"`
+			CompanyID    string     `bson:"company_id"`
+			CompanyName  string     `bson:"company_name"`
+			SourceType   string     `bson:"source_type"`
+			ProviderType string     `bson:"provider_type"`
+			Endpoint     string     `bson:"source_endpoint"`
+			Status       string     `bson:"status"`
+			LastSyncAt   *time.Time `bson:"last_sync_at"`
+			LogCount     int64      `bson:"log_count"`
+		}
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		items = append(items, models.SourceSummary{
+			ID:           doc.ID,
+			CompanyID:    doc.CompanyID,
+			CompanyName:  doc.CompanyName,
+			SourceType:   doc.SourceType,
+			ProviderType: doc.ProviderType,
+			BaseURL:      doc.Endpoint,
+			Status:       doc.Status,
+			LastSyncAt:   doc.LastSyncAt,
+			LogCount:     doc.LogCount,
+		})
+	}
+	return items, nil
 }
 
 func (r *JobSourceRepository) requireSourceLease(ctx context.Context, source job_sources.SourceConfig, now time.Time) error {
@@ -999,4 +1070,83 @@ func dedupeStrings(values []string) []string {
 	return result
 }
 
-var _ JobSourceSyncStore = (*JobSourceRepository)(nil)
+func (r *JobSourceRepository) HealSource(ctx context.Context, sourceID string) error {
+	if r == nil || r.db == nil {
+		return db.ErrNilDB
+	}
+
+	var doc struct {
+		Status string `bson:"status"`
+	}
+	err := r.db.Collection("company_sources").FindOne(ctx, bson.M{"_id": sourceID}).Decode(&doc)
+	if err != nil {
+		return err
+	}
+
+	if doc.Status != "degraded" && doc.Status != "paused" {
+		return fmt.Errorf("source %s is not in a healable state: %s", sourceID, doc.Status)
+	}
+
+	res, err := r.db.Collection("company_sources").UpdateOne(ctx, bson.M{"_id": sourceID}, bson.M{
+		"$set": bson.M{
+			"status":       "enabled",
+			"next_poll_at": time.Now().UTC(),
+		},
+		"$unset": bson.M{
+			"last_error_at":    "",
+			"last_error_class": "",
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
+}
+
+func (r *JobSourceRepository) GetStuckSourcesX(ctx context.Context, limit int) ([]models.SourceSummary, error) {
+	if r == nil || r.db == nil {
+		return nil, db.ErrNilDB
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	cur, err := r.db.Collection("company_sources").Find(ctx, bson.M{"status": "stuck"}, options.Find().SetLimit(int64(limit)))
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	
+	var items []models.SourceSummary
+	for cur.Next(ctx) {
+		var doc struct {
+			ID           string     `bson:"_id"`
+			CompanyID    string     `bson:"company_id"`
+			CompanyName  string     `bson:"company_name"`
+			SourceType   string     `bson:"source_type"`
+			ProviderType string     `bson:"provider_type"`
+			Endpoint     string     `bson:"source_endpoint"`
+			Status       string     `bson:"status"`
+			LastSyncAt   *time.Time `bson:"last_sync_at"`
+			LogCount     int64      `bson:"log_count"`
+		}
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		items = append(items, models.SourceSummary{
+			ID:           doc.ID,
+			CompanyID:    doc.CompanyID,
+			CompanyName:  doc.CompanyName,
+			SourceType:   doc.SourceType,
+			ProviderType: doc.ProviderType,
+			BaseURL:      doc.Endpoint,
+			Status:       doc.Status,
+			LastSyncAt:   doc.LastSyncAt,
+			LogCount:     doc.LogCount,
+		})
+	}
+	return items, nil
+}
+

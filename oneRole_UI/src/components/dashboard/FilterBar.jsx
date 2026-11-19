@@ -12,7 +12,8 @@ export function FilterBar() {
     setFilters,
     filterMetadata,
     reloadJobs,
-    showToast
+    showToast,
+    loading
   } = useApp();
 
   const [tagInput, setTagInput] = useState('');
@@ -170,6 +171,7 @@ export function FilterBar() {
           value={tagInput}
           onChange={e => setTagInput(e.target.value)}
           onKeyDown={handleTagKeyDown}
+          disabled={loading}
           placeholder={searchTags.length === 0 ? "Search by role, skill, or title..." : "Add another..."}
           className="tag-input-field flex-1"
         />
@@ -183,6 +185,7 @@ export function FilterBar() {
           id="excludeJobsInput"
           value={excludeKeyword}
           onChange={e => setExcludeKeyword(e.target.value)}
+          disabled={loading}
           placeholder="Hide jobs mentioning..."
           className="exclude-input flex-1"
         />
@@ -194,7 +197,8 @@ export function FilterBar() {
         <div className="relative">
           <button
             onClick={() => setActiveDropdown(activeDropdown === 'date' ? null : 'date')}
-            className={`filter-btn-pill ${filters.datePreset !== 'any' ? 'active' : ''}`}
+            className={`filter-btn-pill ${filters.datePreset !== 'any' ? 'active' : ''} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={loading}
           >
             <span>📅 {filters.datePreset === 'any' ? 'Date' : filters.datePreset.replace('_', ' ')}</span>
             <span className="text-[10px]">▼</span>
@@ -225,7 +229,8 @@ export function FilterBar() {
         <div className="relative">
           <button
             onClick={() => setActiveDropdown(activeDropdown === 'location' ? null : 'location')}
-            className={`filter-btn-pill ${filters.locations?.length > 0 ? 'active' : ''}`}
+            className={`filter-btn-pill ${filters.locations?.length > 0 ? 'active' : ''} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={loading}
           >
             <span>📍 {filters.locations?.length > 0 ? `Location (${filters.locations.length})` : 'Location'}</span>
             <span className="text-[10px]">▼</span>
@@ -238,6 +243,7 @@ export function FilterBar() {
                 placeholder="Search locations..."
                 value={locSearch}
                 onChange={e => setLocSearch(e.target.value)}
+                disabled={loading}
                 className="w-full px-2.5 py-1.5 text-xs bg-[#f4f6f4] rounded-md outline-none mb-2 border border-transparent focus:border-[#24684f]"
               />
 
@@ -277,7 +283,8 @@ export function FilterBar() {
               <button
                 key={mode}
                 onClick={() => handleToggleWorkplace(mode)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${isSelected ? 'bg-[#152c25] text-white border-[#152c25]' : 'bg-[#fafbfa] text-[#4b5563] border-[#e5e7eb] hover:bg-[#f3f4f6]'}`}
+                disabled={loading}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${isSelected ? 'bg-[#152c25] text-white border-[#152c25]' : 'bg-[#fafbfa] text-[#4b5563] border-[#e5e7eb] hover:bg-[#f3f4f6]'} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {labels[mode]}
               </button>
@@ -289,7 +296,8 @@ export function FilterBar() {
         <div className="relative">
           <button
             onClick={() => setActiveDropdown(activeDropdown === 'experience' ? null : 'experience')}
-            className={`filter-btn-pill ${filters.maxExperience !== null ? 'active' : ''}`}
+            className={`filter-btn-pill ${filters.maxExperience !== null ? 'active' : ''} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={loading}
           >
             <span>🎓 {filters.maxExperience !== null ? `≤ ${filters.maxExperience} yrs exp` : 'Experience'}</span>
             <span className="text-[10px]">▼</span>
@@ -318,7 +326,8 @@ export function FilterBar() {
         {/* Visa Sponsorship Toggle */}
         <button
           onClick={handleToggleVisa}
-          className={`filter-btn-pill ${filters.visa ? 'active' : ''}`}
+          className={`filter-btn-pill ${filters.visa ? 'active' : ''} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={loading}
         >
           <span>🛂 Visa sponsorship</span>
         </button>
@@ -327,7 +336,8 @@ export function FilterBar() {
         {hasActiveFilters && (
           <button
             onClick={handleClearAll}
-            className="text-xs text-[#b91c1c] hover:underline font-semibold ml-auto pl-2"
+            disabled={loading}
+            className={`text-xs text-[#b91c1c] hover:underline font-semibold ml-auto pl-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Clear all
           </button>

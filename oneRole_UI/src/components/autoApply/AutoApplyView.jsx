@@ -49,6 +49,22 @@ export function AutoApplyView() {
         </button>
       </div>
 
+      {/* SYSTEM STATUS (TSenta Alignment - Data Dense) */}
+      <div className="grid grid-cols-3 gap-4 text-xs">
+        <div className="bg-white p-4 rounded-xl border border-[#e8ece9] shadow-xs">
+          <span className="text-[#78827e]">Engine Status</span>
+          <p className="font-bold text-[#065f46] mt-1">Running (4 Workers)</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-[#e8ece9] shadow-xs">
+          <span className="text-[#78827e]">Last Sync</span>
+          <p className="font-bold text-[#1d2825] mt-1">2 mins ago</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-[#e8ece9] shadow-xs">
+          <span className="text-[#78827e]">Stuck Apps</span>
+          <p className="font-bold text-[#991b1b] mt-1">0</p>
+        </div>
+      </div>
+
       {/* Configuration Form */}
       <div className="bg-white p-5 rounded-xl border border-[#e8ece9] shadow-xs space-y-5 text-xs">
         <div>

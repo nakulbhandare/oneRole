@@ -104,6 +104,7 @@ type SourceSummary struct {
 	BaseURL      string     `json:"base_url" bson:"base_url"`
 	Status       string     `json:"status" bson:"status"`
 	LastSyncAt   *time.Time `json:"last_sync_at,omitempty" bson:"last_sync_at,omitempty"`
+	LogCount     int64      `json:"log_count" bson:"log_count"`
 }
 
 // SourceHealth details current operational metrics for an ingestion source.
@@ -114,4 +115,5 @@ type SourceHealth struct {
 	LastSyncAt     *time.Time `json:"last_sync_at,omitempty"`
 	SyncLagSeconds int64      `json:"sync_lag_seconds"`
 	Capability     string     `json:"capability"`
+	LogCount       int64      `json:"log_count"`
 }

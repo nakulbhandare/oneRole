@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { CompanyLogo } from '../common/CompanyLogo';
 import { useApp } from '../../context/AppContext';
+import { EmptyState } from '../common/EmptyState';
+
 
 export function ApplicationTracker() {
-  const { applications, userProfile } = useApp();
+  const { applications, userProfile, assistApplication } = useApp();
   const [activeTab, setActiveTab] = useState('all');
   const [searchCompany, setSearchCompany] = useState('');
 
@@ -79,11 +81,13 @@ export function ApplicationTracker() {
               <th className="py-3 px-4">STATUS</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#e8ece9]">
+          <tbody id="appTrackerTableBody" className="divide-y divide-[#e8ece9]">
             {filteredApps.length === 0 ? (
               <tr>
-                <td colSpan="4" className="py-8 text-center text-xs text-[#78827e]">
-                  No applications found in this view. Click 'Apply' on any job card to submit.
+                <td colSpan="4">
+                  <EmptyState>
+                    No applications found in this view. Click 'Apply' on any job card to submit.
+                  </EmptyState>
                 </td>
               </tr>
             ) : (
@@ -91,6 +95,7 @@ export function ApplicationTracker() {
                 const domain = (app.company || '').toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
                 const isSubmitted = app.status === 'submitted';
                 const isInFlight = app.status === 'in_flight' || app.status === 'submitting';
+                const isFailed = app.status === 'failed';
 
                 return (
                   <tr key={app.id || idx} className="hover:bg-[#f9faf9] transition">
@@ -117,15 +122,28 @@ export function ApplicationTracker() {
 
                     <td className="py-3 px-4">
                       {isSubmitted ? (
-                        <span className="inline-flex items-center space-x-1.5 text-[#15803d] font-semibold">
-                          <span className="w-2 h-2 rounded-full bg-[#10b981]"></span>
+                        <span className="status-submitted">
+                          <span className="status-dot"></span>
                           <span>Submitted</span>
                         </span>
                       ) : isInFlight ? (
-                        <span className="inline-flex items-center space-x-1.5 text-[#b45309] font-semibold">
-                          <span className="w-2 h-2 rounded-full bg-[#f59e0b] animate-ping"></span>
+                        <span className="status-inflight">
+                          <span className="status-dot"></span>
                           <span>In Flight</span>
                         </span>
+                      ) : isFailed ? (
+                        <div className="flex items-center space-x-2">
+                           <span className="status-failed">
+                            <span className="status-dot"></span>
+                            <span>Failed</span>
+                          </span>
+                          <button 
+                            onClick={() => assistApplication(app.id)}
+                            className="px-2 py-1 bg-white border border-[#e8ece9] rounded hover:border-[#dc2626] hover:text-[#dc2626] transition"
+                          >
+                            Assist
+                          </button>
+                        </div>
                       ) : (
                         <span className="inline-flex items-center space-x-1.5 text-[#6b7280] font-semibold">
                           <span className="w-2 h-2 rounded-full bg-gray-400"></span>

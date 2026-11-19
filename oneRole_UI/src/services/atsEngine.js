@@ -3,13 +3,13 @@
 // ============================================================================
 
 export function computeRealtimeATSScore(job) {
-  if (!job) return 88;
+  if (!job) return { score: 88, matchedSkills: [] };
 
   if (job.match && typeof job.match.score === 'number' && job.match.score > 0) {
-    return job.match.score;
+    return { score: job.match.score, matchedSkills: job.match.matchedSkills || [] };
   }
   if (typeof job.match_score === 'number' && job.match_score > 0) {
-    return job.match_score;
+    return { score: job.match_score, matchedSkills: [] };
   }
 
   const title = (job.title || job.canonical_title || '').trim();
@@ -24,39 +24,27 @@ export function computeRealtimeATSScore(job) {
   const isTechRole = isSoftwareTech && !isNonSoftwareEngineer;
 
   if (!isTechRole) {
-    return 26;
+    return { score: 26, matchedSkills: [] };
   }
 
   const candidateSkills = [
-    { name: 'go', terms: [/\bgolang\b/, /\bgo\b/, /go developer/, /go engineer/, /go backend/], weight: 1.5 },
-    { name: 'distributed_systems', terms: [/distributed systems?/, /scalability/, /fault tolerance/], weight: 1.2 },
-    { name: 'kubernetes', terms: [/kubernetes/, /\bk8s\b/, /\bhelm\b/, /\beks\b/, /\bgke\b/], weight: 1.0 },
-    { name: 'kafka', terms: [/kafka/, /event-driven/, /message queue/, /pubsub/], weight: 1.0 },
-    { name: 'grpc', terms: [/grpc/, /protobuf/, /protocol buffers/], weight: 1.0 },
-    { name: 'docker', terms: [/docker/, /containers?/, /containerization/], weight: 0.9 },
-    { name: 'aws', terms: [/\baws\b/, /amazon web services/, /\bec2\b/, /\bs3\b/, /lambda/], weight: 0.9 },
-    { name: 'gcp', terms: [/google cloud/, /\bgcp\b/], weight: 0.8 },
-    { name: 'microservices', terms: [/microservices?/, /\bsoa\b/], weight: 1.0 },
-    { name: 'concurrency', terms: [/concurrency/, /concurrent/, /goroutines?/, /channels?/], weight: 1.0 },
-    { name: 'ci_cd', terms: [/ci\/cd/, /github actions/, /pipeline/], weight: 0.8 },
-    { name: 'databases', terms: [/postgresql/, /postgres/, /redis/, /mongodb/, /\bsql\b/], weight: 0.9 },
-    { name: 'apis', terms: [/rest api/, /restful/, /\bapi\b/, /\bapis\b/], weight: 0.7 },
-    { name: 'networking', terms: [/networking/, /tcp/, /socket/, /proxy/], weight: 0.6 }
+    { name: 'Go', terms: [/\bgolang\b/, /\bgo\b/, /go developer/, /go engineer/, /go backend/], weight: 1.5 },
+    { name: 'Distributed Systems', terms: [/distributed systems?/, /scalability/, /fault tolerance/], weight: 1.2 },
+    { name: 'Kubernetes', terms: [/kubernetes/, /\bk8s\b/, /\bhelm\b/, /\beks\b/, /\bgke\b/], weight: 1.0 },
+    { name: 'Kafka', terms: [/kafka/, /event-driven/, /message queue/, /pubsub/], weight: 1.0 },
+    { name: 'gRPC', terms: [/grpc/, /protobuf/, /protocol buffers/], weight: 1.0 },
+    { name: 'Docker', terms: [/docker/, /containers?/, /containerization/], weight: 0.9 },
+    { name: 'AWS', terms: [/\baws\b/, /amazon web services/, /\bec2\b/, /\bs3\b/, /lambda/], weight: 0.9 },
+    { name: 'GCP', terms: [/google cloud/, /\bgcp\b/], weight: 0.8 },
+    { name: 'Microservices', terms: [/microservices?/, /\bsoa\b/], weight: 1.0 },
+    { name: 'Concurrency', terms: [/concurrency/, /concurrent/, /goroutines?/, /channels?/], weight: 1.0 },
+    { name: 'CI/CD', terms: [/ci\/cd/, /github actions/, /pipeline/], weight: 0.8 },
+    { name: 'Databases', terms: [/postgresql/, /postgres/, /redis/, /mongodb/, /\bsql\b/], weight: 0.9 },
+    { name: 'APIs', terms: [/rest api/, /restful/, /\bapi\b/, /\bapis\b/], weight: 0.7 },
+    { name: 'Networking', terms: [/networking/, /tcp/, /socket/, /proxy/], weight: 0.6 }
   ];
 
-  const divergentSkills = [
-    { name: 'java', terms: [/\bjava\b/, /\bspring\b/, /spring boot/], weight: 1.4 },
-    { name: 'c_cpp', terms: [/\bc\+\+\b/, /embedded/, /\brust\b/], weight: 1.3 },
-    { name: 'python_stack', terms: [/\bpython\b/, /django/, /fastapi/], weight: 1.0 },
-    { name: 'elasticsearch', terms: [/elasticsearch/, /elastic/, /opensearch/], weight: 1.0 },
-    { name: 'security_spec', terms: [/penetration testing/, /infosec/, /soc2/, /threat/, /cryptography/], weight: 1.1 },
-    { name: 'quality_qa', terms: [/quality engineer/, /\bqa\b/, /test automation/, /sdet/, /selenium/, /cypress/], weight: 1.3 },
-    { name: 'ml_ai', terms: [/machine learning/, /deep learning/, /pytorch/, /tensorflow/, /\bllm\b/, /\bnlp\b/, /model training/], weight: 1.3 },
-    { name: 'frontend', terms: [/\breact\b/, /\bvue\b/, /\bangular\b/, /frontend engineer/, /ui engineer/], weight: 1.0 },
-    { name: 'data_warehousing', terms: [/spark/, /hadoop/, /snowflake/, /databricks/], weight: 1.1 },
-    { name: 'firmware', terms: [/firmware/, /rtos/, /microcontroller/], weight: 1.2 }
-  ];
-
+  const matchedSkills = [];
   let matchedWeight = 0;
   let totalWeight = 0;
 
@@ -64,8 +52,22 @@ export function computeRealtimeATSScore(job) {
     totalWeight += s.weight;
     if (s.terms.some(re => re.test(fullJd))) {
       matchedWeight += s.weight;
+      matchedSkills.push(s.name);
     }
   }
+
+  const divergentSkills = [
+    { name: 'Java', terms: [/\bjava\b/, /\bspring\b/, /spring boot/], weight: 1.4 },
+    { name: 'C++', terms: [/\bc\+\+\b/, /embedded/, /\brust\b/], weight: 1.3 },
+    { name: 'Python', terms: [/\bpython\b/, /django/, /fastapi/], weight: 1.0 },
+    { name: 'Elasticsearch', terms: [/elasticsearch/, /elastic/, /opensearch/], weight: 1.0 },
+    { name: 'Security', terms: [/penetration testing/, /infosec/, /soc2/, /threat/, /cryptography/], weight: 1.1 },
+    { name: 'QA', terms: [/quality engineer/, /\bqa\b/, /test automation/, /sdet/, /selenium/, /cypress/], weight: 1.3 },
+    { name: 'ML/AI', terms: [/machine learning/, /deep learning/, /pytorch/, /tensorflow/, /\bllm\b/, /\bnlp\b/, /model training/], weight: 1.3 },
+    { name: 'Frontend', terms: [/\breact\b/, /\bvue\b/, /\bangular\b/, /frontend engineer/, /ui engineer/], weight: 1.0 },
+    { name: 'Data Warehousing', terms: [/spark/, /hadoop/, /snowflake/, /databricks/], weight: 1.1 },
+    { name: 'Firmware', terms: [/firmware/, /rtos/, /microcontroller/], weight: 1.2 }
+  ];
 
   let penaltyWeight = 0;
   for (const s of divergentSkills) {
@@ -113,5 +115,6 @@ export function computeRealtimeATSScore(job) {
   if (finalScore > 98) finalScore = 98;
   if (finalScore < 30) finalScore = 30;
 
-  return finalScore;
+  return { score: finalScore, matchedSkills };
 }
+

@@ -8,7 +8,7 @@ export function JobDetailModal() {
 
   if (activeModal !== 'jobDetail' || !selectedJob) return null;
 
-  const atsScore = computeRealtimeATSScore(selectedJob);
+  const { score: atsScore, matchedSkills } = computeRealtimeATSScore(selectedJob);
   const domain = (selectedJob.company || '').toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
 
   function handleClose() {
@@ -72,6 +72,37 @@ export function JobDetailModal() {
               </p>
             </div>
           )}
+
+          {matchedSkills.length > 0 && (
+            <div>
+              <h4 className="font-bold text-[#1d2825] mb-1">Matched Skills</h4>
+              <div className="flex flex-wrap gap-1">
+                {matchedSkills.map(skill => (
+                  <span key={skill} className="bg-[#eaf4ee] text-[#174a38] text-[10px] px-2 py-0.5 rounded-full font-medium">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* MOCK TAILORED DIFF VIEW (TSenta Alignment) */}
+          <div className="bg-[#f9fafb] p-4 rounded-lg border border-[#e5e7eb]">
+            <h4 className="font-bold text-[#1d2825] mb-2 flex items-center justify-between">
+              <span>AI Tailored Application Preview</span>
+              <span className="text-[10px] bg-[#d1fae5] text-[#065f46] px-1.5 py-0.5 rounded">Tailored</span>
+            </h4>
+            <div className="grid grid-cols-2 gap-4 text-[10px]">
+              <div className="space-y-1">
+                <span className="text-[#9ca3af] font-bold">ORIGINAL</span>
+                <p className="bg-red-50 text-red-800 p-2 rounded">Basic applicant with standard experience...</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[#9ca3af] font-bold">TAILORED</span>
+                <p className="bg-green-50 text-green-800 p-2 rounded">Experienced engineer with focus on distributed systems...</p>
+              </div>
+            </div>
+          </div>
 
           {selectedJob.qualifications_text && (
             <div>

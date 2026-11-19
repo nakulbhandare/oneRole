@@ -1,0 +1,14 @@
+{
+  "provider": "lever",
+  "fields": {
+    "external_id": "id",
+    "title": "text",
+    "canonical_url": "hostedUrl",
+    "apply_url": "applyUrl",
+    "published_at": "createdAt"
+  },
+  "pagination": {
+    "type": "cursor",
+    "cursor_param": "offset"
+  }
+}

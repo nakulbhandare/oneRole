@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/oneRole/connectors/job_sources"
 	"github.com/oneRole/queue"
 	"github.com/oneRole/repository"
+	"github.com/oneRole/service/validator"
 )
 
 var ErrInvalidSourceSyncConfig = errors.New("invalid source sync worker configuration")
@@ -104,6 +106,11 @@ func (h SourceSyncEventHandler) HandleEvent(ctx context.Context, event queue.Eve
 			return h.failRun(ctx, run, "retryable_failure", "SOURCE_RECORD_BUDGET_EXHAUSTED", h.RetryDelay, nowFn)
 		}
 		observedAt := nowFn().UTC()
+		for _, item := range page.Items {
+			if err := validator.ValidatePosting(item); err != nil {
+				continue // Or handle validation failure as needed
+			}
+		}
 		result, ingestErr := h.Store.IngestSourcePage(keeper.Context(), repository.SourcePageInput{
 			Run: run, CursorBefore: cursor, Page: page, ObservedAt: observedAt,
 		})
@@ -116,17 +123,20 @@ func (h SourceSyncEventHandler) HandleEvent(ctx context.Context, event queue.Eve
 			}
 			return &WorkFailure{Class: "SOURCE_PAGE_COMMIT_FAILED", Retryable: true, SafeToRetry: true, Cause: ingestErr}
 		}
+		log.Printf("Company %s: Sync run %s page complete: seen %d, created %d, updated %d", run.Source.CompanyID, run.ID, result.RecordsSeen, result.RecordsCreated, result.RecordsUpdated)
 		processedRecords += result.RecordsSeen
 		if result.Complete {
 			if leaseErr := stopLease(); leaseErr != nil {
 				return leaseFailure(leaseErr)
 			}
 			if err := h.Store.CompleteSourceSync(ctx, run, nowFn().UTC()); err != nil {
+				log.Printf("Company %s: Sync run %s completion commit failed: %v", run.Source.CompanyID, run.ID, err)
 				if errors.Is(err, repository.ErrSourceLeaseLost) || errors.Is(err, repository.ErrSourceSyncState) {
 					return nil
 				}
 				return &WorkFailure{Class: "SOURCE_SYNC_COMPLETE_FAILED", Retryable: true, SafeToRetry: true, Cause: err}
 			}
+			log.Printf("Company %s: Sync run %s completed successfully", run.Source.CompanyID, run.ID)
 			return nil
 		}
 		if _, exists := seenCursors[result.CursorAfter]; exists {
@@ -229,11 +239,13 @@ func (h SourceSyncEventHandler) failRun(ctx context.Context, run repository.Sour
 		retryAt = now.Add(retryAfter)
 	}
 	if err := h.Store.FailSourceSync(ctx, run, status, errorClass, retryAt, now); err != nil {
+		log.Printf("Company %s: Sync run %s failed: %s (status: %s, class: %s)", run.Source.CompanyID, run.ID, err, status, errorClass)
 		if errors.Is(err, repository.ErrSourceLeaseLost) || errors.Is(err, repository.ErrSourceSyncState) {
 			return nil
 		}
 		return &WorkFailure{Class: "SOURCE_SYNC_FAILURE_COMMIT_FAILED", Retryable: true, SafeToRetry: true, Cause: err}
 	}
+	log.Printf("Company %s: Sync run %s marked failed: %s (class: %s)", run.Source.CompanyID, run.ID, status, errorClass)
 	return nil
 }
 

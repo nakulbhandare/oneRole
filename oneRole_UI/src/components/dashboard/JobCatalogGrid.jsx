@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { CompanyLogo } from '../common/CompanyLogo';
 import { useApp } from '../../context/AppContext';
 import { computeRealtimeATSScore } from '../../services/atsEngine';
+import { EmptyState } from '../common/EmptyState';
+
 
 export function JobCatalogGrid() {
   const { jobs, loading, handleApplyCard, setSelectedJob, setActiveModal } = useApp();
@@ -27,13 +29,13 @@ export function JobCatalogGrid() {
 
       {/* Grid of Verified Vacancies */}
       {jobs.length === 0 && !loading ? (
-        <div className="p-8 text-center text-xs text-[#78827e] bg-white rounded-xl border border-[#e8ece9]">
+        <EmptyState>
           No jobs found matching your filters. Try clearing tags or selecting different locations.
-        </div>
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {paginatedJobs.map((job, idx) => {
-            const atsScore = computeRealtimeATSScore(job);
+            const { score: atsScore } = computeRealtimeATSScore(job);
             const domain = (job.company || '').toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
 
             return (
