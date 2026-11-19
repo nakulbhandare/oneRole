@@ -2539,38 +2539,39 @@ async function retryableUpload(element, filePath, retries = 3) {
       }
     }, candidate);
 
-    // 12. Locate Submit Button and Click
-    // [.. lines 2469-2531 remain unchanged ..]
+    // 12. Locate Submit Button Selectors
+    const submitBtnSelectors = [
+      'button[type="submit"]',
+      'input[type="submit"]',
+      'button#submit_app',
+      'button#submit-application',
+      'button[data-qa="btn-submit"]',
+      'button[data-testid="submit-application"]',
+      'button[data-automation-id="submitButton"]',
+      'button[data-automation-id="bottom-navigation-next-button"]',
+      'button.ashby-application-form-submit-button',
+      'button.ashby-application-form-submit',
+      '#submit-btn',
+      '#submit_button',
+      '#submitButton',
+      'button.submit-button',
+      'button:not([disabled])'
+    ];
 
-    // 13. PERMANENT FIX: Async Observer-Based Submission (for dynamic ATS overlays)
-    if (submitBtn) {
+    let submitBtn = null;
+    for (const sel of submitBtnSelectors) {
       try {
-        await submitBtn.scrollIntoViewIfNeeded();
-        await page.evaluate(() => {
-           // Dismiss potential processing overlays
-           const overlays = document.querySelectorAll('[class*="overlay"], [class*="processing"]');
-           overlays.forEach(o => o.style.display = 'none');
-        });
-        
-        await page.evaluate(b => b.click(), submitBtn);
-        
-        // Asynchronous Observer: Poll for URL change or success indicator for 30s
-        const startTime = Date.now();
-        while (Date.now() - startTime < 30000) {
-           const isRedirected = page.url() !== finalUrl;
-           const isSuccess = await page.evaluate(() => {
-              const text = document.body.innerText.toLowerCase();
-              return text.includes('thank you') || text.includes('successfully submitted') || text.includes('application received');
-           });
-           if (isRedirected || isSuccess) {
-              isSuccess = true;
-              break;
-           }
-           await new Promise(r => setTimeout(r, 500));
+        const el = await page.$(sel);
+        if (el) {
+          const isVis = await page.evaluate(b => {
+            if (!b) return false;
+            if (b.disabled || b.getAttribute('aria-disabled') === 'true') return false;
+            const s = window.getComputedStyle(b);
+            return s.display !== 'none' && s.visibility !== 'hidden' && (b.offsetWidth > 0 || b.offsetHeight > 0);
+          }, el).catch(() => false);
+          if (isVis) { submitBtn = el; break; }
         }
-      } catch (e) {
-        // Log submission error
-      }
+      } catch (e) {}
     }
 
     let isSuccess = false;
