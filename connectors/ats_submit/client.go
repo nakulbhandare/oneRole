@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -214,6 +215,7 @@ func (c *Client) SubmitGreenhouse(ctx context.Context, board, jobID string, prof
 	}
 	endpoint := fmt.Sprintf("%s/v1/boards/%s/jobs/%s", baseURL, board, jobID)
 
+	var lastErr error
 	for i := 0; i < 3; i++ {
 		b, contentType, err := generateGreenhouseMultipart(profile, answers)
 		if err != nil {
@@ -228,45 +230,68 @@ func (c *Client) SubmitGreenhouse(ctx context.Context, board, jobID string, prof
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
 
 		resp, err := c.httpClient.Do(req)
-		if err == nil {
-			if resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusFound {
-				endpoint = resp.Header.Get("Location")
-				resp.Body.Close()
-				continue
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, err
 			}
-			defer resp.Body.Close()
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-				receiptID := fmt.Sprintf("GH-%s-%s-%d", board, jobID, time.Now().Unix())
-				return &SubmitResult{
-					Success:       true,
-					ReceiptID:     receiptID,
-					SubmissionURL: endpoint,
-					Provider:      "greenhouse",
-					SubmittedAt:   time.Now().UTC(),
-					Details:       map[string]string{"response": string(respBody)},
-				}, nil
-			}
-			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
-				delay := parseRetryAfter(resp.Header)
-				if delay == 0 {
-					delay = time.Duration(i+1) * time.Second
-				}
-				if err := sleepWithContext(ctx, delay); err != nil {
+			lastErr = err
+			if i < 2 {
+				if err := sleepWithContext(ctx, time.Duration(i+1)*time.Second); err != nil {
 					return nil, err
 				}
 				continue
 			}
-			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-			// Log Greenhouse API errors with detail
-			fmt.Printf("[Greenhouse] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
-			return nil, fmt.Errorf("greenhouse submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
-		}
-		if err := sleepWithContext(ctx, time.Duration(i+1)*time.Second); err != nil {
 			return nil, err
 		}
+		
+		if resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusFound {
+			loc := resp.Header.Get("Location")
+			if loc != "" {
+				endpoint = loc
+				resp.Body.Close()
+				continue
+			}
+			resp.Body.Close()
+			return nil, fmt.Errorf("greenhouse submission returned HTTP %d: no Location header", resp.StatusCode)
+		}
+		
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+			resp.Body.Close()
+			receiptID := fmt.Sprintf("GH-%s-%s-%d", board, jobID, time.Now().Unix())
+			return &SubmitResult{
+				Success:       true,
+				ReceiptID:     receiptID,
+				SubmissionURL: endpoint,
+				Provider:      "greenhouse",
+				SubmittedAt:   time.Now().UTC(),
+				Details:       map[string]string{"response": string(respBody)},
+			}, nil
+		}
+		
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		resp.Body.Close()
+
+		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("greenhouse submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
+			delay := parseRetryAfter(resp.Header)
+			if delay == 0 {
+				delay = time.Duration(i+1) * time.Second
+			}
+			if err := sleepWithContext(ctx, delay); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		
+		// Log Greenhouse API errors with detail
+		fmt.Printf("[Greenhouse] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("greenhouse submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
+	if lastErr != nil {
+		return nil, lastErr
+	}
 	return nil, fmt.Errorf("greenhouse submission failed")
 }
 
@@ -306,6 +331,7 @@ func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *
 	}
 	endpoint := fmt.Sprintf("%s/v0/postings/%s/%s", baseURL, board, jobID)
 
+	var lastErr error
 	for i := 0; i < 3; i++ {
 		b, contentType, err := generateLeverMultipart(profile, answers)
 		if err != nil {
@@ -320,45 +346,68 @@ func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
 
 		resp, err := c.httpClient.Do(req)
-		if err == nil {
-			if resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusFound {
-				endpoint = resp.Header.Get("Location")
-				resp.Body.Close()
-				continue
+		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, err
 			}
-			defer resp.Body.Close()
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-				receiptID := fmt.Sprintf("LEVER-%s-%s-%d", board, jobID, time.Now().Unix())
-				return &SubmitResult{
-					Success:       true,
-					ReceiptID:     receiptID,
-					SubmissionURL: endpoint,
-					Provider:      "lever",
-					SubmittedAt:   time.Now().UTC(),
-					Details:       map[string]string{"response": string(respBody)},
-				}, nil
-			}
-			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
-				delay := parseRetryAfter(resp.Header)
-				if delay == 0 {
-					delay = time.Duration(i+1) * time.Second
-				}
-				if err := sleepWithContext(ctx, delay); err != nil {
+			lastErr = err
+			if i < 2 {
+				if err := sleepWithContext(ctx, time.Duration(i+1)*time.Second); err != nil {
 					return nil, err
 				}
 				continue
 			}
-			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-			// Log Lever API errors with detail
-			fmt.Printf("[Lever] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
-			return nil, fmt.Errorf("lever submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
-		}
-		if err := sleepWithContext(ctx, time.Duration(i+1)*time.Second); err != nil {
 			return nil, err
 		}
+
+		if resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusFound {
+			loc := resp.Header.Get("Location")
+			if loc != "" {
+				endpoint = loc
+				resp.Body.Close()
+				continue
+			}
+			resp.Body.Close()
+			return nil, fmt.Errorf("lever submission returned HTTP %d: no Location header", resp.StatusCode)
+		}
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+			resp.Body.Close()
+			receiptID := fmt.Sprintf("LEVER-%s-%s-%d", board, jobID, time.Now().Unix())
+			return &SubmitResult{
+				Success:       true,
+				ReceiptID:     receiptID,
+				SubmissionURL: endpoint,
+				Provider:      "lever",
+				SubmittedAt:   time.Now().UTC(),
+				Details:       map[string]string{"response": string(respBody)},
+			}, nil
+		}
+
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		resp.Body.Close()
+
+		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("lever submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
+			delay := parseRetryAfter(resp.Header)
+			if delay == 0 {
+				delay = time.Duration(i+1) * time.Second
+			}
+			if err := sleepWithContext(ctx, delay); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		// Log Lever API errors with detail
+		fmt.Printf("[Lever] Submission failure for %s/%s: HTTP %d, Body: %s\n", board, jobID, resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("lever submission returned HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
+	if lastErr != nil {
+		return nil, lastErr
+	}
 	return nil, fmt.Errorf("lever submission failed")
 }
 

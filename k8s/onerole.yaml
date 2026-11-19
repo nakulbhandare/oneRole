@@ -309,20 +309,65 @@ spec:
           averageUtilization: 50
 ---
 # ----------------------------------------------------------------------------
-# Public LoadBalancer with Free Azure CloudApp Domain
+# OneRole Frontend UI Service (ClusterIP behind Ingress)
 # ----------------------------------------------------------------------------
 apiVersion: v1
 kind: Service
 metadata:
-  name: onerole-service
+  name: onerole-ui
   namespace: onerole
-  annotations:
-    service.beta.kubernetes.io/azure-dns-label-name: onerole-portal
 spec:
-  type: LoadBalancer
   ports:
-    - port: 80
+    - port: 8082
       targetPort: 8082
       name: http
   selector:
     app: onerole-ui
+---
+# ----------------------------------------------------------------------------
+# Let's Encrypt Production ClusterIssuer
+# ----------------------------------------------------------------------------
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: n_bhandare@u.pacific.edu
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+---
+# ----------------------------------------------------------------------------
+# Ingress with Automatic HTTPS (TLS) via cert-manager & Let's Encrypt
+# ----------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: onerole-ingress
+  namespace: onerole
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - onerole-portal.swedencentral.cloudapp.azure.com
+      secretName: onerole-tls
+  rules:
+    - host: onerole-portal.swedencentral.cloudapp.azure.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: onerole-ui
+                port:
+                  number: 8082
