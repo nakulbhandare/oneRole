@@ -161,11 +161,14 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 		// 4. Companies & Intelligence
 		mux.Handle("GET /api/v1/companies/{slug}", deps.JWT.Middleware(http.HandlerFunc(ent.CompanyIntelligence)))
 		mux.Handle("GET /api/v1/companies/{slug}/feedback", deps.JWT.Middleware(http.HandlerFunc(ent.CompanyIntelligence)))
+		mux.Handle("GET /api/v1/companies/{slug}/hiring", deps.JWT.Middleware(http.HandlerFunc(ent.CompanyHiring)))
+		mux.Handle("POST /api/v1/companies/{slug}/ghost-report", tenantScope(http.HandlerFunc(ent.CompanyGhostReport)))
 		mux.Handle("GET /api/v1/jobs/{id}/reality", deps.JWT.Middleware(http.HandlerFunc(ent.JobReality)))
 		mux.Handle("POST /api/v1/jobs/{id}/ghost-report", tenantScope(http.HandlerFunc(ent.GhostReport)))
 
 		// 5. Submissions & Dynamic ATS Forms
 		mux.Handle("GET /api/v1/jobs/{id}/apply-form", tenantScope(http.HandlerFunc(ent.ATSApplyForm)))
+		mux.Handle("GET /api/v1/jobs/{id}/direct-apply", tenantScope(http.HandlerFunc(ent.ATSApplyForm)))
 		mux.Handle("POST /api/v1/jobs/{id}/direct-apply", tenantScope(http.HandlerFunc(ent.DirectApply)))
 		mux.Handle("POST /api/v1/jobs/{id}/apply", tenantScope(http.HandlerFunc(ent.DirectApply)))
 		mux.Handle("GET /api/v1/me/auto-apply", tenantScope(http.HandlerFunc(ent.AutoApplySettings)))
@@ -186,9 +189,12 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 		mux.Handle("PUT /api/v1/me/answer-bank", tenantScope(http.HandlerFunc(ent.AnswerBank)))
 		mux.Handle("POST /api/v1/me/answer-bank", tenantScope(http.HandlerFunc(ent.AnswerBank)))
 		mux.Handle("GET /api/v1/me/cvs", tenantScope(http.HandlerFunc(ent.CandidateCVs)))
+		mux.Handle("POST /api/v1/me/cvs/tailor", tenantScope(http.HandlerFunc(ent.TailorCV)))
 
 		// 9. Mailbox & Triage
 		mux.Handle("GET /api/v1/me/mailbox", tenantScope(http.HandlerFunc(ent.Mailbox)))
+		mux.Handle("POST /api/v1/me/gmail/sync", tenantScope(http.HandlerFunc(ent.SyncGmail)))
+		mux.Handle("POST /api/v1/me/emails/{id}/triage", tenantScope(http.HandlerFunc(ent.TriageEmail)))
 	}
 	return LoggingMiddleware(cors(mux)), nil
 }

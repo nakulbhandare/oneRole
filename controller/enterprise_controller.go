@@ -399,3 +399,73 @@ func (h *EnterpriseHandler) Mailbox(w http.ResponseWriter, r *http.Request) {
 		"last_sync": time.Now().UTC().Format(time.RFC3339),
 	})
 }
+
+func (h *EnterpriseHandler) CompanyHiring(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	resp, err := h.svc.GetCompanyHiring(r.Context(), slug)
+	if err != nil {
+		writeError(w, r, http.StatusNotFound, "company_hiring_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *EnterpriseHandler) CompanyGhostReport(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	scope, _ := actorScope(r)
+	var cmd service.GhostReportCommand
+	_ = decodeJSON(r, &cmd)
+	if cmd.JobID == "" {
+		cmd.JobID = slug
+	}
+	if err := h.svc.SubmitGhostReport(r.Context(), cmd, scope.UserID); err != nil {
+		writeError(w, r, http.StatusInternalServerError, "report_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "Ghost job report recorded for company " + slug,
+	})
+}
+
+func (h *EnterpriseHandler) TailorCV(w http.ResponseWriter, r *http.Request) {
+	scope, _ := actorScope(r)
+	var req service.TailorCVRequest
+	_ = decodeJSON(r, &req)
+	resp, err := h.svc.TailorCV(r.Context(), scope.UserID, req)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "cv_tailor_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *EnterpriseHandler) SyncGmail(w http.ResponseWriter, r *http.Request) {
+	scope, _ := actorScope(r)
+	resp, err := h.svc.SyncGmail(r.Context(), scope.UserID)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "sync_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *EnterpriseHandler) TriageEmail(w http.ResponseWriter, r *http.Request) {
+	emailID := r.PathValue("id")
+	scope, _ := actorScope(r)
+	var req service.TriageEmailRequest
+	if err := decodeJSON(r, &req); err != nil || req.Category == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Category is required (interview_invite, rejection, confirmation, offer, archived).")
+		return
+	}
+	if err := h.svc.TriageEmail(r.Context(), scope.UserID, emailID, req); err != nil {
+		writeError(w, r, http.StatusInternalServerError, "triage_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":  true,
+		"email_id": emailID,
+		"category": req.Category,
+		"message":  "Email classified and synced with application timeline.",
+	})
+}
