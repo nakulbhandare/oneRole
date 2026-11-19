@@ -601,7 +601,7 @@ async function fetchJobs(customQuery) {
     const q = customQuery !== undefined ? customQuery : (STATE.searchTags && STATE.searchTags.length > 0 ? STATE.searchTags.join(' ') : '');
     const qParam = q ? `&q=${encodeURIComponent(q)}` : '';
     const [jobsRes, recoRes] = await Promise.allSettled([
-      authenticatedFetch(`/api/v1/jobs?limit=30&sort=published_desc${qParam}`),
+      authenticatedFetch(`/api/v1/jobs?limit=10&sort=published_desc${qParam}`),
       authenticatedFetch('/api/v1/jobs/recommendations')
     ]);
 
@@ -1984,7 +1984,7 @@ function applyLiveFilters(immediate = false) {
         const signal = _liveFiltersAbortController.signal;
 
         const params = new URLSearchParams();
-        params.set('limit', '30');
+        params.set('limit', '10');
         params.set('sort', 'published_desc');
 
         let queryParts = [];

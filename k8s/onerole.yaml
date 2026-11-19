@@ -135,6 +135,112 @@ spec:
     app: nats
 ---
 # ----------------------------------------------------------------------------
+# Redis Caching Layer
+# ----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: onerole
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: onerole
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  selector:
+    app: redis
+---
+# ----------------------------------------------------------------------------
+# Elasticsearch Fast Search Engine
+# ----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: onerole
+  labels:
+    app: elasticsearch
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: elasticsearch:8.15.0
+          env:
+            - name: discovery.type
+              value: "single-node"
+            - name: xpack.security.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+          resources:
+            requests:
+              cpu: 150m
+              memory: 768Mi
+            limits:
+              cpu: 600m
+              memory: 1536Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: onerole
+spec:
+  ports:
+    - port: 9200
+      targetPort: 9200
+      name: http
+  selector:
+    app: elasticsearch
+---
+# ----------------------------------------------------------------------------
 # OneRole Backend API Microservice
 # ----------------------------------------------------------------------------
 apiVersion: apps/v1
@@ -170,6 +276,10 @@ spec:
               value: "mongodb://mongodb:27017/onerole"
             - name: NATS_URL
               value: "nats://nats:4222"
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: ELASTICSEARCH_URL
+              value: "http://elasticsearch:9200"
             - name: APP_MODE
               value: "all"
             - name: APP_ENV
