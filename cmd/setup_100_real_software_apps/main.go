@@ -60,8 +60,8 @@ func main() {
 	log.Printf("Selected %d top Software Engineer vacancies from catalogue.\n", len(topJobs))
 
 	now := time.Now().UTC()
-	tenantID := "default"
-	userID := "usr-nakul-bhandare"
+	tenantID := "00000000-0000-4000-8000-000000000001"
+	userID := "9afbe74b-b9ad-4094-a25e-bd4c63e1794c"
 
 	var appDocs []any
 	var eventDocs []any
