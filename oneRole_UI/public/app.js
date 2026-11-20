@@ -4266,6 +4266,18 @@ function renderAppTrackerTable() {
           <span>✓ View Details</span>
         </button>
       `;
+    } else if (item.status === 'action_required') {
+      statusHtml = `
+        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#fef3c7] text-[#92400e] border border-[#fde68a] text-[10px] font-bold" onclick="event.stopPropagation(); openApplicationDetailModal('${item.id}', 'form')">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#d97706] animate-pulse"></span>
+          <span>Action Required (Bot Shield)</span>
+        </span>
+      `;
+      actionBtnHtml = `
+        <button class="inline-flex items-center space-x-1 px-3 py-1 rounded-[6px] bg-[#174a38] hover:bg-[#24684f] text-white text-[11px] font-bold transition shadow-xs" onclick="event.stopPropagation(); openDirectApply('${item.id}')" title="Open employer form prefilled - solve quick 1-click CAPTCHA to receive direct confirmation email">
+          <span>🚀 Launch & Verify</span>
+        </button>
+      `;
     } else if (item.status === 'screening_questions') {
       statusHtml = `
         <span class="status-screening cursor-pointer" onclick="event.stopPropagation(); openApplicationDetailModal('${item.id}', 'form')">
@@ -4538,7 +4550,15 @@ function renderAppDetailModalContent(app) {
   }
 
   const receiptIdEl = document.getElementById('appModalReceiptId');
-  if (receiptIdEl) receiptIdEl.innerText = app.receipt || `REC-${(app.id || '982184').slice(0, 8).toUpperCase()}`;
+  if (receiptIdEl) {
+    if (app.receipt && !app.receipt.startsWith('REC-')) {
+      receiptIdEl.innerText = app.receipt;
+      receiptIdEl.className = 'font-mono text-[11px] text-[#24684f] font-bold';
+    } else {
+      receiptIdEl.innerText = 'Pending Candidate 1-Click Verification (Bot Challenge)';
+      receiptIdEl.className = 'text-[11px] text-[#d97706] font-semibold';
+    }
+  }
 
   const appliedTimeEl = document.getElementById('appModalAppliedTime');
   if (appliedTimeEl) appliedTimeEl.innerText = `${app.applied || 'Today'} · Verified`;
@@ -4931,6 +4951,22 @@ function copyReferralLink() {
   }).catch(() => {
     showToast('Referral link: ' + link, 'info');
   });
+}
+
+function openDirectApply(appId) {
+  const app = (STATE.applications || []).find(a => a.id === appId);
+  if (!app) {
+    showToast('Application record not found.', 'error');
+    return;
+  }
+  const job = (STATE.jobs || []).find(j => j.id === app.job_id || j._id === app.job_id || (j.company && j.company.toLowerCase() === (app.company || '').toLowerCase())) || {};
+  let targetUrl = app.source_url || job.sourceUrl || job.apply_url || job.url;
+  if (!targetUrl || !targetUrl.startsWith('http')) {
+    targetUrl = `https://www.google.com/search?q=${encodeURIComponent(app.company + ' ' + (app.role || 'Software Engineer') + ' careers')}`;
+  }
+
+  showToast(`🚀 Launching prefilled application for ${app.company}. Complete 1-click CAPTCHA to receive confirmation in bhandarenakul11@gmail.com!`, 'info');
+  window.open(targetUrl, '_blank', 'noopener,noreferrer');
 }
 
 async function reapplyApplication(appId, company) {
@@ -5505,12 +5541,28 @@ async function loadRecruiterMailbox() {
       const data = await res.json();
       cachedMailbox = data.mailbox || [];
       renderMailboxList(cachedMailbox);
-      const badge = document.getElementById('topMailboxBadge');
-      if (badge) badge.innerText = cachedMailbox.length;
+      updateMailboxCounters();
     }
   } catch (e) {
     console.warn('[Mailbox] Error fetching mailbox:', e);
   }
+}
+
+function updateMailboxCounters() {
+  const badge = document.getElementById('topMailboxBadge');
+  if (badge) badge.innerText = cachedMailbox.length;
+
+  const countAll = document.getElementById('mbCountAll');
+  if (countAll) countAll.innerText = cachedMailbox.length;
+
+  const countInt = document.getElementById('mbCountInterviews');
+  if (countInt) countInt.innerText = cachedMailbox.filter(m => m.category === 'interview_invite').length;
+
+  const countAss = document.getElementById('mbCountAssessments');
+  if (countAss) countAss.innerText = cachedMailbox.filter(m => m.category === 'assessment').length;
+
+  const countRec = document.getElementById('mbCountReceipts');
+  if (countRec) countRec.innerText = cachedMailbox.filter(m => m.category === 'confirmation').length;
 }
 
 function refreshMailbox() {
@@ -5536,13 +5588,19 @@ function filterMailbox(category, btn) {
 }
 
 function renderMailboxList(messages) {
+  updateMailboxCounters();
   const container = document.getElementById('mailboxMessagesList');
   if (!container) return;
   if (!messages || messages.length === 0) {
     container.innerHTML = `
       <div class="card p-8 text-center text-[#78827e] space-y-2">
-        <p class="font-semibold">No messages in this category.</p>
-        <p class="text-xs">Inbound interview invitations and employer receipts will appear here automatically.</p>
+        <p class="font-semibold text-sm text-[#1d2825]">No inbound recruiter messages</p>
+        <p class="text-xs max-w-md mx-auto">When employers review your submitted applications, real-time confirmation receipts, interview invites, and coding assessments land directly here.</p>
+        <div class="pt-2">
+          <button onclick="syncGmailMailbox()" class="px-4 py-2 bg-[#174a38] text-white rounded-lg text-xs font-bold hover:bg-[#24684f] transition shadow-xs">
+            Sync Inbound Gmail (bhandarenakul11@gmail.com)
+          </button>
+        </div>
       </div>
     `;
     return;

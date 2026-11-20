@@ -942,40 +942,55 @@ type TriagedEmail struct {
 }
 
 func (s *EnterpriseService) GetMailbox(ctx context.Context, userID string) ([]TriagedEmail, error) {
-	return []TriagedEmail{
-		{
-			ID:         "msg-01",
-			From:       "recruiting@stripe.com",
-			Subject:    "Interview Invitation: Senior Backend Engineer at Stripe",
-			Snippet:    "Hi Nakul, our team was impressed with your application and background in Go...",
-			Company:    "Stripe",
-			JobTitle:   "Senior Backend Engineer",
-			Category:   "interview_invite",
-			ReceivedAt: time.Now().UTC().Add(-4 * time.Hour),
-			ActionURL:  "https://calendly.com/stripe-eng-recruiting",
+	if s.db == nil {
+		return []TriagedEmail{}, nil
+	}
+
+	filter := bson.M{
+		"$or": []bson.M{
+			{"user_id": userID},
+			{"candidate_email": "bhandarenakul11@gmail.com"},
+			{"user_id": bson.M{"$exists": false}},
 		},
-		{
-			ID:         "msg-02",
-			From:       "careers@airbnb.com",
-			Subject:    "Application Received: Infrastructure Engineer at Airbnb",
-			Snippet:    "Thank you for applying to Airbnb. We have received your application and will review it shortly.",
-			Company:    "Airbnb",
-			JobTitle:   "Infrastructure Engineer",
-			Category:   "confirmation",
-			ReceivedAt: time.Now().UTC().Add(-18 * time.Hour),
-		},
-		{
-			ID:         "msg-03",
-			From:       "talent@databricks.com",
-			Subject:    "Coding Assessment: Senior Software Engineer at Databricks",
-			Snippet:    "Please complete the attached HackerRank assessment within 5 days of receipt.",
-			Company:    "Databricks",
-			JobTitle:   "Senior Software Engineer",
-			Category:   "assessment",
-			ReceivedAt: time.Now().UTC().Add(-26 * time.Hour),
-			ActionURL:  "https://hackerrank.com/test/databricks-eval",
-		},
-	}, nil
+	}
+	opts := options.Find().SetSort(bson.M{"received_at": -1}).SetLimit(50)
+	cur, err := s.db.Collection("candidate_emails").Find(ctx, filter, opts)
+	if err != nil {
+		return []TriagedEmail{}, nil
+	}
+	defer cur.Close(ctx)
+
+	var emails []TriagedEmail
+	for cur.Next(ctx) {
+		var doc struct {
+			ID         string    `bson:"_id"`
+			From       string    `bson:"from"`
+			Subject    string    `bson:"subject"`
+			Snippet    string    `bson:"snippet"`
+			Company    string    `bson:"company"`
+			JobTitle   string    `bson:"job_title"`
+			Category   string    `bson:"category"`
+			ReceivedAt time.Time `bson:"received_at"`
+			ActionURL  string    `bson:"action_url"`
+		}
+		if err := cur.Decode(&doc); err == nil {
+			emails = append(emails, TriagedEmail{
+				ID:         doc.ID,
+				From:       doc.From,
+				Subject:    doc.Subject,
+				Snippet:    doc.Snippet,
+				Company:    doc.Company,
+				JobTitle:   doc.JobTitle,
+				Category:   doc.Category,
+				ReceivedAt: doc.ReceivedAt,
+				ActionURL:  doc.ActionURL,
+			})
+		}
+	}
+	if emails == nil {
+		emails = []TriagedEmail{}
+	}
+	return emails, nil
 }
 
 // 4b. Companies Hiring Velocity & Departments
@@ -1120,19 +1135,48 @@ type TriageEmailRequest struct {
 }
 
 func (s *EnterpriseService) SyncGmail(ctx context.Context, userID string) (*GmailSyncResponse, error) {
-	emails, _ := s.GetMailbox(ctx, userID)
+	emails, err := s.GetMailbox(ctx, userID)
+	if err != nil {
+		emails = []TriagedEmail{}
+	}
+
+	interviews := 0
+	offers := 0
+	rejections := 0
+	for _, e := range emails {
+		switch e.Category {
+		case "interview_invite":
+			interviews++
+		case "offer":
+			offers++
+		case "rejection":
+			rejections++
+		}
+	}
+
 	return &GmailSyncResponse{
-		SyncedCount:   len(emails) + 2,
-		NewInterviews: 1,
-		NewOffers:     0,
-		NewRejections: 0,
+		SyncedCount:   len(emails),
+		NewInterviews: interviews,
+		NewOffers:     offers,
+		NewRejections: rejections,
 		LastSyncedAt:  time.Now().UTC(),
 		Messages:      emails,
 	}, nil
 }
 
 func (s *EnterpriseService) TriageEmail(ctx context.Context, userID, emailID string, req TriageEmailRequest) error {
-	return nil
+	if s.db == nil {
+		return nil
+	}
+	_, err := s.db.Collection("candidate_emails").UpdateOne(ctx,
+		bson.M{"_id": emailID},
+		bson.M{"$set": bson.M{
+			"category":   req.Category,
+			"notes":      req.Notes,
+			"updated_at": time.Now().UTC(),
+		}},
+	)
+	return err
 }
 
 // Helpers

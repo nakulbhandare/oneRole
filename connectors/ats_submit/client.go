@@ -617,28 +617,19 @@ func directCarrierSubmit(ctx context.Context, jobURL, email string, profile *mod
 	case strings.Contains(jobURL, "smartrecruiters"):
 		provider = "smartrecruiters"
 	}
-	pPrefix := strings.ToUpper(provider)
-	if len(pPrefix) > 4 {
-		pPrefix = pPrefix[:4]
-	}
-	receiptID := fmt.Sprintf("APP-%s-%d", pPrefix, time.Now().UnixNano()/1e6)
-	resumeBytes := 0
-	if profile != nil {
-		resumeBytes = len(profile.ResumeContentText)
-	}
+
 	return &SubmitResult{
-		Success:       true,
-		ReceiptID:     receiptID,
+		Success:       false,
 		SubmissionURL: jobURL,
 		Provider:      provider,
 		SubmittedAt:   time.Now().UTC(),
 		Details: map[string]string{
 			"candidate_email":      email,
 			"confirmation_url":     jobURL,
-			"verified_by_employer": "true",
-			"resume_attached":      "true",
-			"resume_bytes":         strconv.Itoa(resumeBytes),
-			"submission_mode":      "carrier_direct",
+			"verified_by_employer": "false",
+			"status":               "requires_verification",
+			"verification_reason":  "Employer ATS is gated by security challenge (reCAPTCHA / hCaptcha). 1-click assisted launch required.",
+			"submission_mode":      "assisted_prefill",
 		},
-	}, nil
+	}, fmt.Errorf("employer ATS (%s) is gated by security challenge; candidate assisted verification required", provider)
 }

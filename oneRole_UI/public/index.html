@@ -1679,11 +1679,11 @@
         </div>
 
         <!-- Filter Tabs -->
-        <div class="flex items-center space-x-2 border-b border-[#e8ece9] pb-2 text-xs">
-          <button class="px-3 py-1.5 rounded-lg font-bold bg-[#143528] text-white" onclick="filterMailbox('all', this)">All Messages (3)</button>
-          <button class="px-3 py-1.5 rounded-lg font-medium text-[#526359] hover:bg-[#eaf4ef]" onclick="filterMailbox('interview_invite', this)">Interview Invitations (1)</button>
-          <button class="px-3 py-1.5 rounded-lg font-medium text-[#526359] hover:bg-[#eaf4ef]" onclick="filterMailbox('assessment', this)">Coding Assessments (1)</button>
-          <button class="px-3 py-1.5 rounded-lg font-medium text-[#526359] hover:bg-[#eaf4ef]" onclick="filterMailbox('confirmation', this)">Employer Receipts (1)</button>
+        <div class="flex items-center space-x-2 border-b border-[#e8ece9] pb-2 text-xs" id="mailboxFilterTabs">
+          <button class="px-3 py-1.5 rounded-lg font-bold bg-[#143528] text-white" onclick="filterMailbox('all', this)">All Messages (<span id="mbCountAll">0</span>)</button>
+          <button class="px-3 py-1.5 rounded-lg font-medium text-[#526359] hover:bg-[#eaf4ef]" onclick="filterMailbox('interview_invite', this)">Interviews (<span id="mbCountInterviews">0</span>)</button>
+          <button class="px-3 py-1.5 rounded-lg font-medium text-[#526359] hover:bg-[#eaf4ef]" onclick="filterMailbox('assessment', this)">Assessments (<span id="mbCountAssessments">0</span>)</button>
+          <button class="px-3 py-1.5 rounded-lg font-medium text-[#526359] hover:bg-[#eaf4ef]" onclick="filterMailbox('confirmation', this)">Employer Receipts (<span id="mbCountReceipts">0</span>)</button>
         </div>
 
         <!-- Inbound Messages Feed -->
