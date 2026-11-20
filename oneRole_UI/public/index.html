@@ -791,21 +791,17 @@
               <button onclick="switchNav('browse')" class="px-2.5 py-1 text-xs text-[#152c25] font-bold hover:underline flex items-center space-x-1">
                 <span>Browse all jobs</span><span>→</span>
               </button>
-              <button id="btnLoadMoreBento" onclick="loadMoreBentoCards()" class="px-2.5 py-1 text-xs text-[#152c25] font-semibold hover:bg-[#eaf4ef] rounded-[6px] border border-[#dce6df] transition flex items-center space-x-1" title="Load more matching vacancies into bento grid">
-                <span>➕</span>
-                <span>Load More</span>
-              </button>
-              <button id="btnApplyAllMatches" onclick="applyToAllBentoCards()" class="px-3.5 py-1.5 bg-[#152c25] hover:bg-[#254b3e] text-white text-xs font-bold rounded-[7px] flex items-center space-x-1.5 shadow-sm transition">
+              <button id="btnApplyAllMatches" onclick="applyToAll5Cards()" class="px-3.5 py-1.5 bg-[#152c25] hover:bg-[#254b3e] text-white text-xs font-bold rounded-[7px] flex items-center space-x-1.5 shadow-sm transition">
                 <span>⚡</span>
-                <span id="applyAllBentoText">Apply to all</span>
+                <span id="applyAllCardsText">Apply to all 5</span>
                 <span>→</span>
               </button>
             </div>
           </div>
 
-          <!-- Bento Grid Queue Layout for Limitless Matching Vacancies -->
-          <div class="bento-queue-grid" id="coloredMatchCardsContainer">
-            <!-- Dynamically populated and replenished by renderMatchCardsQueue() -->
+          <!-- 5 Match Cards Row: Identical Size, Infinite One-Removed Add-One Stream -->
+          <div class="match-cards-grid" id="coloredMatchCardsContainer">
+            <!-- Dynamically populated and maintained at exactly 5 by renderMatchCardsQueue() -->
           </div>
         </div>
 

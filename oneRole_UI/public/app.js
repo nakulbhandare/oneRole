@@ -3343,9 +3343,12 @@ function isJobApplied(jobOrCard) {
   return false;
 }
 
-let BENTO_QUEUE_TARGET_SIZE = 7;
+const QUEUE_TARGET_SIZE = 5;
+let BENTO_QUEUE_TARGET_SIZE = 5;
+let REPLENISH_OFFSET = 25;
+let IS_FETCHING_REPLENISH = false;
 
-function maintainBentoQueue(targetSize = BENTO_QUEUE_TARGET_SIZE) {
+function maintainQueueOf5(targetSize = QUEUE_TARGET_SIZE) {
   // 1. Deduplicate ACTIVE_QUEUE_CARDS against itself (prevent duplicate companies in active queue)
   const seenComps = new Set();
   const seenKeys = new Set();
@@ -3406,41 +3409,49 @@ function maintainBentoQueue(targetSize = BENTO_QUEUE_TARGET_SIZE) {
     }
   }
 
-  // 4. Background revalidation: keep replenishment pool full for limitless browsing
-  if (REPLENISH_QUEUE_CARDS.length < 10) {
+  // If active queue exceeds targetSize (e.g. from previous bento expanded state), trim back to replenishment pool
+  if (ACTIVE_QUEUE_CARDS.length > targetSize) {
+    const overflow = ACTIVE_QUEUE_CARDS.splice(targetSize);
+    REPLENISH_QUEUE_CARDS.unshift(...overflow);
+  }
+
+  // 4. Background revalidation: keep replenishment pool continuously stocked (at least 15) for infinite streaming
+  if (REPLENISH_QUEUE_CARDS.length < 15) {
     fetchMoreJobsForReplenish();
   }
 
-  // 5. Ensure consistent themes and bento spans
-  const themes = ['card-mint', 'card-pink', 'card-aqua', 'card-peach', 'card-butter', 'card-lavender', 'card-skyblue', 'card-wheat'];
+  // 5. Ensure identical sizing and consistent 5 pastel themes
+  const themes = ['card-mint', 'card-pink', 'card-aqua', 'card-peach', 'card-butter'];
   ACTIVE_QUEUE_CARDS.forEach((c, idx) => {
     c.theme = themes[idx % themes.length];
-    // Featured Hero Bento Card on position 0 and 5
-    c.isFeatured = (idx === 0 || idx === 5);
+    c.isFeatured = false; // Strictly equal size for all 5 cards
   });
 
   updateApplyAllButtonLabel();
 }
 
 // Backward-compatible alias
-function maintainQueueOf5() {
-  maintainBentoQueue(BENTO_QUEUE_TARGET_SIZE);
+function maintainBentoQueue(targetSize = QUEUE_TARGET_SIZE) {
+  maintainQueueOf5(targetSize);
 }
 
 function updateApplyAllButtonLabel() {
-  const labelEl = document.getElementById('applyAllBentoText');
+  const labelEl = document.getElementById('applyAllCardsText') || document.getElementById('applyAllBentoText');
   if (labelEl) {
-    labelEl.innerText = `Apply to all (${ACTIVE_QUEUE_CARDS.length})`;
+    labelEl.innerText = `Apply to all ${ACTIVE_QUEUE_CARDS.length}`;
   }
 }
 
 async function fetchMoreJobsForReplenish() {
+  if (IS_FETCHING_REPLENISH) return;
+  IS_FETCHING_REPLENISH = true;
   try {
-    const res = await authenticatedFetch(`/api/v1/jobs?limit=25`);
+    const res = await authenticatedFetch(`/api/v1/jobs?limit=25&offset=${REPLENISH_OFFSET}`);
     if (res && res.ok) {
       const data = await res.json();
       const newJobs = data.items || data.data || [];
       if (newJobs.length > 0) {
+        REPLENISH_OFFSET += newJobs.length;
         const existingIds = new Set((STATE.jobs || []).map(j => j.id));
         newJobs.forEach((j, idx) => {
           if (!existingIds.has(j.id) && !isJobApplied(j)) {
@@ -3452,18 +3463,19 @@ async function fetchMoreJobsForReplenish() {
     }
   } catch (err) {
     console.debug('Background queue replenishment skipped:', err);
+  } finally {
+    IS_FETCHING_REPLENISH = false;
   }
 }
 
 function loadMoreBentoCards() {
-  BENTO_QUEUE_TARGET_SIZE += 4;
-  maintainBentoQueue(BENTO_QUEUE_TARGET_SIZE);
+  maintainQueueOf5(5);
   renderMatchCardsQueue();
-  showToast(`✓ Expanded Bento Grid: Now showing ${ACTIVE_QUEUE_CARDS.length} matching roles!`, 'info');
 }
 
 async function resetMatchQueue() {
   localStorage.removeItem('onerole_removed_queue_cards');
+  REPLENISH_OFFSET = 25;
   await applyLiveFilters();
   const applyAllBtn = document.getElementById('btnApplyAllMatches') || document.querySelector('button[onclick="applyToAll5Cards()"]');
   if (applyAllBtn) {
@@ -3478,7 +3490,7 @@ function renderMatchCardsQueue() {
   const container = document.getElementById('coloredMatchCardsContainer');
   if (!container) return;
 
-  maintainBentoQueue(BENTO_QUEUE_TARGET_SIZE);
+  maintainQueueOf5();
 
   const filterActive = isAnyFilterActive();
   const summaryEl = document.getElementById('queueFilterSummary');
@@ -3495,14 +3507,14 @@ function renderMatchCardsQueue() {
       if (STATE.filters.payMin) activeParts.push(`$${parseInt(STATE.filters.payMin, 10) / 1000}k+`);
       summaryEl.innerText = `Filtered: ${activeParts.join(' • ') || 'Selected criteria'} (${STATE.jobs.length} vacancies found)`;
     } else {
-      summaryEl.innerText = `Limitless Bento Queue (${STATE.jobs.length} total vacancies dynamically evaluated)`;
+      summaryEl.innerText = `Top 5 Matching Vacancies (Live Infinite Stream • Evaluated across ${STATE.jobs.length}+ jobs)`;
     }
   }
 
   if (countBadgeEl) {
     countBadgeEl.innerText = filterActive
-      ? `Top ${ACTIVE_QUEUE_CARDS.length} of ${STATE.jobs.length} Filtered Roles`
-      : `Bento Queue (${ACTIVE_QUEUE_CARDS.length} Matches)`;
+      ? `Top 5 of ${STATE.jobs.length} Filtered Roles`
+      : `Top 5 Matches`;
   }
 
   if (ACTIVE_QUEUE_CARDS.length === 0) {
@@ -3532,32 +3544,20 @@ function renderMatchCardsQueue() {
     return;
   }
 
-  container.innerHTML = ACTIVE_QUEUE_CARDS.map((card, idx) => {
+  container.innerHTML = ACTIVE_QUEUE_CARDS.slice(0, 5).map((card, idx) => {
     const domain = card.domain || deriveCompanyDomain(card.company);
     const badgeHtml = card.badge ? `<span class="inline-flex items-center space-x-0.5 text-[9px] bg-black/10 px-1.5 py-0.5 rounded-full font-semibold text-[#374151] ml-1.5">👤 ${card.badge} applicants</span>` : '';
-    const featuredClass = card.isFeatured ? 'bento-card-featured shadow-sm' : '';
-    const animClass = card.isNew ? 'bento-card-entering' : '';
+    const animClass = card.isNew ? 'card-entering' : '';
     card.isNew = false;
 
-    // Tech pills for featured cards
-    const techPills = card.isFeatured ? `
-      <div class="flex flex-wrap items-center gap-1.5 my-2">
-        <span class="px-2 py-0.5 rounded-full bg-black/8 text-[10px] font-semibold text-[#1f2937]">Go / Distributed</span>
-        <span class="px-2 py-0.5 rounded-full bg-black/8 text-[10px] font-semibold text-[#1f2937]">Kubernetes</span>
-        <span class="px-2 py-0.5 rounded-full bg-black/8 text-[10px] font-semibold text-[#1f2937]">Cloud Systems</span>
-        <span class="px-2 py-0.5 rounded-full bg-[#152c25]/10 text-[#152c25] text-[10px] font-bold">⚡ P75 Salary</span>
-      </div>
-    ` : '';
-
     return `
-      <div id="card-queue-${card.key}" class="job-match-card ${card.theme} ${featuredClass} ${animClass} cursor-pointer transition-all duration-300 transform" onclick="openJobDrawer('${card.key}')">
+      <div id="card-queue-${card.key}" class="job-match-card ${card.theme} ${animClass} cursor-pointer transition-all duration-300 transform" onclick="openJobDrawer('${card.key}')">
         <!-- Top Row: Location, Time & Match Score Gauge -->
         <div class="flex items-start justify-between">
           <div class="space-y-0.5 min-w-0 pr-2">
             <div class="flex items-center space-x-1 flex-wrap">
               <span class="text-xs text-[#374151] font-medium flex items-center leading-tight truncate">${escapeHtml(card.location)}</span>
               ${badgeHtml}
-              ${card.isFeatured ? '<span class="text-[9px] font-bold bg-[#143528] text-white px-1.5 py-0.5 rounded-full">⭐ Top Match</span>' : ''}
             </div>
             <span class="text-[11px] text-[#6b7280] block">${escapeHtml(card.time)}</span>
           </div>
@@ -3569,10 +3569,9 @@ function renderMatchCardsQueue() {
 
         <!-- Middle: Prominent Clean Job Title -->
         <div class="my-auto py-2">
-          <h3 class="${card.isFeatured ? 'text-[20px] md:text-[21px]' : 'text-[17px] md:text-[18px]'} font-semibold text-[#18181b] leading-snug line-clamp-2" title="${escapeHtml(card.title)}">
+          <h3 class="text-[17px] md:text-[18px] font-semibold text-[#18181b] leading-snug line-clamp-2" title="${escapeHtml(card.title)}">
             ${highlightSearchTerms(card.title)}
           </h3>
-          ${techPills}
         </div>
 
         <!-- Bottom Row: Company Info & Action Buttons -->
@@ -3581,7 +3580,6 @@ function renderMatchCardsQueue() {
             ${renderCompanyLogoMarkup(card.company, domain, 'w-5 h-5', 'w-4 h-4', 'text-[9px]')}
             <div class="min-w-0 truncate">
               <span class="text-xs font-bold text-[#18181b] block truncate" title="${escapeHtml(card.company)}">${escapeHtml(card.company)}</span>
-              ${card.isFeatured ? `<span class="text-[10px] text-[#526359] block truncate font-medium">${escapeHtml(card.salary || 'USD 160k - 220k')}</span>` : ''}
             </div>
           </div>
           <div class="flex items-center space-x-1 flex-shrink-0">
@@ -3665,10 +3663,10 @@ async function applySingleCard(title, company, cardKey, event, options = {}) {
   stored.unshift(newApp);
   localStorage.setItem('onerole_local_apps', JSON.stringify(stored.slice(0, 100)));
 
-  // Remove card from queue and maintain bento queue
+  // Remove card from queue with immediate exit animation
   const cardEl = document.getElementById(`card-queue-${card.key}`);
   if (cardEl) {
-    cardEl.classList.add('bento-card-exiting');
+    cardEl.classList.add('card-exiting', 'bento-card-exiting');
   }
 
   ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => c.key !== card.key && (c.company || '').toLowerCase().trim() !== compKey);
@@ -3690,12 +3688,12 @@ async function applySingleCard(title, company, cardKey, event, options = {}) {
   if (!options.skipRender) {
     STATE.currentPage = 1;
     setTimeout(() => {
-      maintainBentoQueue();
+      maintainQueueOf5();
       renderMatchCardsQueue();
-    }, 150);
+    }, 140);
     updateTrackerCounts();
     renderAppTrackerTable();
-    showToast(`⏳ In flight: Application queued for ${companyName}! Chromium worker picking up...`, 'info');
+    showToast(`⏳ In flight: Application queued for ${companyName}! Added next match to queue.`, 'info');
     updateRecentActivity(companyName, `Application in-flight to Chromium worker (Receipt: ${receiptId})`);
   }
 
@@ -3752,9 +3750,10 @@ async function applySingleCard(title, company, cardKey, event, options = {}) {
   }
 }
 
-async function applyToAllBentoCards() {
+async function applyToAll5Cards() {
   if (ACTIVE_QUEUE_CARDS.length === 0) {
-    showToast('Queue is empty! Click "+ Add your own" or reload matches.', 'info');
+    showToast('Queue is empty! Reloading verified matches...', 'info');
+    await resetMatchQueue();
     return;
   }
 
@@ -3765,8 +3764,8 @@ async function applyToAllBentoCards() {
     applyAllBtn.innerHTML = '<span>⏳</span><span>Filing applications...</span>';
   }
 
-  const cardsToApply = [...ACTIVE_QUEUE_CARDS];
-  showToast(`⚡ Filing applications for all ${cardsToApply.length} vacancies in Bento Grid!`, 'info');
+  const cardsToApply = ACTIVE_QUEUE_CARDS.slice(0, 5);
+  showToast(`⚡ Filing applications for top ${cardsToApply.length} vacancies!`, 'info');
 
   let successCount = 0;
   for (let i = 0; i < cardsToApply.length; i++) {
@@ -3782,7 +3781,7 @@ async function applyToAllBentoCards() {
   }
 
   STATE.currentPage = 1;
-  maintainBentoQueue();
+  maintainQueueOf5();
   renderMatchCardsQueue();
   updateTrackerCounts();
   renderAppTrackerTable();
@@ -3794,12 +3793,12 @@ async function applyToAllBentoCards() {
   }
   updateApplyAllButtonLabel();
 
-  showToast(`🎉 Filed ${successCount} applications! Automatically replenished Bento Grid.`, 'success');
+  showToast(`🎉 Filed ${successCount} applications! Replenished 5 fresh matches to queue.`, 'success');
 }
 
 // Backward-compatible alias
-async function applyToAll5Cards() {
-  return applyToAllBentoCards();
+async function applyToAllBentoCards() {
+  return applyToAll5Cards();
 }
 
 function passCard(cardKey, event) {
@@ -3815,7 +3814,7 @@ function passCard(cardKey, event) {
 
   const cardEl = document.getElementById(`card-queue-${cardKey}`);
   if (cardEl) {
-    cardEl.classList.add('bento-card-exiting');
+    cardEl.classList.add('card-exiting', 'bento-card-exiting');
   }
 
   setTimeout(() => {
@@ -3828,10 +3827,10 @@ function passCard(cardKey, event) {
       ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => c.key !== cardKey);
     }
 
-    maintainBentoQueue();
+    maintainQueueOf5();
     renderMatchCardsQueue();
-    showToast('Role passed. Automatically loaded next match into Bento grid.', 'info');
-  }, 160);
+    showToast('Role passed. Added next match to queue.', 'info');
+  }, 140);
 }
 
 function addApplicationToTracker(appData) {
