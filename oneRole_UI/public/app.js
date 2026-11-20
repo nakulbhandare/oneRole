@@ -1995,7 +1995,6 @@ function applyLiveFilters(immediate = false) {
 
         const params = new URLSearchParams();
         params.set('limit', '25');
-        params.set('sort', 'published_desc');
 
         let queryParts = [];
         if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
@@ -2011,6 +2010,9 @@ function applyLiveFilters(immediate = false) {
         }
         if (queryParts.length > 0) {
           params.set('q', queryParts.join(' '));
+          params.set('sort', 'relevance');
+        } else {
+          params.set('sort', 'published_desc');
         }
 
         if (STATE.filters.exclude) {
@@ -2084,23 +2086,36 @@ function applyLiveFilters(immediate = false) {
 
           // Sort jobs according to active sort option
           const sortMode = (STATE.filters && STATE.filters.sort) || 'ats_score';
-          if (sortMode === 'ats_score') {
-            filteredJobs.sort((a, b) => {
-              const scoreA = computeRealtimeATSScore(a, STATE.profile);
-              const scoreB = computeRealtimeATSScore(b, STATE.profile);
-              if (scoreB !== scoreA) return scoreB - scoreA;
-              const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
-              const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
-              return timeB - timeA;
-            });
-          } else if (sortMode === 'published_desc') {
-            filteredJobs.sort((a, b) => {
-              const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
-              const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
-              return timeB - timeA;
-            });
-          } else if (sortMode === 'salary_desc') {
-            filteredJobs.sort((a, b) => (b.salary_max || 0) - (a.salary_max || 0));
+          if (queryParts.length > 0) {
+            // Preserve Elasticsearch relevance order when searching with keywords unless explicitly requested
+            if (sortMode === 'published_desc') {
+              filteredJobs.sort((a, b) => {
+                const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
+                const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
+                return timeB - timeA;
+              });
+            } else if (sortMode === 'salary_desc') {
+              filteredJobs.sort((a, b) => (b.salary_max || 0) - (a.salary_max || 0));
+            }
+          } else {
+            if (sortMode === 'ats_score') {
+              filteredJobs.sort((a, b) => {
+                const scoreA = computeRealtimeATSScore(a, STATE.profile);
+                const scoreB = computeRealtimeATSScore(b, STATE.profile);
+                if (scoreB !== scoreA) return scoreB - scoreA;
+                const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
+                const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
+                return timeB - timeA;
+              });
+            } else if (sortMode === 'published_desc') {
+              filteredJobs.sort((a, b) => {
+                const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
+                const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
+                return timeB - timeA;
+              });
+            } else if (sortMode === 'salary_desc') {
+              filteredJobs.sort((a, b) => (b.salary_max || 0) - (a.salary_max || 0));
+            }
           }
 
           STATE.jobs = filteredJobs;

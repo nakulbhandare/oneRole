@@ -145,12 +145,16 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	}
 
 	var esHighlights map[string]map[string][]string
+	hasSearchQuery := strings.TrimSpace(request.Query) != ""
 	// Elasticsearch High-Precision Full-Text & Multi-Filter Search
-	hasFilters := strings.TrimSpace(request.Query) != "" || len(request.WorkplaceModes) > 0 || len(request.LocationIDs) > 0 || len(request.Locations) > 0 || len(request.CompanyIDs) > 0
+	hasFilters := hasSearchQuery || len(request.WorkplaceModes) > 0 || len(request.LocationIDs) > 0 || len(request.Locations) > 0 || len(request.CompanyIDs) > 0
 	if hasFilters {
 		esIDs, highlights, err := queryElasticsearchJobIDs(ctx, request)
 		if err == nil {
 			if len(esIDs) > 0 {
+				if hasSearchQuery && len(esIDs) > request.Limit+1 {
+					esIDs = esIDs[:request.Limit+1]
+				}
 				request.JobIDs = esIDs
 				esHighlights = highlights
 			} else {
@@ -200,28 +204,32 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	limit := int64(request.Limit + 1)
 	findOpts := options.Find().SetLimit(limit)
 
-	switch effectiveSort {
-	case models.SortPublishedDesc:
-		findOpts.SetSort(bson.D{{Key: "source_published_at", Value: -1}, {Key: "_id", Value: -1}})
-	case models.SortSalaryDesc:
-		findOpts.SetSort(bson.D{{Key: "salary_max", Value: -1}, {Key: "_id", Value: -1}})
-	case models.SortRelevance:
-		hasText := strings.TrimSpace(request.Query) != "" && len(request.JobIDs) == 0
-		if hasText {
-			findOpts.SetSort(bson.D{
-				{Key: "score", Value: bson.M{"$meta": "textScore"}},
-				{Key: "first_seen_at", Value: -1},
-				{Key: "_id", Value: -1},
-			})
-			findOpts.SetProjection(bson.M{"score": bson.M{"$meta": "textScore"}})
-		} else {
-			findOpts.SetSort(bson.D{
-				{Key: "first_seen_at", Value: -1},
-				{Key: "_id", Value: -1},
-			})
+	if hasSearchQuery && len(request.JobIDs) > 0 {
+		findOpts.SetSort(nil)
+	} else {
+		switch effectiveSort {
+		case models.SortPublishedDesc:
+			findOpts.SetSort(bson.D{{Key: "source_published_at", Value: -1}, {Key: "_id", Value: -1}})
+		case models.SortSalaryDesc:
+			findOpts.SetSort(bson.D{{Key: "salary_max", Value: -1}, {Key: "_id", Value: -1}})
+		case models.SortRelevance:
+			hasText := strings.TrimSpace(request.Query) != "" && len(request.JobIDs) == 0
+			if hasText {
+				findOpts.SetSort(bson.D{
+					{Key: "score", Value: bson.M{"$meta": "textScore"}},
+					{Key: "first_seen_at", Value: -1},
+					{Key: "_id", Value: -1},
+				})
+				findOpts.SetProjection(bson.M{"score": bson.M{"$meta": "textScore"}})
+			} else {
+				findOpts.SetSort(bson.D{
+					{Key: "first_seen_at", Value: -1},
+					{Key: "_id", Value: -1},
+				})
+			}
+		default:
+			findOpts.SetSort(bson.D{{Key: "first_seen_at", Value: -1}, {Key: "_id", Value: -1}})
 		}
-	default:
-		findOpts.SetSort(bson.D{{Key: "first_seen_at", Value: -1}, {Key: "_id", Value: -1}})
 	}
 
 	coll := r.db.Collection("jobs")
@@ -255,7 +263,7 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 		positions = append(positions, pos)
 	}
 
-	if len(request.JobIDs) > 0 && effectiveSort == models.SortRelevance {
+	if len(request.JobIDs) > 0 && (hasSearchQuery || effectiveSort == models.SortRelevance) {
 		orderMap := make(map[string]int, len(request.JobIDs))
 		for idx, id := range request.JobIDs {
 			orderMap[id] = idx
@@ -450,7 +458,7 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 				"multi_match": map[string]interface{}{
 					"query":  exactPhrase,
 					"type":   "phrase",
-					"fields": []string{"canonical_title^3", "skills^2", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
+					"fields": []string{"canonical_title^10", "skills^8", "company_name^3", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
 				},
 			})
 		} else {
@@ -459,7 +467,7 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 				"multi_match": map[string]interface{}{
 					"query":    qStr,
 					"operator": "and",
-					"fields":   []string{"canonical_title^3", "company_name^2", "skills^2", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
+					"fields":   []string{"canonical_title^10", "skills^8", "company_name^3", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
 				},
 			})
 		}
@@ -590,10 +598,14 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 		"_source": []string{"id"},
 	}
 
-	if request.Sort == models.SortPublishedDesc || request.Sort == models.SortFirstSeenDesc {
+	if qStr != "" {
+		queryBody["sort"] = []interface{}{
+			map[string]string{"_score": "desc"},
+			map[string]interface{}{"first_seen_at": map[string]string{"order": "desc"}},
+		}
+	} else if request.Sort == models.SortPublishedDesc || request.Sort == models.SortFirstSeenDesc {
 		queryBody["sort"] = []interface{}{
 			map[string]interface{}{"first_seen_at": map[string]string{"order": "desc"}},
-			map[string]string{"_score": "desc"},
 		}
 	}
 
