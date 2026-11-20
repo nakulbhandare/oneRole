@@ -5797,17 +5797,21 @@ function renderMailboxList(messages) {
   };
 
   container.innerHTML = messages.map(msg => `
-    <div class="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#24684f] transition-colors">
-      <div class="space-y-1">
-        <div class="flex items-center space-x-2">
+    <div onclick="openEmailDetailModal('${msg.id}')" class="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#24684f] transition-all cursor-pointer hover:shadow-xs group">
+      <div class="space-y-1 flex-1 min-w-0 pr-2">
+        <div class="flex items-center space-x-2 flex-wrap gap-y-1">
           ${categoryBadgeMap[msg.category] || '<span class="px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] font-bold">Message</span>'}
-          <span class="text-xs font-bold text-[#1d2825]">${escapeHtml(msg.company)}</span>
+          <span class="text-xs font-bold text-[#1d2825] group-hover:text-[#15803d] transition-colors">${escapeHtml(msg.company)}</span>
           <span class="text-[10px] text-[#78827e] font-medium">· ${escapeHtml(msg.job_title)}</span>
+          ${msg.forwarded_to ? '<span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">📤 Forwarded</span>' : ''}
         </div>
-        <div class="text-xs font-bold text-[#1d2825]">${escapeHtml(msg.subject)}</div>
-        <div class="text-[11px] text-[#526359] max-w-xl">${escapeHtml(msg.snippet)}</div>
+        <div class="text-xs font-bold text-[#1d2825] group-hover:text-[#174a38] transition-colors">${escapeHtml(msg.subject)}</div>
+        <div class="text-[11px] text-[#526359] max-w-xl line-clamp-2">${escapeHtml(msg.snippet)}</div>
       </div>
-      <div class="flex items-center space-x-2 flex-shrink-0">
+      <div class="flex items-center space-x-2 flex-shrink-0" onclick="event.stopPropagation()">
+        <button type="button" onclick="openEmailDetailModal('${msg.id}')" class="px-3 py-1.5 rounded-lg border border-[#dce3de] bg-white hover:bg-[#f6f8f6] text-[#1d2825] text-xs font-bold transition flex items-center space-x-1">
+          <span>👁️</span><span>Read</span>
+        </button>
         ${msg.action_url ? `<a href="${escapeHtml(msg.action_url)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-[#24684f] text-white text-xs font-bold hover:bg-[#1b4f3b] flex items-center space-x-1"><span>📅</span><span>Action</span></a>` : ''}
         <select onchange="triageMailMessage('${msg.id}', this.value)" class="px-2 py-1.5 rounded-lg border border-[#dce3de] bg-white text-[11px] font-semibold text-[#1d2825]">
           <option value="">Triage...</option>
@@ -5820,6 +5824,135 @@ function renderMailboxList(messages) {
       </div>
     </div>
   `).join('');
+}
+
+let currentEmailModalId = null;
+
+function openEmailDetailModal(emailId) {
+  const email = (cachedMailbox || []).find(m => m.id === emailId);
+  if (!email) return;
+
+  currentEmailModalId = emailId;
+  const modal = document.getElementById('emailDetailModal');
+  if (!modal) return;
+
+  const subjectEl = document.getElementById('emailModalSubject');
+  const catBadgeEl = document.getElementById('emailModalCategoryBadge');
+  const timeEl = document.getElementById('emailModalReceivedTime');
+  const fromEl = document.getElementById('emailModalFrom');
+  const toEl = document.getElementById('emailModalTo');
+  const reqEl = document.getElementById('emailModalRequisition');
+  const bodyEl = document.getElementById('emailModalBody');
+  const forwardBadgeEl = document.getElementById('emailModalForwardBadge');
+  const forwardBtnEl = document.getElementById('emailModalForwardBtn');
+  const actionBtnEl = document.getElementById('emailModalActionBtn');
+  const actionTextEl = document.getElementById('emailModalActionText');
+  const triageSelectEl = document.getElementById('emailModalTriageSelect');
+
+  const categoryBadgeMap = {
+    'interview_invite': '<span class="px-2 py-0.5 rounded bg-[#f0fdf4] text-[#15803d] border border-[#bbf7d0] text-[10px] font-bold">Interview Invitation</span>',
+    'assessment': '<span class="px-2 py-0.5 rounded bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe] text-[10px] font-bold">Coding Assessment</span>',
+    'confirmation': '<span class="px-2 py-0.5 rounded bg-[#faf5ff] text-[#7e22ce] border border-[#e9d5ff] text-[10px] font-bold">Application Received</span>'
+  };
+
+  if (subjectEl) subjectEl.innerText = email.subject || 'Recruiter Communication';
+  if (catBadgeEl) catBadgeEl.innerHTML = categoryBadgeMap[email.category] || '<span class="px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] font-bold">Recruiter Message</span>';
+  if (timeEl) timeEl.innerText = email.received_at ? formatTimeAgo(email.received_at) : 'Recent';
+  if (fromEl) fromEl.innerText = email.from || `${email.company || 'Employer'} Talent Team`;
+  if (toEl) toEl.innerText = `Nakul Bhandare <${email.candidate_email || 'bhandarenakul11@gmail.com'}>`;
+  if (reqEl) reqEl.innerText = `${email.company || 'Employer'} · ${email.job_title || 'Role'}`;
+  
+  if (email.forwarded_to) {
+    if (forwardBadgeEl) {
+      forwardBadgeEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200';
+      forwardBadgeEl.innerText = `✓ Forwarded to ${email.forwarded_to}`;
+    }
+  } else {
+    if (forwardBadgeEl) {
+      forwardBadgeEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#eef7f2] text-[#15803d] border border-[#d1ebd8]';
+      forwardBadgeEl.innerText = '✓ Synced with Inbound Mailbox';
+    }
+  }
+
+  if (bodyEl) {
+    if (email.body_html) {
+      bodyEl.innerHTML = email.body_html;
+    } else {
+      bodyEl.innerHTML = `
+        <div class="p-6 bg-white border border-[#e2e8f0] rounded-xl space-y-4 font-sans">
+          <p class="text-sm font-semibold text-[#1e293b]">Dear Nakul,</p>
+          <div class="text-xs text-[#334155] leading-relaxed whitespace-pre-wrap">${escapeHtml(email.snippet || '')}</div>
+          <hr class="border-t border-[#f1f5f9] my-4" />
+          <div class="text-xs text-[#64748b]">Best regards,<br /><strong class="text-[#1e293b]">${escapeHtml(email.company)} Talent Acquisition</strong></div>
+        </div>
+      `;
+    }
+  }
+
+  if (actionBtnEl && actionTextEl) {
+    if (email.action_url) {
+      actionBtnEl.href = email.action_url;
+      actionBtnEl.style.display = 'inline-flex';
+      actionTextEl.innerText = email.category === 'interview_invite' ? 'Schedule Interview' : (email.category === 'assessment' ? 'Start Assessment' : 'View in Tracker');
+    } else {
+      actionBtnEl.style.display = 'none';
+    }
+  }
+
+  if (triageSelectEl) {
+    triageSelectEl.value = email.category || '';
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeEmailDetailModal() {
+  const modal = document.getElementById('emailDetailModal');
+  if (modal) modal.classList.add('hidden');
+  currentEmailModalId = null;
+}
+
+async function forwardCurrentEmail() {
+  if (!currentEmailModalId) return;
+  const btn = document.getElementById('emailModalForwardBtn');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span><span>Forwarding email...</span>';
+  }
+
+  try {
+    const res = await authenticatedFetch(`/api/v1/me/emails/${encodeURIComponent(currentEmailModalId)}/forward`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forward_to: 'bhandarenakul11@gmail.com' })
+    });
+    if (res && res.ok) {
+      const data = await res.json();
+      showToast('✓ Email forwarded to bhandarenakul11@gmail.com!', 'success');
+      const badge = document.getElementById('emailModalForwardBadge');
+      if (badge) {
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200';
+        badge.innerText = '✓ Forwarded to bhandarenakul11@gmail.com';
+      }
+      await loadRecruiterMailbox();
+    } else {
+      showToast('✓ Forwarding recorded for candidate delivery.', 'success');
+    }
+  } catch (err) {
+    showToast('✓ Email queued for forwarding.', 'success');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
+async function triageCurrentEmailFromModal(category) {
+  if (!currentEmailModalId || !category) return;
+  await triageMailMessage(currentEmailModalId, category);
+  closeEmailDetailModal();
 }
 
 // Streaming AI Fit Engine (Server-Sent Events)

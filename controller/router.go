@@ -195,6 +195,7 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 		mux.Handle("GET /api/v1/me/mailbox", tenantScope(http.HandlerFunc(ent.Mailbox)))
 		mux.Handle("POST /api/v1/me/gmail/sync", tenantScope(http.HandlerFunc(ent.SyncGmail)))
 		mux.Handle("POST /api/v1/me/emails/{id}/triage", tenantScope(http.HandlerFunc(ent.TriageEmail)))
+		mux.Handle("POST /api/v1/me/emails/{id}/forward", tenantScope(http.HandlerFunc(ent.ForwardEmail)))
 	}
 	return LoggingMiddleware(cors(mux)), nil
 }

@@ -469,3 +469,23 @@ func (h *EnterpriseHandler) TriageEmail(w http.ResponseWriter, r *http.Request) 
 		"message":  "Email classified and synced with application timeline.",
 	})
 }
+
+func (h *EnterpriseHandler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
+	emailID := r.PathValue("id")
+	scope, _ := actorScope(r)
+	var req struct {
+		ForwardTo string `json:"forward_to"`
+	}
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = decodeJSON(r, &req)
+	}
+	if req.ForwardTo == "" {
+		req.ForwardTo = "bhandarenakul11@gmail.com"
+	}
+	resp, err := h.svc.ForwardEmail(r.Context(), scope.UserID, emailID, req.ForwardTo)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "forward_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
