@@ -1994,7 +1994,7 @@ function applyLiveFilters(immediate = false) {
         const signal = _liveFiltersAbortController.signal;
 
         const params = new URLSearchParams();
-        params.set('limit', '10');
+        params.set('limit', '25');
         params.set('sort', 'published_desc');
 
         let queryParts = [];

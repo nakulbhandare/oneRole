@@ -26,24 +26,32 @@ type JobDoc struct {
 	QualificationsText   string     `bson:"qualifications_text" json:"qualifications_text"`
 	Skills               []string   `bson:"skills" json:"skills"`
 	LocationCanonical    string     `bson:"location_canonical" json:"location_canonical"`
+	DisplayLocation      string     `bson:"display_location" json:"display_location"`
+	Location             string     `bson:"location" json:"location"`
 	WorkplaceModes       []string   `bson:"workplace_modes" json:"workplace_modes"`
 	Status               string     `bson:"status" json:"status"`
 	SourceURL            string     `bson:"source_url" json:"source_url"`
+	SalaryMin            *float64   `bson:"salary_min,omitempty" json:"salary_min,omitempty"`
+	SalaryMax            *float64   `bson:"salary_max,omitempty" json:"salary_max,omitempty"`
+	EmploymentTypes      []string   `bson:"employment_types,omitempty" json:"employment_types,omitempty"`
 	FirstSeenAt          time.Time  `bson:"first_seen_at" json:"first_seen_at"`
 	PublishedAt          *time.Time `bson:"published_at,omitempty" json:"published_at,omitempty"`
+	SourcePublishedAt    *time.Time `bson:"source_published_at,omitempty" json:"source_published_at,omitempty"`
 }
 
 func main() {
 	mongoURL := os.Getenv("DATABASE_URL")
 	if mongoURL == "" {
-		mongoURL = "mongodb://localhost:27017/onerole"
+		mongoURL = "mongodb://mongodb:27017/onerole"
 	}
 	esURL := os.Getenv("ELASTICSEARCH_URL")
 	if esURL == "" {
-		esURL = "http://localhost:9200"
+		esURL = "http://elasticsearch:9200"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	fmt.Printf("Connecting to MongoDB: %s\nConnecting to Elasticsearch: %s\n", mongoURL, esURL)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURL))
@@ -54,7 +62,8 @@ func main() {
 	defer client.Disconnect(ctx)
 
 	coll := client.Database("onerole").Collection("jobs")
-	cursor, err := coll.Find(ctx, bson.M{"status": "open"})
+	findOpts := options.Find().SetBatchSize(1000)
+	cursor, err := coll.Find(ctx, bson.M{"status": "open"}, findOpts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Mongo find error: %v\n", err)
 		os.Exit(1)
@@ -63,7 +72,7 @@ func main() {
 
 	var bulkBuf bytes.Buffer
 	count := 0
-	batchSize := 250
+	batchSize := 500
 
 	flushBatch := func() error {
 		if bulkBuf.Len() == 0 {
@@ -87,18 +96,14 @@ func main() {
 		return nil
 	}
 
+	start := time.Now()
 	for cursor.Next(ctx) {
 		var j JobDoc
 		if err := cursor.Decode(&j); err != nil {
 			continue
 		}
 
-		// FIX: Strict URL validation to skip closed/invalid/proxy-only entries
-		if j.Status != "open" || j.SourceURL == "" || 
-		   strings.Contains(j.SourceURL, "/careers") || 
-		   (!strings.Contains(j.SourceURL, "greenhouse.io") && 
-		    !strings.Contains(j.SourceURL, "ashbyhq.com") && 
-		    !strings.Contains(j.SourceURL, "lever.co")) {
+		if j.Status != "open" || strings.TrimSpace(j.CanonicalTitle) == "" {
 			continue
 		}
 
@@ -122,7 +127,9 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Flush batch error: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Indexed %d jobs...\n", count)
+			if count%5000 == 0 {
+				fmt.Printf("Indexed %d jobs in %v...\n", count, time.Since(start))
+			}
 		}
 	}
 
@@ -133,5 +140,5 @@ func main() {
 
 	// Refresh index so all documents are immediately searchable
 	http.Post(esURL+"/onerole_jobs/_refresh", "application/json", nil)
-	fmt.Printf("✓ Successfully synchronized %d jobs from MongoDB to Elasticsearch!\n", count)
+	fmt.Printf("✓ Successfully synchronized %d jobs from MongoDB to Elasticsearch in %v!\n", count, time.Since(start))
 }

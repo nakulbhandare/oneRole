@@ -145,15 +145,16 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	}
 
 	var esHighlights map[string]map[string][]string
-	// Elasticsearch High-Precision Full-Text & Exact Description Search
-	if strings.TrimSpace(request.Query) != "" {
+	// Elasticsearch High-Precision Full-Text & Multi-Filter Search
+	hasFilters := strings.TrimSpace(request.Query) != "" || len(request.WorkplaceModes) > 0 || len(request.LocationIDs) > 0 || len(request.Locations) > 0 || len(request.CompanyIDs) > 0
+	if hasFilters {
 		esIDs, highlights, err := queryElasticsearchJobIDs(ctx, request)
 		if err == nil {
 			if len(esIDs) > 0 {
 				request.JobIDs = esIDs
 				esHighlights = highlights
 			} else {
-				// Exact query matched 0 jobs in Elasticsearch - return empty response immediately
+				// Exact query or filter criteria matched 0 jobs in Elasticsearch - return empty response immediately
 				return models.JobSearchResponse{
 					Items:          []models.Job{},
 					AppliedFilters: request,
@@ -439,30 +440,32 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 	}
 
 	qStr := strings.TrimSpace(request.Query)
-	if qStr == "" {
-		return nil, nil, nil
-	}
-
 	mustClauses := []map[string]interface{}{}
 
-	// Check if user specified exact phrase matching with quotes
-	if strings.HasPrefix(qStr, "\"") && strings.HasSuffix(qStr, "\"") && len(qStr) > 2 {
-		exactPhrase := qStr[1 : len(qStr)-1]
-		mustClauses = append(mustClauses, map[string]interface{}{
-			"multi_match": map[string]interface{}{
-				"query":  exactPhrase,
-				"type":   "phrase",
-				"fields": []string{"canonical_title^3", "skills^2", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
-			},
-		})
+	if qStr != "" {
+		// Check if user specified exact phrase matching with quotes
+		if strings.HasPrefix(qStr, "\"") && strings.HasSuffix(qStr, "\"") && len(qStr) > 2 {
+			exactPhrase := qStr[1 : len(qStr)-1]
+			mustClauses = append(mustClauses, map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":  exactPhrase,
+					"type":   "phrase",
+					"fields": []string{"canonical_title^3", "skills^2", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
+				},
+			})
+		} else {
+			// Multi-match across analyzed and keyword fields with title & skill boosting
+			mustClauses = append(mustClauses, map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":    qStr,
+					"operator": "and",
+					"fields":   []string{"canonical_title^3", "company_name^2", "skills^2", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
+				},
+			})
+		}
 	} else {
-		// Multi-match across analyzed and keyword fields with title & skill boosting
 		mustClauses = append(mustClauses, map[string]interface{}{
-			"multi_match": map[string]interface{}{
-				"query":    qStr,
-				"operator": "and",
-				"fields":   []string{"canonical_title^3", "company_name^2", "skills^2", "description_text^1", "responsibilities_text^1", "qualifications_text^1"},
-			},
+			"match_all": map[string]interface{}{},
 		})
 	}
 
@@ -471,8 +474,18 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 	}
 
 	if len(request.CompanyIDs) > 0 {
-		filterClauses = append(filterClauses, map[string]interface{}{
+		var compShould []map[string]interface{}
+		compShould = append(compShould, map[string]interface{}{
 			"terms": map[string]interface{}{"company_id": request.CompanyIDs},
+		})
+		compShould = append(compShould, map[string]interface{}{
+			"terms": map[string]interface{}{"company_name.keyword": request.CompanyIDs},
+		})
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should":               compShould,
+				"minimum_should_match": 1,
+			},
 		})
 	}
 
@@ -484,6 +497,44 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 		filterClauses = append(filterClauses, map[string]interface{}{
 			"terms": map[string]interface{}{"workplace_modes": modes},
 		})
+	}
+
+	var locStrings []string
+	locStrings = append(locStrings, request.LocationIDs...)
+	for _, l := range request.Locations {
+		if l.City != "" {
+			locStrings = append(locStrings, l.City)
+		}
+		if l.Region != "" {
+			locStrings = append(locStrings, l.Region)
+		}
+		if l.LocationID != "" {
+			locStrings = append(locStrings, l.LocationID)
+		}
+	}
+
+	if len(locStrings) > 0 {
+		var locShould []map[string]interface{}
+		for _, loc := range locStrings {
+			locTrim := strings.TrimSpace(loc)
+			if locTrim != "" {
+				locShould = append(locShould, map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":  locTrim,
+						"type":   "phrase",
+						"fields": []string{"display_location", "location", "location_canonical"},
+					},
+				})
+			}
+		}
+		if len(locShould) > 0 {
+			filterClauses = append(filterClauses, map[string]interface{}{
+				"bool": map[string]interface{}{
+					"should":               locShould,
+					"minimum_should_match": 1,
+				},
+			})
+		}
 	}
 
 	mustNotClauses := []map[string]interface{}{}
