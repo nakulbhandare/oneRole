@@ -1962,7 +1962,7 @@ func SanitizeCandidateEmail(email string) string {
 	lower := strings.ToLower(cleaned)
 	sanitized := strings.ReplaceAll(lower, "-", "")
 	if cleaned == "" || strings.Contains(sanitized, "noreply") || lower == "n/a" {
-		return "bhandarenakul11@gmail.com"
+		return "onerole@gmail.com"
 	}
 	return cleaned
 }
@@ -2015,7 +2015,14 @@ func FormatCandidatePayload(profile *models.CandidateProfile, coverLetter string
 		lastName = "Bhandare"
 	}
 
-	email := SanitizeCandidateEmail(profile.Email)
+	submissionEmail := profile.ApplicationEmail
+	if submissionEmail == "" {
+		submissionEmail = os.Getenv("ONEROLE_APPLICATION_EMAIL")
+	}
+	if submissionEmail == "" {
+		submissionEmail = profile.Email
+	}
+	email := SanitizeCandidateEmail(submissionEmail)
 	phone := profile.Phone
 	if phone == "" {
 		phone = "+1 (350)-355-6570"

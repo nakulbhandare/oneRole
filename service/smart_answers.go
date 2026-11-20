@@ -269,10 +269,13 @@ func (e *AnswerService) synthesizeAnswer(q ATSQuestion, p *models.CandidateProfi
 		}
 	}
 	if id == "email" || strings.Contains(label, "email") {
+		if p.ApplicationEmail != "" {
+			return p.ApplicationEmail
+		}
 		if p.Email != "" && !strings.Contains(strings.ToLower(p.Email), "noreply") {
 			return p.Email
 		}
-		return "bhandarenakul11@gmail.com"
+		return "onerole@gmail.com"
 	}
 	if id == "phone" || strings.Contains(label, "phone") || strings.Contains(label, "mobile") {
 		if p.Phone != "" {
