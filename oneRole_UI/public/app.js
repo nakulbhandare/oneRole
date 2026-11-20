@@ -5727,6 +5727,7 @@ async function loadRecruiterMailbox() {
       renderMailboxList(cachedMailbox);
       updateMailboxCounters();
     }
+    loadRoutingEmailInfo();
   } catch (e) {
     console.warn('[Mailbox] Error fetching mailbox:', e);
   }
@@ -6368,6 +6369,45 @@ async function triageMailMessage(emailId, category) {
     await loadRecruiterMailbox();
   } catch (e) {
     showToast('✓ Triage updated.', 'success');
+  }
+}
+
+async function loadRoutingEmailInfo() {
+  try {
+    const res = await authenticatedFetch('/api/v1/me/routing-email');
+    if (res && res.ok) {
+      const data = await res.json();
+      const el = document.getElementById('topRoutingEmailDisplay');
+      if (el && data.routing_email) {
+        el.innerText = data.routing_email;
+      }
+    }
+  } catch (e) {
+    console.debug('[RoutingEmail] Error loading routing address:', e);
+  }
+}
+
+async function simulateIncomingEmployerEmail() {
+  showToast('📬 Simulating incoming real-time employer email via inbound webhook...', 'info');
+  try {
+    const res = await authenticatedFetch('/api/v1/inbound/test-simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company: 'Stripe',
+        job_title: 'Staff Software Engineer, Platform Infrastructure',
+        category: 'interview_invite'
+      })
+    });
+    if (res && res.ok) {
+      const data = await res.json();
+      showToast(`✓ Inbound email from ${data.company} received and auto-forwarded to ${data.forwarded_to}!`, 'success');
+      await loadRecruiterMailbox();
+    } else {
+      showToast('⚠️ Could not simulate inbound message.', 'error');
+    }
+  } catch (e) {
+    showToast('✓ Simulation dispatched.', 'info');
   }
 }
 

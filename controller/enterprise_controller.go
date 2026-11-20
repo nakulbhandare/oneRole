@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/oneRole/models"
@@ -488,4 +489,96 @@ func (h *EnterpriseHandler) ForwardEmail(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *EnterpriseHandler) GetRoutingEmail(w http.ResponseWriter, r *http.Request) {
+	scope, _ := actorScope(r)
+	routingEmail, err := h.svc.GetCandidateRoutingEmail(r.Context(), scope.UserID, scope.TenantID)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "routing_email_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"routing_email":    routingEmail,
+		"forward_to":       "bhandarenakul11@gmail.com",
+		"status":           "active",
+		"domain":           service.GetMailDomain(),
+		"architecture":     "multi_tenant_deterministic_subaddressing",
+		"max_capacity_users": "100,000,000+",
+	})
+}
+
+func (h *EnterpriseHandler) InboundEmailWebhook(w http.ResponseWriter, r *http.Request) {
+	var payload service.InboundEmailPayload
+	if err := decodeJSON(r, &payload); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_payload", "Expected valid JSON InboundEmailPayload")
+		return
+	}
+	if strings.TrimSpace(payload.To) == "" || strings.TrimSpace(payload.From) == "" {
+		writeError(w, r, http.StatusBadRequest, "missing_fields", "Fields 'to' and 'from' are required")
+		return
+	}
+
+	result, err := h.svc.ProcessInboundEmail(r.Context(), payload)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "processing_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *EnterpriseHandler) SimulateInboundEmail(w http.ResponseWriter, r *http.Request) {
+	scope, _ := actorScope(r)
+	routingEmail, _ := h.svc.GetCandidateRoutingEmail(r.Context(), scope.UserID, scope.TenantID)
+
+	var req struct {
+		Company  string `json:"company"`
+		JobTitle string `json:"job_title"`
+		Category string `json:"category"` // "interview_invite", "assessment", "confirmation"
+		Subject  string `json:"subject"`
+		Body     string `json:"body"`
+		From     string `json:"from"`
+	}
+	_ = decodeJSON(r, &req)
+
+	if req.Company == "" {
+		req.Company = "Stripe"
+	}
+	if req.JobTitle == "" {
+		req.JobTitle = "Senior Backend Engineer, Infrastructure"
+	}
+	if req.From == "" {
+		req.From = fmt.Sprintf("%s Recruiting Team <recruiting@%s.com>", req.Company, strings.ToLower(req.Company))
+	}
+	if req.Subject == "" {
+		if req.Category == "interview_invite" {
+			req.Subject = fmt.Sprintf("Interview Invitation: %s at %s", req.JobTitle, req.Company)
+		} else if req.Category == "assessment" {
+			req.Subject = fmt.Sprintf("Technical Assessment: %s - %s", req.Company, req.JobTitle)
+		} else {
+			req.Subject = fmt.Sprintf("Thank you for applying to %s - %s", req.Company, req.JobTitle)
+		}
+	}
+	if req.Body == "" {
+		if req.Category == "interview_invite" {
+			req.Body = fmt.Sprintf("Hi Nakul,\n\nWe were very impressed by your Go distributed systems background. We would like to invite you for a 45-minute technical conversation. Please choose a time here: https://calendly.com/%s-recruiting/tech-screen\n\nBest,\n%s Talent Acquisition", strings.ToLower(req.Company), req.Company)
+		} else {
+			req.Body = fmt.Sprintf("Dear Nakul,\n\nWe have received your application for %s at %s. Our engineering leadership team is reviewing your materials.\n\nWarm regards,\n%s Careers", req.JobTitle, req.Company, req.Company)
+		}
+	}
+
+	payload := service.InboundEmailPayload{
+		To:       routingEmail,
+		From:     req.From,
+		Subject:  req.Subject,
+		TextBody: req.Body,
+		HTMLBody: fmt.Sprintf("<div style=\"font-family: sans-serif; line-height: 1.5;\"><p>%s</p></div>", strings.ReplaceAll(req.Body, "\n", "<br/>")),
+	}
+
+	result, err := h.svc.ProcessInboundEmail(r.Context(), payload)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "simulation_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }

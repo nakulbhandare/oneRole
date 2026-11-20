@@ -453,6 +453,10 @@ func isCaptchaOrBotChallenge(err error) bool {
 		strings.Contains(msg, "hcaptcha") ||
 		strings.Contains(msg, "recaptcha") ||
 		strings.Contains(msg, "cf-mitigated") ||
+		strings.Contains(msg, "cloudflare") ||
+		strings.Contains(msg, "not confirmed within timeout") ||
+		strings.Contains(msg, "bot challenge") ||
+		strings.Contains(msg, "blocked by security rules") ||
 		strings.Contains(msg, "verify you are human")
 }
 
@@ -1962,7 +1966,7 @@ func SanitizeCandidateEmail(email string) string {
 	lower := strings.ToLower(cleaned)
 	sanitized := strings.ReplaceAll(lower, "-", "")
 	if cleaned == "" || strings.Contains(sanitized, "noreply") || lower == "n/a" {
-		return "onerole@gmail.com"
+		return "bhandarenakul11@gmail.com"
 	}
 	return cleaned
 }
@@ -2015,12 +2019,18 @@ func FormatCandidatePayload(profile *models.CandidateProfile, coverLetter string
 		lastName = "Bhandare"
 	}
 
-	submissionEmail := profile.ApplicationEmail
+	submissionEmail := profile.EmailRoutingAlias
 	if submissionEmail == "" {
-		submissionEmail = os.Getenv("ONEROLE_APPLICATION_EMAIL")
+		submissionEmail = profile.ApplicationEmail
+	}
+	if submissionEmail == "" && profile.Email != "" {
+		submissionEmail = profile.Email
+	}
+	if submissionEmail == "" && profile.UserID != "" {
+		submissionEmail = GenerateUserRoutingEmail(profile.UserID, firstName, lastName)
 	}
 	if submissionEmail == "" {
-		submissionEmail = profile.Email
+		submissionEmail = os.Getenv("ONEROLE_APPLICATION_EMAIL")
 	}
 	email := SanitizeCandidateEmail(submissionEmail)
 	phone := profile.Phone

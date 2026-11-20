@@ -196,6 +196,10 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 		mux.Handle("POST /api/v1/me/gmail/sync", tenantScope(http.HandlerFunc(ent.SyncGmail)))
 		mux.Handle("POST /api/v1/me/emails/{id}/triage", tenantScope(http.HandlerFunc(ent.TriageEmail)))
 		mux.Handle("POST /api/v1/me/emails/{id}/forward", tenantScope(http.HandlerFunc(ent.ForwardEmail)))
+		mux.Handle("GET /api/v1/me/routing-email", tenantScope(http.HandlerFunc(ent.GetRoutingEmail)))
+		mux.HandleFunc("POST /api/v1/webhooks/inbound-email", ent.InboundEmailWebhook)
+		mux.HandleFunc("POST /api/v1/inbound/emails", ent.InboundEmailWebhook)
+		mux.Handle("POST /api/v1/inbound/test-simulate", tenantScope(http.HandlerFunc(ent.SimulateInboundEmail)))
 	}
 	return LoggingMiddleware(cors(mux)), nil
 }

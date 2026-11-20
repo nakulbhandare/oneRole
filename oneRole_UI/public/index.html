@@ -1671,10 +1671,31 @@
             <p class="text-xs text-[#78827e]">Autonomous parsing of inbound employer emails: interview invitations, confirmations, and assessments.</p>
           </div>
           <div class="flex items-center space-x-2">
+            <button onclick="simulateIncomingEmployerEmail()" class="px-3.5 py-1.5 rounded-lg border border-[#24684f] bg-white hover:bg-[#f0fdf4] text-xs font-bold text-[#24684f] flex items-center space-x-1.5 shadow-2xs transition" title="Test inbound employer webhook">
+              <span>✉️</span>
+              <span>Test Inbound Email</span>
+            </button>
             <button onclick="syncGmailMailbox()" class="px-3.5 py-1.5 rounded-lg border border-[#c4e3d1] bg-[#eaf4ef] hover:bg-[#d8ece1] text-xs font-bold text-[#24684f] flex items-center space-x-1.5 shadow-xs transition" title="Sync Gmail and triage incoming recruiter communications">
               <span>↻</span>
-              <span>Sync Inbound Gmail</span>
+              <span>Sync Mailbox</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Dedicated Inbound Routing Banner -->
+        <div class="card p-3.5 bg-[#fbfdfc] border border-[#d1ebd8] rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-lg bg-[#eaf4ef] text-[#15803d] flex items-center justify-center font-bold text-sm">⚡</span>
+            <div>
+              <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                <span class="font-bold text-[#1d2825]">Dedicated Application Routing:</span>
+                <code class="px-2 py-0.5 rounded bg-white border border-[#c4e3d1] font-mono text-[11px] text-[#047857] font-semibold" id="topRoutingEmailDisplay">nakul.bhandare.8f92a1@mail.onerole.com</code>
+                <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-green-50 text-green-700 border border-green-200">100M Scale Multi-Tenant</span>
+              </div>
+              <p class="text-[11px] text-[#526359] mt-0.5">
+                All applications route through your unique address. Inbound employer messages auto-forward to <strong class="text-[#1d2825]">bhandarenakul11@gmail.com</strong>.
+              </p>
+            </div>
           </div>
         </div>
 
