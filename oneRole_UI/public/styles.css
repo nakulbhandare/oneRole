@@ -468,23 +468,80 @@ input:checked + .switch-slider:before {
 }
 
 /* ============================================================================
-   Top Job Match Cards Carousel (Tsenta Design Language)
+   Top Job Match Cards Carousel & Bento Grid (Tsenta / OneRole Design Language)
    ============================================================================ */
-.match-cards-grid {
+.match-cards-grid,
+.bento-queue-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
 }
 
-@media (max-width: 1200px) {
-  .match-cards-grid {
+@media (max-width: 1240px) {
+  .match-cards-grid,
+  .bento-queue-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
   }
 }
-@media (max-width: 768px) {
-  .match-cards-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 860px) {
+  .match-cards-grid,
+  .bento-queue-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
+}
+@media (max-width: 600px) {
+  .match-cards-grid,
+  .bento-queue-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Bento Card Variants & Spanning */
+.bento-card-featured {
+  grid-column: span 2;
+  min-height: 230px;
+}
+
+@media (max-width: 600px) {
+  .bento-card-featured {
+    grid-column: span 1;
+  }
+}
+
+/* Animations for seamless card removal and replenishment */
+@keyframes bentoCardIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bentoCardOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-12px);
+  }
+}
+
+.bento-card-entering {
+  animation: bentoCardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.bento-card-exiting {
+  animation: bentoCardOut 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
 }
 
 .job-match-card {
