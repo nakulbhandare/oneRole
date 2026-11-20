@@ -23,12 +23,14 @@ FROM alpine:3.20
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata curl && \
+RUN apk add --no-cache ca-certificates tzdata curl nodejs npm && \
     addgroup -g 1001 -S onerole && \
     adduser -u 1001 -S onerole -G onerole
 
 COPY --from=builder /app/server /app/server
 COPY company.json /app/company.json
+COPY connectors /app/connectors
+COPY oneRole_UI/public/Nakul_Bhandare_Resume.pdf /app/oneRole_UI/public/Nakul_Bhandare_Resume.pdf
 
 USER onerole
 

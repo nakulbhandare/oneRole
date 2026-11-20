@@ -3850,7 +3850,7 @@ function startInFlightPolling() {
 
 async function fetchApplications() {
   try {
-    const res = await authenticatedFetch('/api/v1/applications?limit=50');
+    const res = await authenticatedFetch('/api/v1/applications?limit=100');
     let mongoApps = [];
     if (res.ok) {
       const data = await res.json();
