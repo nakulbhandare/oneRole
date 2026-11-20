@@ -152,16 +152,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Route according to browser URL hash
-  handleRouteFromURL();
-
-  // 4. Non-blocking Background Revalidation (Stale-While-Revalidate)
+  // 4. Authenticate & Non-blocking Background Revalidation
   const bgInit = async () => {
-    if (!STATE.token) {
-      await doDevLogin(true);
-    } else {
-      doDevLogin(true).catch(() => {});
-    }
+    await doDevLogin(true);
+
+    // Route according to browser URL hash after auth is guaranteed
+    handleRouteFromURL();
 
     await Promise.allSettled([
       fetchFilterMetadata(),
@@ -3343,7 +3339,6 @@ function isJobApplied(jobOrCard) {
     const aComp = (app.company || '').toLowerCase().trim();
     const aRole = (app.role || app.job_title || '').toLowerCase().trim();
     if (comp && title && aComp === comp && aRole === title) return true;
-    if (comp && aComp === comp && (app.status === 'in_flight' || app.status === 'submitted')) return true;
   }
   return false;
 }
@@ -3862,7 +3857,9 @@ async function fetchApplications() {
       mongoApps = (data.items || []).map((app, idx) => {
         const rawStatus = (app.status || 'submitted').toLowerCase();
         let mappedStatus = 'submitted';
-        if (rawStatus === 'requires_manual_action' || rawStatus === 'needs_user_input') {
+        if (rawStatus === 'action_required' || app.pause_reason === 'captcha_verification_required') {
+          mappedStatus = 'action_required';
+        } else if (rawStatus === 'requires_manual_action' || rawStatus === 'needs_user_input') {
           if (app.pause_reason === 'missing_information') {
             mappedStatus = 'missing_info';
           } else {
@@ -3889,7 +3886,7 @@ async function fetchApplications() {
           created_at: app.created_at,
           submitted_at: app.submitted_at || app.created_at,
           applied: app.created_at ? formatTimeAgo(app.created_at) : 'Today',
-          receipt: app.verified_receipt_id || `REC-${app.id.slice(0, 8).toUpperCase()}`
+          receipt: app.verified_receipt_id || (mappedStatus === 'action_required' ? 'Pending Human 1-Click' : (mappedStatus === 'in_flight' ? 'In-Flight...' : ''))
         };
       });
     }
@@ -5466,7 +5463,7 @@ function selectInsightCategory(category, buttonEl) {
 async function refreshSalaryInsights() {
   const seniority = document.getElementById('insightsSenioritySelect')?.value || 'senior';
   try {
-    const res = await fetch(`/api/v1/insights/salary?category=${encodeURIComponent(currentInsightCategory)}&seniority=${encodeURIComponent(seniority)}&country=US`);
+    const res = await authenticatedFetch(`/api/v1/insights/salary?category=${encodeURIComponent(currentInsightCategory)}&seniority=${encodeURIComponent(seniority)}&country=US`);
     if (res.ok) {
       const data = await res.json();
       if (data) {
@@ -5488,7 +5485,7 @@ async function loadMarketInsightsData() {
 
   // Load in-demand role velocity table
   try {
-    const res = await fetch('/api/v1/insights/roles');
+    const res = await authenticatedFetch('/api/v1/insights/roles');
     if (res.ok) {
       const data = await res.json();
       const roles = data.roles || [];
@@ -5816,8 +5813,8 @@ async function openCompanyIntelligence(company) {
 
   try {
     const [intelRes, hiringRes] = await Promise.all([
-      fetch(`/api/v1/companies/${encodeURIComponent(slug)}`),
-      fetch(`/api/v1/companies/${encodeURIComponent(slug)}/hiring`)
+      authenticatedFetch(`/api/v1/companies/${encodeURIComponent(slug)}`),
+      authenticatedFetch(`/api/v1/companies/${encodeURIComponent(slug)}/hiring`)
     ]);
 
     if (intelRes.ok) {

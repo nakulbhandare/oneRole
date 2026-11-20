@@ -234,6 +234,11 @@ func buildAPIHandler(ctx context.Context, cfg config.Config, database *mongo.Dat
 	catalog.WithSources(repository.NewJobSourceStore(database))
 	profileService := service.NewProfileService(database)
 	autoApplyEngine := service.NewAutoApplyEngine(database).WithNATS(natsConn)
+	if natsConn != nil {
+		if js, err := jetstream.New(natsConn); err == nil {
+			autoApplyEngine.WithJetStream(js)
+		}
+	}
 	enterpriseService := service.NewEnterpriseService(database)
 	enterpriseHandler := controller.NewEnterpriseHandler(enterpriseService)
 

@@ -131,7 +131,7 @@ func NewAutoApplyEngine(database *mongo.Database) *AutoApplyEngine {
 		cancel:       cancel,
 	}
 	if database != nil {
-		engine.startQueueWorkers(2) // 2 concurrent browser workers pool
+		engine.startQueueWorkers(10)              // 10 concurrent browser/API workers pool
 		engine.startStuckMonitor(5 * time.Minute) // Watchdog every 5 minutes
 	}
 	return engine
@@ -1241,27 +1241,23 @@ func (e *AutoApplyEngine) dispatchApplication(ctx context.Context, scope ActorSc
 			} else {
 				// 1. Primary: Publish to JetStream with guaranteed storage ACK and deduplication
 				if e.js != nil {
-					pubCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-					ack, pubErr := e.js.Publish(pubCtx, "applications.submit", data, jetstream.WithMsgID(appID))
+					pubCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					_, pubErr := e.js.Publish(pubCtx, "applications.submit", data, jetstream.WithMsgID(appID))
 					cancel()
-					if pubErr == nil && ack != nil && ack.Stream != "" {
-						return
+					if pubErr != nil {
+						fmt.Printf("[AutoApplyEngine] JetStream publish warning for app %s: %v\n", appID, pubErr)
 					}
-					fmt.Printf("[AutoApplyEngine] JetStream publish error for app %s: %v, trying core NATS fallback\n", appID, pubErr)
 				}
 
-				// 2. Secondary: Fall back to core NATS publish if JetStream context unavailable
+				// 2. Secondary: Mirror to core NATS publish for external subscribers
 				if e.natsConn != nil {
-					if pubErr := e.natsConn.Publish("applications.submit", data); pubErr == nil {
-						return
-					} else {
-						fmt.Printf("[AutoApplyEngine] Core NATS publish error for app %s: %v, falling back to local queue\n", appID, pubErr)
-					}
+					_ = e.natsConn.Publish("applications.submit", data)
 				}
 			}
 		}
 	}
 
+	// 3. Always enqueue into local worker pool to guarantee real-time execution!
 	select {
 	case e.queueChan <- autoApplyQueueItem{
 		Scope:         scope,
