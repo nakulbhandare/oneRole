@@ -25,7 +25,12 @@ func ValidateApplication(appID string, appStatus string, jobID string) error {
 	validStatuses := []string{
 		string(models.ApplicationPreparing),
 		string(models.ApplicationQueued),
+		string(models.ApplicationSubmitting),
+		string(models.ApplicationInFlight),
 		string(models.ApplicationFailedRetryable),
+		string(models.ApplicationRequiresManualAction),
+		"action_required",
+		"pending",
 	}
 
 	isValid := false
