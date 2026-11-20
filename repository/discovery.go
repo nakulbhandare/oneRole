@@ -205,16 +205,19 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	case models.SortSalaryDesc:
 		findOpts.SetSort(bson.D{{Key: "salary_max", Value: -1}, {Key: "_id", Value: -1}})
 	case models.SortRelevance:
-		// Priority boost for top companies
-		topCompanies := []string{"Google", "Meta", "Apple", "Netflix", "Amazon", "Microsoft", "OpenAI", "NVIDIA", "Uber", "Stripe", "Datadog", "Snowflake", "Docker", "Lyft", "Oracle", "Figma", "Coinbase", "Databricks"}
-		findOpts.SetSort(bson.D{
-			{Key: "company_name", Value: bson.M{"$in": topCompanies}},
-			{Key: "score", Value: bson.M{"$meta": "textScore"}},
-			{Key: "first_seen_at", Value: -1},
-			{Key: "_id", Value: -1},
-		})
-		if strings.TrimSpace(request.Query) != "" && len(request.JobIDs) == 0 {
+		hasText := strings.TrimSpace(request.Query) != "" && len(request.JobIDs) == 0
+		if hasText {
+			findOpts.SetSort(bson.D{
+				{Key: "score", Value: bson.M{"$meta": "textScore"}},
+				{Key: "first_seen_at", Value: -1},
+				{Key: "_id", Value: -1},
+			})
 			findOpts.SetProjection(bson.M{"score": bson.M{"$meta": "textScore"}})
+		} else {
+			findOpts.SetSort(bson.D{
+				{Key: "first_seen_at", Value: -1},
+				{Key: "_id", Value: -1},
+			})
 		}
 	default:
 		findOpts.SetSort(bson.D{{Key: "first_seen_at", Value: -1}, {Key: "_id", Value: -1}})
