@@ -897,12 +897,22 @@ function highlightSearchTerms(text, terms = []) {
   if (STATE.filters?.role && STATE.filters.role.length > 1) allTerms.add(STATE.filters.role);
   (STATE.filters?.companies || []).forEach(c => { if (c && c.length > 1) allTerms.add(c); });
 
-  if (allTerms.size === 0) {
+  // Add individual words from multi-word phrases (e.g. "golang developer" -> "golang", "developer")
+  const words = new Set();
+  allTerms.forEach(t => {
+    words.add(t);
+    t.split(/\s+/).forEach(w => {
+      const clean = w.trim().replace(/^[^a-zA-Z0-9+#]+|[^a-zA-Z0-9+#]+$/g, '');
+      if (clean.length > 1) words.add(clean);
+    });
+  });
+
+  if (words.size === 0) {
     return /(<[^>]+>)/.test(text) ? text : safeEscape(text);
   }
 
   // Sort terms descending by length so longer phrases match first
-  const sortedTerms = Array.from(allTerms).sort((a, b) => b.length - a.length);
+  const sortedTerms = Array.from(words).sort((a, b) => b.length - a.length);
 
   function buildTermPattern(term) {
     const escaped = escapeRegex(term);
@@ -920,14 +930,20 @@ function highlightSearchTerms(text, terms = []) {
 
   const regex = new RegExp(`(${patterns.join('|')})`, 'gi');
 
-  // Tokenize by HTML tags: keep all tags (h3, ul, li, div, mark, span, p) completely untouched
+  // Tokenize by HTML tags while tracking if we are inside an existing <mark> tag
+  let insideMark = false;
   return text.split(/(<[^>]+>)/g).map(token => {
     if (token.startsWith('<') && token.endsWith('>')) {
-      return token; // Preserves HTML element tags verbatim!
+      if (/^<\s*mark\b/i.test(token)) insideMark = true;
+      if (/^<\s*\/\s*mark\b/i.test(token)) insideMark = false;
+      return token;
+    }
+    if (insideMark) {
+      return token; // Preserves already highlighted text without nesting tags
     }
     return token.split(regex).map((part, idx) => {
       if (idx % 2 === 1) {
-        return `<mark class="search-highlight font-bold bg-amber-200 text-amber-950 px-1 py-0.5 rounded border border-amber-300 shadow-2xs">${safeEscape(part)}</mark>`;
+        return `<mark class="search-highlight font-bold bg-[#fef08a] text-stone-900 px-1 py-0.5 rounded border border-[#fde047] shadow-2xs">${safeEscape(part)}</mark>`;
       }
       return safeEscape(part);
     }).join('');
@@ -1936,10 +1952,57 @@ function convertJobToCard(job, idx) {
   // Applicant count badge (matching 5th card in reference image)
   const badge = idx === 4 ? 7 : (idx === 2 ? 3 : null);
 
+  const rawHighlights = job.highlights || (job.rawJob && job.rawJob.highlights) || null;
+  let titleHighlighted = null;
+  if (rawHighlights && rawHighlights.canonical_title && rawHighlights.canonical_title.length > 0) {
+    titleHighlighted = rawHighlights.canonical_title[0];
+  } else {
+    titleHighlighted = highlightSearchTerms(job.title || 'Senior Software Engineer');
+  }
+
+  let descSnippet = null;
+  if (rawHighlights) {
+    if (rawHighlights.description_text && rawHighlights.description_text.length > 0) {
+      descSnippet = rawHighlights.description_text[0];
+    } else if (rawHighlights.responsibilities_text && rawHighlights.responsibilities_text.length > 0) {
+      descSnippet = rawHighlights.responsibilities_text[0];
+    } else if (rawHighlights.qualifications_text && rawHighlights.qualifications_text.length > 0) {
+      descSnippet = rawHighlights.qualifications_text[0];
+    }
+  }
+
+  // If no ES highlight snippet, extract snippet around search keyword from job description
+  if (!descSnippet) {
+    const rawDesc = job.description || (job.rawJob && job.rawJob.description) || job.desc || '';
+    if (rawDesc) {
+      const searchTerms = [
+        ...(STATE.filters?.searchTags || []),
+        (document.getElementById('dashTagSearchInputField')?.value || '').trim()
+      ].filter(t => t && t.length > 1);
+      
+      if (searchTerms.length > 0) {
+        const lowerDesc = rawDesc.toLowerCase();
+        let matchIdx = -1;
+        for (const t of searchTerms) {
+          matchIdx = lowerDesc.indexOf(t.toLowerCase());
+          if (matchIdx !== -1) break;
+        }
+        if (matchIdx !== -1) {
+          const start = Math.max(0, matchIdx - 30);
+          const end = Math.min(rawDesc.length, matchIdx + 110);
+          let snippet = (start > 0 ? '…' : '') + rawDesc.slice(start, end).trim() + (end < rawDesc.length ? '…' : '');
+          descSnippet = highlightSearchTerms(snippet);
+        }
+      }
+    }
+  }
+
   return {
     key: job.id || `job-${idx}`,
     id: job.id,
     title: job.title || 'Senior Software Engineer (Golang)',
+    titleHighlighted: titleHighlighted,
+    descSnippet: descSnippet,
     company: job.company || 'Enterprise Employer',
     domain: domain,
     location: job.location || (job.workplace_modes && job.workplace_modes.length > 0 ? job.workplace_modes.join(', ') : 'Remote · US'),
@@ -1953,6 +2016,7 @@ function convertJobToCard(job, idx) {
     responsibilities_text: job.responsibilities_text || null,
     qualifications_text: job.qualifications_text || null,
     desc: job.description_html || job.description || 'Detailed engineering responsibilities, requirements, and qualifications verified directly from employer career portal.',
+    highlights: rawHighlights,
     rawJob: job
   };
 }
@@ -2942,7 +3006,12 @@ function populateAndShowJobDrawer(job) {
   const srcEl = document.getElementById('drawerSourceUrl');
 
   if (titleEl) {
-    titleEl.innerHTML = highlightSearchTerms(job.title || 'Senior Software Engineer');
+    const rawHighlights = job.highlights || (job.rawJob && job.rawJob.highlights);
+    if (rawHighlights && rawHighlights.canonical_title && rawHighlights.canonical_title.length > 0) {
+      titleEl.innerHTML = rawHighlights.canonical_title[0];
+    } else {
+      titleEl.innerHTML = highlightSearchTerms(job.title || 'Senior Software Engineer');
+    }
   }
   if (compNameTextEl) {
     compNameTextEl.innerText = job.company;
@@ -3056,8 +3125,14 @@ function populateAndShowJobDrawer(job) {
     // Format Markdown/plain text into clean semantic HTML if not already HTML
     const formattedHtml = renderJobDescriptionHtml(content);
 
-    // 100% verbatim rendering directly from employer posting
-    descEl.innerHTML = `<div class="leading-relaxed text-[#344139]">${formattedHtml}</div>`;
+    // Apply yellow highlighter to description text as requested by user
+    const highlightedDescHtml = highlightSearchTerms(formattedHtml);
+
+    // 100% verbatim rendering directly from employer posting with yellow highlighted filter matches
+    descEl.innerHTML = `
+      ${highlightBanner}
+      <div class="leading-relaxed text-[#344139]">${highlightedDescHtml}</div>
+    `;
 
     // Live Ashby GraphQL exact word-for-word resolution if available
     if (job.sourceUrl && job.sourceUrl.includes('ashbyhq.com')) {
@@ -3582,11 +3657,16 @@ function renderMatchCardsQueue() {
           </div>
         </div>
 
-        <!-- Middle: Prominent Clean Job Title -->
-        <div class="my-auto py-2">
-          <h3 class="text-[17px] md:text-[18px] font-semibold text-[#18181b] leading-snug line-clamp-2" title="${escapeHtml(card.title)}">
-            ${highlightSearchTerms(card.title)}
+        <!-- Middle: Prominent Clean Job Title & Matched Description Snippet -->
+        <div class="my-auto py-1.5">
+          <h3 class="text-[16px] md:text-[17px] font-semibold text-[#18181b] leading-snug line-clamp-2" title="${escapeHtml(card.title)}">
+            ${card.titleHighlighted || highlightSearchTerms(card.title)}
           </h3>
+          ${card.descSnippet ? `
+            <p class="text-[11px] text-[#4b5563] mt-1.5 leading-snug line-clamp-2">
+              ${card.descSnippet}
+            </p>
+          ` : ''}
         </div>
 
         <!-- Bottom Row: Company Info & Action Buttons -->

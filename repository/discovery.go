@@ -584,7 +584,7 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 			},
 		},
 		"highlight": map[string]interface{}{
-			"pre_tags":  []string{"<mark class=\"search-highlight font-semibold bg-amber-200 text-amber-950 px-1 py-0.5 rounded shadow-2xs\">"},
+			"pre_tags":  []string{"<mark class=\"search-highlight font-bold bg-[#fef08a] text-stone-900 px-1 py-0.5 rounded border border-[#fde047] shadow-2xs\">"},
 			"post_tags": []string{"</mark>"},
 			"fields": map[string]interface{}{
 				"canonical_title":       map[string]interface{}{"number_of_fragments": 0},
