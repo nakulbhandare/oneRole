@@ -1041,10 +1041,15 @@ function highlightSearchTerms(text, terms = []) {
 
 let _liveSearchDebounce = null;
 function handleLiveSearchInput(val) {
+  // Show skeletons immediately on user keystroke so user sees feedback right away
+  renderCardSkeletons('coloredMatchCardsContainer', 5, 'match');
+  renderCardSkeletons('feedJobGrid', STATE.catalogRowsPerPage || 24, 'bento');
+  renderCardSkeletons('qualifyingJobsContainer', 4, 'list');
+
   if (_liveSearchDebounce) clearTimeout(_liveSearchDebounce);
   _liveSearchDebounce = setTimeout(() => {
     applyLiveFilters();
-  }, 200);
+  }, 250);
 }
 
 function handleLiveSearchBlur(inputEl) {
@@ -2284,12 +2289,10 @@ function applyLiveFilters(immediate = false) {
         STATE.loadedJobIds.clear();
         STATE.isFetchingJobs = true;
 
-        // Render card skeletons across views immediately if no cached jobs
-        if (!STATE.jobs || STATE.jobs.length === 0) {
-          renderCardSkeletons('coloredMatchCardsContainer', 5, 'match');
-          renderCardSkeletons('feedJobGrid', STATE.catalogRowsPerPage || 24, 'bento');
-          renderCardSkeletons('qualifyingJobsContainer', 4, 'list');
-        }
+        // Render card skeletons across views immediately while API is fetching
+        renderCardSkeletons('coloredMatchCardsContainer', 5, 'match');
+        renderCardSkeletons('feedJobGrid', STATE.catalogRowsPerPage || 24, 'bento');
+        renderCardSkeletons('qualifyingJobsContainer', 4, 'list');
 
         const params = new URLSearchParams();
         params.set('limit', '100');
