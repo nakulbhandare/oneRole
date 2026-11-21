@@ -24,6 +24,11 @@ const STATE = {
   rowsPerPage: 12,
   catalogCurrentPage: 1,
   catalogRowsPerPage: 24,
+  jobCursor: null,
+  loadedJobIds: new Set(),
+  isLoadingMoreCatalog: false,
+  hasMoreCatalog: true,
+  isFetchingJobs: false,
   resumeTailoring: true,
   filterMetadata: null,
   filters: {
@@ -2273,6 +2278,19 @@ function applyLiveFilters(immediate = false) {
         _liveFiltersAbortController = new AbortController();
         const signal = _liveFiltersAbortController.signal;
 
+        // Reset API cursor and state for fresh batch
+        STATE.jobCursor = null;
+        STATE.hasMoreCatalog = true;
+        STATE.loadedJobIds.clear();
+        STATE.isFetchingJobs = true;
+
+        // Render card skeletons across views immediately if no cached jobs
+        if (!STATE.jobs || STATE.jobs.length === 0) {
+          renderCardSkeletons('coloredMatchCardsContainer', 5, 'match');
+          renderCardSkeletons('feedJobGrid', STATE.catalogRowsPerPage || 24, 'bento');
+          renderCardSkeletons('qualifyingJobsContainer', 4, 'list');
+        }
+
         const params = new URLSearchParams();
         params.set('limit', '100');
 
@@ -2334,78 +2352,15 @@ function applyLiveFilters(immediate = false) {
         }
 
         const res = await authenticatedFetch(`/api/v1/jobs/search?${params.toString()}`, { signal });
+        STATE.isFetchingJobs = false;
+
         if (res && res.ok) {
           const data = await res.json();
           const realJobs = data.items || [];
-          let filteredJobs = realJobs;
-          if (STATE.filters.companies.length > 0) {
-            filteredJobs = filteredJobs.filter(j => {
-              const comp = (j.company || '').toLowerCase();
-              const compId = j.company_id || '';
-              return STATE.filters.companies.some(c => {
-                const cl = c.toLowerCase();
-                return comp === cl || comp.includes(cl) || cl.includes(comp) || compId === c;
-              });
-            });
-          }
-          if (STATE.filters.maxExperience) {
-            const maxExp = parseInt(STATE.filters.maxExperience, 10);
-            filteredJobs = filteredJobs.filter(j => extractJobExperience(j) <= maxExp);
-          }
-          if (STATE.filters.noClearance) {
-            filteredJobs = filteredJobs.filter(j => {
-              const text = `${j.title} ${j.company} ${j.description || ''}`.toLowerCase();
-              return !/clearance|polygraph|top secret|\bts\/sci\b|public trust/.test(text);
-            });
-          }
-          if (STATE.filters.payMin) {
-            const minPay = parseInt(STATE.filters.payMin, 10);
-            if (!isNaN(minPay) && minPay > 0) {
-              filteredJobs = filteredJobs.filter(j => {
-                const salText = `${j.salary || ''} ${j.description || ''}`;
-                const m = salText.match(/\$?\s*(\d{2,3})[,\.]?(\d{3})|\$?\s*(\d{2,3})k/i);
-                if (m) {
-                  const val = m[1] ? parseInt(m[1] + (m[2] || '000'), 10) : parseInt(m[3], 10) * 1000;
-                  return val >= minPay;
-                }
-                return true;
-              });
-            }
-          }
+          STATE.jobCursor = data.next_cursor || null;
+          STATE.hasMoreCatalog = !!data.next_cursor;
 
-          // Sort jobs according to active sort option
-          const sortMode = (STATE.filters && STATE.filters.sort) || 'ats_score';
-          if (queryParts.length > 0) {
-            // Preserve Elasticsearch relevance order when searching with keywords unless explicitly requested
-            if (sortMode === 'published_desc') {
-              filteredJobs.sort((a, b) => {
-                const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
-                const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
-                return timeB - timeA;
-              });
-            } else if (sortMode === 'salary_desc') {
-              filteredJobs.sort((a, b) => (b.salary_max || 0) - (a.salary_max || 0));
-            }
-          } else {
-            if (sortMode === 'ats_score') {
-              filteredJobs.sort((a, b) => {
-                const scoreA = computeRealtimeATSScore(a, STATE.profile);
-                const scoreB = computeRealtimeATSScore(b, STATE.profile);
-                if (scoreB !== scoreA) return scoreB - scoreA;
-                const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
-                const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
-                return timeB - timeA;
-              });
-            } else if (sortMode === 'published_desc') {
-              filteredJobs.sort((a, b) => {
-                const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
-                const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
-                return timeB - timeA;
-              });
-            } else if (sortMode === 'salary_desc') {
-              filteredJobs.sort((a, b) => (b.salary_max || 0) - (a.salary_max || 0));
-            }
-          }
+          let filteredJobs = processIncomingJobsBatch(realJobs, queryParts);
 
           STATE.jobs = filteredJobs;
           STATE.catalogCurrentPage = 1;
@@ -2426,11 +2381,19 @@ function applyLiveFilters(immediate = false) {
           renderMatchCardsQueue();
           renderJobCatalog();
           renderQualifyingJobs();
+        } else {
+          renderMatchCardsQueue();
+          renderJobCatalog();
+          renderQualifyingJobs();
         }
         resolve();
       } catch (err) {
+        STATE.isFetchingJobs = false;
         if (err && err.name === 'AbortError') return resolve();
         console.error('Error applying live filters:', err);
+        renderMatchCardsQueue();
+        renderJobCatalog();
+        renderQualifyingJobs();
         resolve();
       }
     };
@@ -2441,6 +2404,221 @@ function applyLiveFilters(immediate = false) {
       _liveFiltersDebounceTimer = setTimeout(execute, 30);
     }
   });
+}
+
+// Case 3 Helper: Mandatory keyword presence, timeline interval filtering, 4-tier ranking, and deduplication
+function processIncomingJobsBatch(jobs, queryParts = []) {
+  if (!jobs || !Array.isArray(jobs)) return [];
+
+  // Deduplicate against STATE.loadedJobIds
+  const deduped = [];
+  jobs.forEach(j => {
+    if (j && j.id && !STATE.loadedJobIds.has(j.id)) {
+      STATE.loadedJobIds.add(j.id);
+      deduped.push(j);
+    }
+  });
+
+  let result = deduped;
+
+  // Case 3.1: Mandatory Keyword Filter (keyword MUST be present in title or description)
+  const activeKeywords = [];
+  if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
+    activeKeywords.push(...STATE.filters.searchTags);
+  }
+  const liveInputVal = (document.getElementById('dashTagSearchInputField')?.value || document.getElementById('tagSearchInputField')?.value || '').trim();
+  if (liveInputVal && !activeKeywords.includes(liveInputVal)) {
+    activeKeywords.push(liveInputVal);
+  }
+  if (STATE.filters.role && !activeKeywords.includes(STATE.filters.role)) {
+    activeKeywords.push(STATE.filters.role);
+  }
+
+  if (activeKeywords.length > 0) {
+    result = result.filter(j => {
+      const titleLower = (j.title || '').toLowerCase();
+      const descLower = (j.description || '').toLowerCase();
+      const combined = `${titleLower} ${descLower}`;
+      // Mandatory match: each term must appear in title or description
+      return activeKeywords.every(kw => {
+        const k = kw.toLowerCase().trim();
+        return !k || combined.includes(k);
+      });
+    });
+  }
+
+  // Company filtering if any selected
+  if (STATE.filters.companies && STATE.filters.companies.length > 0) {
+    result = result.filter(j => {
+      const comp = (j.company || '').toLowerCase();
+      const compId = j.company_id || '';
+      return STATE.filters.companies.some(c => {
+        const cl = c.toLowerCase();
+        return comp === cl || comp.includes(cl) || cl.includes(comp) || compId === c;
+      });
+    });
+  }
+
+  // Experience and security clearance filtering
+  if (STATE.filters.maxExperience) {
+    const maxExp = parseInt(STATE.filters.maxExperience, 10);
+    result = result.filter(j => extractJobExperience(j) <= maxExp);
+  }
+  if (STATE.filters.noClearance) {
+    result = result.filter(j => {
+      const text = `${j.title} ${j.company} ${j.description || ''}`.toLowerCase();
+      return !/clearance|polygraph|top secret|\bts\/sci\b|public trust/.test(text);
+    });
+  }
+
+  // Pay min filtering
+  if (STATE.filters.payMin) {
+    const minPay = parseInt(STATE.filters.payMin, 10);
+    if (!isNaN(minPay) && minPay > 0) {
+      result = result.filter(j => {
+        const salText = `${j.salary || ''} ${j.description || ''}`;
+        const m = salText.match(/\$?\s*(\d{2,3})[,\.]?(\d{3})|\$?\s*(\d{2,3})k/i);
+        if (m) {
+          const val = m[1] ? parseInt(m[1] + (m[2] || '000'), 10) : parseInt(m[3], 10) * 1000;
+          return val >= minPay;
+        }
+        return true;
+      });
+    }
+  }
+
+  // Case 3.5: Timeline intervals (<6h, <24h / 1 day, 3 days, 5 days, 1 week, 2 weeks, 4 weeks / 1 month, 60 days)
+  if (STATE.filters.datePreset && STATE.filters.datePreset !== 'any') {
+    const now = Date.now();
+    let maxAgeMs = 0;
+    switch (STATE.filters.datePreset) {
+      case 'last_6_hours':
+        maxAgeMs = 6 * 3600 * 1000;
+        break;
+      case 'last_24_hours':
+      case 'last_1_day':
+        maxAgeMs = 24 * 3600 * 1000;
+        break;
+      case 'last_3_days':
+        maxAgeMs = 3 * 24 * 3600 * 1000;
+        break;
+      case 'last_5_days':
+        maxAgeMs = 5 * 24 * 3600 * 1000;
+        break;
+      case 'last_1_week':
+      case 'last_7_days':
+        maxAgeMs = 7 * 24 * 3600 * 1000;
+        break;
+      case 'last_2_weeks':
+        maxAgeMs = 14 * 24 * 3600 * 1000;
+        break;
+      case 'last_4_weeks':
+      case 'last_1_month':
+      case 'last_30_days':
+        maxAgeMs = 30 * 24 * 3600 * 1000;
+        break;
+      case 'last_60_days':
+        maxAgeMs = 60 * 24 * 3600 * 1000;
+        break;
+    }
+    if (maxAgeMs > 0) {
+      result = result.filter(j => {
+        const seenAt = new Date(j.first_seen_at || j.published_at || 0).getTime();
+        return (now - seenAt) <= maxAgeMs;
+      });
+    }
+  }
+
+  // Case 3.4: 4-Tier Hierarchy Ranking (1. FAANG +500 ➔ 2. MNC +500 ➔ 3. Startups +100 ➔ 4. Internships base)
+  const sortMode = (STATE.filters && STATE.filters.sort) || 'ats_score';
+  result.sort((a, b) => {
+    const boostA = getTierBoostScore(a);
+    const boostB = getTierBoostScore(b);
+
+    if (sortMode === 'ats_score') {
+      const baseA = computeRealtimeATSScore(a, STATE.profile);
+      const baseB = computeRealtimeATSScore(b, STATE.profile);
+      const totalA = baseA + boostA;
+      const totalB = baseB + boostB;
+      if (totalB !== totalA) return totalB - totalA;
+    } else if (sortMode === 'salary_desc') {
+      const salA = (a.salary_max || 0) + (boostA * 100);
+      const salB = (b.salary_max || 0) + (boostB * 100);
+      if (salB !== salA) return salB - salA;
+    } else {
+      if (boostB !== boostA) return boostB - boostA;
+    }
+
+    const timeA = new Date(a.published_at || a.first_seen_at || 0).getTime();
+    const timeB = new Date(b.published_at || b.first_seen_at || 0).getTime();
+    return timeB - timeA;
+  });
+
+  return result;
+}
+
+// Fetch next batch of jobs using server cursor for continuous infinite feed
+async function fetchNextJobBatch() {
+  if (STATE.isLoadingMoreCatalog || !STATE.jobCursor) return;
+  STATE.isLoadingMoreCatalog = true;
+
+  const btnNext = document.querySelector('#catalogPaginationControls button:last-child');
+  if (btnNext) btnNext.innerHTML = `<span class="inline-block animate-spin mr-1">⌛</span>Loading...`;
+
+  try {
+    const params = new URLSearchParams();
+    params.set('limit', '50');
+    params.set('cursor', STATE.jobCursor);
+
+    let queryParts = [];
+    if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
+      queryParts.push(STATE.filters.searchTags.join(' '));
+    }
+    if (STATE.filters.role) queryParts.push(STATE.filters.role);
+    if (queryParts.length > 0) {
+      params.set('q', queryParts.join(' '));
+      params.set('sort', 'relevance');
+    } else {
+      params.set('sort', 'published_desc');
+    }
+    if (STATE.filters.exclude) params.set('exclude', STATE.filters.exclude);
+    if (STATE.filters.datePreset && STATE.filters.datePreset !== 'any') params.set('date_preset', STATE.filters.datePreset);
+    if (STATE.filters.domain) params.set('domain', STATE.filters.domain);
+    if (STATE.filters.targetCountry) params.set('country', STATE.filters.targetCountry);
+    STATE.filters.workplaces.forEach(w => params.append('workplace', w));
+    STATE.filters.locations.forEach(loc => params.append('location', loc));
+
+    const res = await authenticatedFetch(`/api/v1/jobs/search?${params.toString()}`);
+    if (res && res.ok) {
+      const data = await res.json();
+      const newJobs = data.items || [];
+      STATE.jobCursor = data.next_cursor || null;
+      STATE.hasMoreCatalog = !!data.next_cursor;
+
+      if (newJobs.length > 0) {
+        const processed = processIncomingJobsBatch(newJobs, queryParts);
+        STATE.jobs = (STATE.jobs || []).concat(processed);
+
+        // Replenish match deck queue if low
+        const newCards = processed.map((job, idx) => convertJobToCard(job, (STATE.jobs.length - processed.length) + idx));
+        REPLENISH_QUEUE_CARDS.push(...newCards);
+        maintainQueueOf5();
+
+        renderJobCatalog();
+        renderMatchCardsQueue();
+        showToast(`Loaded ${processed.length} new vacancies into feed`, 'info');
+      }
+    }
+  } catch (err) {
+    console.warn('Error fetching next job batch:', err);
+  } finally {
+    STATE.isLoadingMoreCatalog = false;
+    renderCatalogPagination(
+      (STATE.jobs || []).length,
+      STATE.catalogCurrentPage || 1,
+      Math.max(1, Math.ceil((STATE.jobs || []).length / (STATE.catalogRowsPerPage || 24)))
+    );
+  }
 }
 
 function stripHtml(html) {
@@ -2508,7 +2686,11 @@ function renderJobCatalog() {
     const cleanDesc = stripHtml(job.description || 'Verified engineering vacancy in catalog');
     const truncatedDesc = cleanDesc.length > 120 ? cleanDesc.slice(0, 120) + '...' : cleanDesc;
     const highlightedDesc = highlightSearchTerms(truncatedDesc);
-    const isTopTier = isFAANGCompany(job.company);
+    const tier = getCompanyTier(job);
+    const isTopTier = tier === 'faang';
+    const isMNCTier = tier === 'mnc';
+    const isStartupTier = tier === 'startup';
+    const isInternTier = tier === 'internship';
     const timeAgoStr = formatTimeAgo(job.published_at || job.first_seen_at);
 
     return `
@@ -2523,7 +2705,10 @@ function renderJobCatalog() {
                 <h4 class="text-xs font-bold text-[#1d2825] truncate group-hover:text-[#24684f] transition" title="${escapeHtml(job.title || '')}">${highlightedTitle}</h4>
                 <div class="flex items-center space-x-1.5">
                   <p class="text-[10px] text-[#24684f] font-semibold truncate max-w-[120px]">${escapeHtml(job.company || 'Employer')}</p>
-                  ${isTopTier ? '<span class="px-1 py-0.2 rounded text-[7px] font-bold bg-[#fef3c7] text-[#92400e] border border-[#fde68a] flex-shrink-0">TOP TIER</span>' : ''}
+                  ${isTopTier ? '<span class="px-1 py-0.2 rounded text-[7px] font-bold bg-[#fef3c7] text-[#92400e] border border-[#fde68a] flex-shrink-0">FAANG</span>' :
+                    isMNCTier ? '<span class="px-1 py-0.2 rounded text-[7px] font-bold bg-[#ede9fe] text-[#5b21b6] border border-[#ddd6fe] flex-shrink-0">MNC</span>' :
+                    isStartupTier ? '<span class="px-1 py-0.2 rounded text-[7px] font-bold bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0] flex-shrink-0">STARTUP</span>' :
+                    isInternTier ? '<span class="px-1 py-0.2 rounded text-[7px] font-bold bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe] flex-shrink-0">INTERN</span>' : ''}
                 </div>
               </div>
             </div>
@@ -2599,6 +2784,12 @@ function goCatalogPage(page) {
   const totalJobs = (STATE.jobs || []).length;
   const perPage = STATE.catalogRowsPerPage || 24;
   const totalPages = Math.max(1, Math.ceil(totalJobs / perPage));
+
+  // If user reaches last page and server has more records, trigger background fetch of next batch
+  if (page >= totalPages && STATE.jobCursor && !STATE.isLoadingMoreCatalog) {
+    fetchNextJobBatch();
+  }
+
   if (page < 1 || page > totalPages) return;
   STATE.catalogCurrentPage = page;
   renderJobCatalog();
@@ -4331,10 +4522,135 @@ function isFAANGCompany(company) {
   const c = company.toLowerCase().trim();
   return c.includes('google') || c.includes('meta') || c.includes('apple') ||
          c.includes('netflix') || c.includes('amazon') || c.includes('microsoft') ||
-         c.includes('openai') || c.includes('nvidia') || c.includes('uber') ||
-         c.includes('stripe') || c.includes('datadog') || c.includes('snowflake') ||
-         c.includes('docker') || c.includes('lyft') || c.includes('oracle') ||
-         c.includes('figma') || c.includes('coinbase') || c.includes('databricks');
+         c.includes('openai') || c.includes('nvidia') || c.includes('anthropic') ||
+         c.includes('tesla');
+}
+
+function isMNCCompany(company) {
+  if (!company) return false;
+  const c = company.toLowerCase().trim();
+  return c.includes('cisco') || c.includes('ibm') || c.includes('oracle') ||
+         c.includes('salesforce') || c.includes('uber') || c.includes('stripe') ||
+         c.includes('datadog') || c.includes('snowflake') || c.includes('figma') ||
+         c.includes('coinbase') || c.includes('adobe') || c.includes('intel') ||
+         c.includes('qualcomm') || c.includes('sap') || c.includes('servicenow') ||
+         c.includes('workday') || c.includes('paypal') || c.includes('intuit') ||
+         c.includes('shopify') || c.includes('spotify') || c.includes('twitter') ||
+         c.includes('atlassian') || c.includes('twilio') || c.includes('dropbox') ||
+         c.includes('snap') || c.includes('airbnb') || c.includes('doordash') ||
+         c.includes('palantir') || c.includes('databricks') || c.includes('crowdstrike') ||
+         c.includes('cloudflare') || c.includes('mongodb') || c.includes('elastic') ||
+         c.includes('accenture') || c.includes('deloitte') || c.includes('capgemini') ||
+         c.includes('infosys') || c.includes('tcs') || c.includes('wipro') ||
+         c.includes('cognizant') || c.includes('jpmorgan') || c.includes('goldman');
+}
+
+function getCompanyTier(job) {
+  const tier = (job.company_tier || '').toLowerCase().trim();
+  if (tier === 'faang' || isFAANGCompany(job.company)) return 'faang';
+  if (tier === 'mnc' || isMNCCompany(job.company)) return 'mnc';
+  const title = (job.title || '').toLowerCase();
+  if (tier === 'internship' || title.includes('intern') || title.includes('internship') || title.includes('trainee') || title.includes('co-op')) return 'internship';
+  if (tier === 'startup') return 'startup';
+  return 'startup';
+}
+
+function getTierBoostScore(job) {
+  const tier = getCompanyTier(job);
+  if (tier === 'faang') return 500.0;
+  if (tier === 'mnc') return 500.0;
+  if (tier === 'startup') return 100.0;
+  return 0.0; // internship base score
+}
+
+// Skeleton loaders for cards across all views
+function renderCardSkeletons(containerId, count = 5, variant = 'match') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (variant === 'match') {
+    // 5 Colored Match Cards on Dashboard
+    const pastelBorders = ['border-[#b8ebd6] bg-[#f0faf5]', 'border-[#fed7d7] bg-[#fff5f5]', 'border-[#bee3f8] bg-[#ebf8ff]', 'border-[#feebc8] bg-[#fffaf0]', 'border-[#fefcbf] bg-[#fffff0]'];
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      const style = pastelBorders[i % pastelBorders.length];
+      html += `
+        <div class="job-match-card p-4 rounded-[16px] border ${style} flex flex-col justify-between h-[230px] animate-pulse">
+          <div class="flex items-start justify-between">
+            <div class="space-y-2 w-2/3">
+              <div class="skeleton-box h-3.5 w-24"></div>
+              <div class="skeleton-box h-3 w-16"></div>
+            </div>
+            <div class="skeleton-box h-10 w-10 rounded-full"></div>
+          </div>
+          <div class="my-auto space-y-2.5 py-2">
+            <div class="skeleton-box h-4.5 w-11/12 rounded"></div>
+            <div class="skeleton-box h-3.5 w-3/4 rounded"></div>
+          </div>
+          <div class="pt-3 border-t border-black/8 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <div class="skeleton-box h-6 w-6 rounded-md"></div>
+              <div class="skeleton-box h-3 w-20"></div>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <div class="skeleton-box h-7 w-12 rounded"></div>
+              <div class="skeleton-box h-7 w-14 rounded"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  } else if (variant === 'bento') {
+    // Bento Grid on Browse Jobs
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      html += `
+        <div class="bento-job-card card p-3.5 flex flex-col justify-between h-[178px] bg-white rounded-[12px] border border-[#e2e7e4] animate-pulse">
+          <div class="space-y-2">
+            <div class="flex items-start justify-between gap-1.5">
+              <div class="flex items-center space-x-2 min-w-0 flex-1">
+                <div class="skeleton-box w-3.5 h-3.5 rounded flex-shrink-0"></div>
+                <div class="skeleton-box w-6 h-6 rounded flex-shrink-0"></div>
+                <div class="min-w-0 flex-1 space-y-1">
+                  <div class="skeleton-box h-3.5 w-4/5 rounded"></div>
+                  <div class="skeleton-box h-2.5 w-1/2 rounded"></div>
+                </div>
+              </div>
+              <div class="skeleton-box h-4 w-14 rounded flex-shrink-0"></div>
+            </div>
+            <div class="space-y-1.5 pt-1">
+              <div class="skeleton-box h-2.5 w-full rounded"></div>
+              <div class="skeleton-box h-2.5 w-4/5 rounded"></div>
+            </div>
+          </div>
+          <div class="bento-footer pt-2 border-t border-[#f0f2ef] flex items-center justify-between gap-1 mt-auto">
+            <div class="flex items-center space-x-2">
+              <div class="skeleton-box h-2.5 w-16 rounded"></div>
+              <div class="skeleton-box h-2.5 w-12 rounded"></div>
+            </div>
+            <div class="skeleton-box h-6 w-20 rounded-[5px]"></div>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  } else if (variant === 'list') {
+    // Qualifying jobs sidebar list
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      html += `
+        <div class="p-3 rounded-[9px] bg-[#fbfcfb] border border-[#e8ece9] flex items-center justify-between animate-pulse">
+          <div class="space-y-1.5 flex-1 pr-3">
+            <div class="skeleton-box h-3 w-3/4 rounded"></div>
+            <div class="skeleton-box h-2.5 w-1/2 rounded"></div>
+          </div>
+          <div class="skeleton-box h-6 w-12 rounded"></div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  }
 }
 
 let inFlightPollingTimer = null;
