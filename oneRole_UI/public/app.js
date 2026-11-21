@@ -2588,21 +2588,27 @@ async function fetchNextJobBatch() {
   if (btnNext) btnNext.innerHTML = `<span class="inline-block animate-spin mr-1">⌛</span>Loading...`;
 
   try {
-    const params = new URLSearchParams();
-    params.set('limit', '50');
-    params.set('cursor', STATE.jobCursor);
-
     let queryParts = [];
     if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
       queryParts.push(STATE.filters.searchTags.join(' '));
     }
+    const liveInputVal = (document.getElementById('dashTagSearchInputField')?.value || document.getElementById('tagSearchInputField')?.value || '').trim();
+    if (liveInputVal && !STATE.filters.searchTags.includes(liveInputVal)) {
+      queryParts.push(liveInputVal);
+    }
     if (STATE.filters.role) queryParts.push(STATE.filters.role);
+
+    const params = new URLSearchParams();
+    params.set('limit', '100');
     if (queryParts.length > 0) {
       params.set('q', queryParts.join(' '));
-      params.set('sort', 'relevance');
-    } else {
-      params.set('sort', 'published_desc');
     }
+    if (STATE.filters && STATE.filters.sort) {
+      params.set('sort', STATE.filters.sort);
+    } else {
+      params.set('sort', queryParts.length > 0 ? 'relevance' : 'published_desc');
+    }
+    params.set('cursor', STATE.jobCursor);
     if (STATE.filters.exclude) params.set('exclude', STATE.filters.exclude);
     if (STATE.filters.datePreset && STATE.filters.datePreset !== 'any') params.set('date_preset', STATE.filters.datePreset);
     if (STATE.filters.domain) params.set('domain', STATE.filters.domain);
@@ -2796,8 +2802,10 @@ function renderCatalogPagination(total, currentPage, totalPages) {
     }
   });
 
-  // Next button
-  html += `<button onclick="goCatalogPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="${btnBase} ${currentPage === totalPages ? disabledClass : inactiveClass}">Next ›</button>`;
+  // Next button - if has cursor or more pages, allow clicking
+  const isLastPage = currentPage === totalPages;
+  const canGoNext = !isLastPage || !!STATE.jobCursor;
+  html += `<button onclick="goCatalogPage(${currentPage + 1})" ${!canGoNext ? 'disabled' : ''} class="${btnBase} ${!canGoNext ? disabledClass : inactiveClass}">${STATE.isLoadingMoreCatalog ? '⌛ Loading...' : 'Next ›'}</button>`;
 
   ctrl.innerHTML = html;
 }
@@ -2807,12 +2815,23 @@ function goCatalogPage(page) {
   const perPage = STATE.catalogRowsPerPage || 24;
   const totalPages = Math.max(1, Math.ceil(totalJobs / perPage));
 
-  // If user reaches last page and server has more records, trigger background fetch of next batch
+  if (page < 1) return;
+
+  // If user requests a page that exceeds loaded batches and server has next cursor, fetch next batch
   if (page >= totalPages && STATE.jobCursor && !STATE.isLoadingMoreCatalog) {
-    fetchNextJobBatch();
+    fetchNextJobBatch().then(() => {
+      // Re-evaluate page bounds after batch has loaded
+      const newTotal = (STATE.jobs || []).length;
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / perPage));
+      if (page <= newTotalPages) {
+        STATE.catalogCurrentPage = page;
+        renderJobCatalog();
+      }
+    });
+    return;
   }
 
-  if (page < 1 || page > totalPages) return;
+  if (page > totalPages) return;
   STATE.catalogCurrentPage = page;
   renderJobCatalog();
   const section = document.getElementById('jobCatalogSection');
