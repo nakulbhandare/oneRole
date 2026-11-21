@@ -11,6 +11,60 @@
   <link rel="apple-touch-icon" href="/favicon.png">
   <link rel="stylesheet" href="/styles.css?v=2.9">
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Strict Bento Grid for Verified Vacancies */
+    .bento-job-grid {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+      gap: 14px !important;
+      align-items: stretch !important;
+    }
+    @media (min-width: 1024px) {
+      .bento-job-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+      }
+    }
+    .bento-job-card {
+      height: 180px !important;
+      min-height: 180px !important;
+      max-height: 180px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      background: #ffffff !important;
+      border: 1px solid #e2e7e4 !important;
+      border-radius: 12px !important;
+      padding: 14px !important;
+      overflow: hidden !important;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .bento-job-card:hover {
+      border-color: #24684f !important;
+      box-shadow: 0 8px 20px -4px rgba(36, 104, 79, 0.12), 0 3px 6px -2px rgba(0, 0, 0, 0.04) !important;
+      transform: translateY(-2px) !important;
+    }
+    .bento-job-card .bento-desc {
+      display: -webkit-box !important;
+      -webkit-line-clamp: 2 !important;
+      -webkit-box-orient: vertical !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      height: 32px !important;
+      line-height: 16px !important;
+      font-size: 10px !important;
+      color: #78827e !important;
+      word-break: break-word !important;
+    }
+    .bento-job-card .bento-footer {
+      margin-top: auto !important;
+      padding-top: 8px !important;
+      border-top: 1px solid #f0f2ef !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+    }
+  </style>
 </head>
 <body>
 
@@ -1292,7 +1346,7 @@
               <span>Real-time backend data</span>
             </div>
           </div>
-          <div id="feedJobGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div id="feedJobGrid" class="bento-job-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <!-- Dynamically populated by renderJobCatalog() -->
           </div>
         </div>

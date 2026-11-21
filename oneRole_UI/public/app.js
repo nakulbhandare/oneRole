@@ -2440,6 +2440,20 @@ function applyLiveFilters(immediate = false) {
   });
 }
 
+function stripHtml(html) {
+  if (!html) return '';
+  return String(html)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function renderJobCatalog() {
   const container = document.getElementById('feedJobGrid');
   if (!container) return;
@@ -2472,45 +2486,46 @@ function renderJobCatalog() {
 
   container.innerHTML = displayJobs.slice(0, 100).map(job => {
     const isSelected = STATE.selectedJobIds.has(job.id);
-    const companyInit = (job.company || 'Co').slice(0, 2).toUpperCase();
     const atsScore = computeRealtimeATSScore(job, STATE.profile);
     const highlightedTitle = highlightSearchTerms(job.title || 'Software Engineer');
-    const highlightedDesc = highlightSearchTerms(job.description || 'Verified engineering vacancy');
+    const cleanDesc = stripHtml(job.description || 'Verified engineering vacancy in catalog');
+    const truncatedDesc = cleanDesc.length > 120 ? cleanDesc.slice(0, 120) + '...' : cleanDesc;
+    const highlightedDesc = highlightSearchTerms(truncatedDesc);
     const isTopTier = isFAANGCompany(job.company);
     const timeAgoStr = formatTimeAgo(job.published_at || job.first_seen_at);
 
     return `
-      <div class="card p-4 flex flex-col justify-between space-y-3 hover:border-[#24684f] transition cursor-pointer" onclick="openJobDrawerById('${job.id}')">
-        <div class="space-y-1.5">
-          <div class="flex items-start justify-between">
-            <div class="flex items-center space-x-2.5">
+      <div class="bento-job-card card p-3.5 flex flex-col justify-between h-[178px] bg-white rounded-[12px] border border-[#e2e7e4] hover:border-[#24684f] hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden group" onclick="openJobDrawerById('${job.id}')">
+        <div class="space-y-1.5 overflow-hidden">
+          <div class="flex items-start justify-between gap-1.5">
+            <div class="flex items-center space-x-2 min-w-0 flex-1">
               <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleJobSelection('${job.id}')"
-                class="w-3.5 h-3.5 rounded border-[#e8ece9] text-[#24684f] focus:ring-[#24684f] cursor-pointer">
-              ${renderCompanyLogoMarkup(job.company, job.domain, 'w-7 h-7', 'w-5 h-5', 'text-xs')}
-              <div>
-                <h4 class="text-xs font-bold text-[#1d2825] line-clamp-1">${highlightedTitle}</h4>
+                class="w-3.5 h-3.5 rounded border-[#e8ece9] text-[#24684f] focus:ring-[#24684f] cursor-pointer flex-shrink-0">
+              ${renderCompanyLogoMarkup(job.company, job.domain, 'w-6 h-6', 'w-4 h-4', 'text-[10px]')}
+              <div class="min-w-0 flex-1">
+                <h4 class="text-xs font-bold text-[#1d2825] truncate group-hover:text-[#24684f] transition" title="${escapeHtml(job.title || '')}">${highlightedTitle}</h4>
                 <div class="flex items-center space-x-1.5">
-                  <p class="text-[10px] text-[#24684f] font-semibold">${escapeHtml(job.company || 'Employer')}</p>
-                  ${isTopTier ? '<span class="px-1 py-0.2 rounded text-[7.5px] font-bold bg-[#fef3c7] text-[#92400e] border border-[#fde68a]">TOP TIER</span>' : ''}
+                  <p class="text-[10px] text-[#24684f] font-semibold truncate max-w-[120px]">${escapeHtml(job.company || 'Employer')}</p>
+                  ${isTopTier ? '<span class="px-1 py-0.2 rounded text-[7px] font-bold bg-[#fef3c7] text-[#92400e] border border-[#fde68a] flex-shrink-0">TOP TIER</span>' : ''}
                 </div>
               </div>
             </div>
-            <div class="flex items-center space-x-1.5 flex-shrink-0">
-              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#eef7f2] text-[#15803d] border border-[#d1ebd8] whitespace-nowrap">${atsScore}% ATS</span>
-              <span class="tag-pill text-[8px]">${detectATSLabel(job.source_url)}</span>
+            <div class="flex items-center space-x-1 flex-shrink-0">
+              <span class="px-1.5 py-0.5 rounded text-[8.5px] font-bold bg-[#eef7f2] text-[#15803d] border border-[#d1ebd8] whitespace-nowrap">${atsScore}% ATS</span>
+              <span class="tag-pill text-[7.5px] px-1 py-0.5">${detectATSLabel(job.source_url)}</span>
             </div>
           </div>
-          <p class="text-[10px] text-[#78827e] line-clamp-2">${highlightedDesc}</p>
+          <p class="bento-desc text-[10px] text-[#78827e] leading-relaxed overflow-hidden text-ellipsis">${highlightedDesc}</p>
         </div>
 
-        <div class="pt-2 border-t border-[#f0f2ef] flex items-center justify-between" onclick="event.stopPropagation()">
-          <div class="flex items-center space-x-2">
-            <span class="text-[9px] text-[#78827e]">📍 ${escapeHtml(job.location || 'Remote / US')}</span>
-            <span class="text-[9px] text-[#24684f] font-medium bg-[#f0fdf4] px-1.5 py-0.5 rounded">🕒 ${escapeHtml(timeAgoStr)}</span>
+        <div class="bento-footer pt-2 border-t border-[#f0f2ef] flex items-center justify-between gap-1 mt-auto" onclick="event.stopPropagation()">
+          <div class="flex items-center space-x-1.5 min-w-0 truncate text-[9px] text-[#78827e]">
+            <span class="truncate max-w-[110px]" title="${escapeHtml(job.location || 'Remote / US')}">📍 ${escapeHtml(job.location || 'Remote / US')}</span>
+            <span class="text-[#24684f] font-medium bg-[#f0fdf4] px-1.5 py-0.5 rounded flex-shrink-0">🕒 ${escapeHtml(timeAgoStr)}</span>
           </div>
           ${isJobApplied(job)
-            ? `<span class="px-3 py-1 rounded-[5px] bg-[#eef7f2] text-[#15803d] border border-[#d1ebd8] text-[9px] font-bold">✓ Applied</span>`
-            : `<button onclick="applyToJob('${job.id}')" class="px-3 py-1 rounded-[5px] bg-[#24684f] hover:bg-[#1b533f] text-white text-[9px] font-bold transition">⚡ 1-Click Apply</button>`
+            ? `<span class="px-2.5 py-1 rounded-[5px] bg-[#eef7f2] text-[#15803d] border border-[#d1ebd8] text-[9px] font-bold flex-shrink-0">✓ Applied</span>`
+            : `<button onclick="applyToJob('${job.id}')" class="px-2.5 py-1 rounded-[5px] bg-[#24684f] hover:bg-[#1b533f] text-white text-[9px] font-bold transition flex-shrink-0 whitespace-nowrap shadow-2xs">⚡ 1-Click Apply</button>`
           }
         </div>
       </div>
