@@ -37,6 +37,7 @@ type JobSearchRequest struct {
 	Limit                        int               `json:"limit"`
 	IncludeFacets                bool              `json:"include_facets"`
 	JobDomain                    string            `json:"job_domain,omitempty"`
+	Industries                   []string          `json:"industries,omitempty"`
 	TargetCountry                string            `json:"target_country,omitempty"`
 }
 

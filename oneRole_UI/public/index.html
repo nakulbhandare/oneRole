@@ -495,25 +495,30 @@
 
           <!-- Third Row: Filter Pills & Dropdowns -->
           <div class="filter-pills-row">
-            <!-- Domain Selection Pill (Software Engineering vs Finance/Accounting) -->
+            <!-- Industry Pill with Search & Pills Popover (Exact Screenshot Design) -->
             <div class="relative dropdown-container">
-              <button class="filter-pill" id="dashDomainFilterBtn" onclick="toggleFilterDropdown('dashDomainDropdown', event)">
-                <span id="dashDomainFilterLabel">Domain: All</span>
+              <button class="filter-pill" id="dashIndustryFilterBtn" onclick="toggleFilterDropdown('dashIndustryDropdown', event)">
+                <span id="dashIndustryFilterLabel">Industry</span>
                 <span class="ml-1 text-[9px]">⌵</span>
               </button>
-              <div id="dashDomainDropdown" class="filter-dropdown-menu hidden" onclick="event.stopPropagation()">
-                <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDomainFilter" value="" checked onchange="setDomainFilter('', 'Domain: All')">
-                  <span>All Domains</span>
-                </label>
-                <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDomainFilter" value="software_engineering" onchange="setDomainFilter('software_engineering', '💻 Software Engineering')">
-                  <span>💻 Software Engineering</span>
-                </label>
-                <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDomainFilter" value="finance_accounting" onchange="setDomainFilter('finance_accounting', '📊 Finance & Accounting')">
-                  <span>📊 Finance & Accounting</span>
-                </label>
+              <div id="dashIndustryDropdown" class="location-popover-menu hidden" onclick="event.stopPropagation()" style="width: 540px; max-width: 92vw;">
+                <div class="p-3 border-b border-[#f0f2ef]">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-[#1d2825] uppercase tracking-wider">Industry</span>
+                    <button type="button" onclick="clearIndustryFilters()" class="text-xs text-[#828d86] hover:text-[#b91c1c] font-medium transition cursor-pointer">Clear</button>
+                  </div>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-[#9ca6a1]">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+                    </span>
+                    <input type="text" id="dashIndustrySearchInput" placeholder="Search industries" oninput="filterIndustriesList(this.value)" class="w-full pl-7 pr-2.5 py-1.5 bg-[#fbfcfb] border border-[#e2e7e4] rounded-[6px] text-xs text-[#1d2825] focus:outline-none focus:border-[#24684f]">
+                  </div>
+                </div>
+                <div class="p-3 max-h-72 overflow-y-auto">
+                  <div class="flex flex-wrap gap-1.5" id="dashIndustriesPillsContainer">
+                    <!-- Populated dynamically via renderIndustriesList() with all 74 industries from screenshot -->
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -976,25 +981,30 @@
 
           <!-- Third Row: Filter Pills & Dropdowns (Image 2, 3, 4 & Filter API Reference) -->
           <div class="filter-pills-row">
-            <!-- Domain Selection Pill (Software Engineering vs Finance/Accounting) -->
+            <!-- Industry Pill with Search & Pills Popover (Exact Screenshot Design) -->
             <div class="relative dropdown-container">
-              <button class="filter-pill" id="dashDomainFilterBtn" onclick="toggleFilterDropdown('dashDomainDropdown', event)">
-                <span id="dashDomainFilterLabel">Domain: All</span>
+              <button class="filter-pill" id="dashIndustryFilterBtn" onclick="toggleFilterDropdown('dashIndustryDropdown', event)">
+                <span id="dashIndustryFilterLabel">Industry</span>
                 <span class="ml-1 text-[9px]">⌵</span>
               </button>
-              <div id="dashDomainDropdown" class="filter-dropdown-menu hidden" onclick="event.stopPropagation()">
-                <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDomainFilter" value="" checked onchange="setDomainFilter('', 'Domain: All')">
-                  <span>All Domains</span>
-                </label>
-                <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDomainFilter" value="software_engineering" onchange="setDomainFilter('software_engineering', '💻 Software Engineering')">
-                  <span>💻 Software Engineering</span>
-                </label>
-                <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDomainFilter" value="finance_accounting" onchange="setDomainFilter('finance_accounting', '📊 Finance & Accounting')">
-                  <span>📊 Finance & Accounting</span>
-                </label>
+              <div id="dashIndustryDropdown" class="location-popover-menu hidden" onclick="event.stopPropagation()" style="width: 540px; max-width: 92vw;">
+                <div class="p-3 border-b border-[#f0f2ef]">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-[#1d2825] uppercase tracking-wider">Industry</span>
+                    <button type="button" onclick="clearIndustryFilters()" class="text-xs text-[#828d86] hover:text-[#b91c1c] font-medium transition cursor-pointer">Clear</button>
+                  </div>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-[#9ca6a1]">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+                    </span>
+                    <input type="text" id="dashIndustrySearchInput" placeholder="Search industries" oninput="filterIndustriesList(this.value)" class="w-full pl-7 pr-2.5 py-1.5 bg-[#fbfcfb] border border-[#e2e7e4] rounded-[6px] text-xs text-[#1d2825] focus:outline-none focus:border-[#24684f]">
+                  </div>
+                </div>
+                <div class="p-3 max-h-72 overflow-y-auto">
+                  <div class="flex flex-wrap gap-1.5" id="dashIndustriesPillsContainer">
+                    <!-- Populated dynamically via renderIndustriesList() with all 74 industries from screenshot -->
+                  </div>
+                </div>
               </div>
             </div>
 

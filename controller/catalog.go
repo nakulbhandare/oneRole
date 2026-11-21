@@ -377,6 +377,13 @@ func parseJobSearchQuery(query url.Values) (models.JobSearchRequest, error) {
 	if request.JobDomain == "" {
 		request.JobDomain, _ = scalarQuery(query, "domain")
 	}
+	request.Industries = cleanSlice(query["industry"])
+	if len(request.Industries) == 0 {
+		request.Industries = cleanSlice(query["industries"])
+	}
+	if singleInd, _ := scalarQuery(query, "industry"); singleInd != "" && len(request.Industries) == 0 {
+		request.Industries = []string{singleInd}
+	}
 	request.TargetCountry, _ = scalarQuery(query, "target_country")
 	if request.TargetCountry == "" {
 		request.TargetCountry, _ = scalarQuery(query, "country")

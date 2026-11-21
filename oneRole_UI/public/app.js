@@ -44,10 +44,89 @@ const STATE = {
     payMin: '',
     sort: 'ats_score',
     domain: '',
-    targetCountry: ''
+    targetCountry: '',
+    industries: []
   }
 };
 window.STATE = STATE;
+
+const ALL_INDUSTRIES = [
+  "Accounting",
+  "AdTech",
+  "Aerospace",
+  "Agriculture",
+  "AI",
+  "Architecture",
+  "Automotive",
+  "Banking",
+  "Biotech",
+  "Building Materials",
+  "Climate Tech",
+  "Construction",
+  "Consumer Goods",
+  "Crypto",
+  "Cybersecurity",
+  "Data Analytics",
+  "Defense",
+  "Developer Tools",
+  "Digital Marketing",
+  "E-commerce",
+  "EdTech",
+  "Education",
+  "Energy",
+  "Engineering Services",
+  "Enterprise Software",
+  "Entertainment",
+  "Environmental Services",
+  "Facilities Services",
+  "Financial Services",
+  "Fintech",
+  "Food & Beverage",
+  "Gambling",
+  "Gaming",
+  "Government",
+  "Health Tech",
+  "Healthcare",
+  "Higher Education",
+  "Home Services",
+  "Hospitality",
+  "HR Tech",
+  "Industrial Automation",
+  "Insurance",
+  "IoT",
+  "IT Services",
+  "K-12 Education",
+  "Legal Services",
+  "Logistics",
+  "Manufacturing",
+  "Medical Devices",
+  "Mental Health",
+  "Nonprofit",
+  "Oil & Gas",
+  "Pharmaceuticals",
+  "Property Management",
+  "PropTech",
+  "Public Safety",
+  "Real Estate",
+  "Recruitment",
+  "RegTech",
+  "Religious Organizations",
+  "Renewable Energy",
+  "Retail",
+  "Robotics",
+  "Senior Care",
+  "Social Services",
+  "Software Development",
+  "Technology Consulting",
+  "Telecommunications",
+  "Telehealth",
+  "Transportation",
+  "Travel",
+  "Utilities",
+  "Wealth Management",
+  "Wholesale"
+];
+window.ALL_INDUSTRIES = ALL_INDUSTRIES;
 
 // ============================================================================
 // 767 Learned ATS Questions Memory Bank
@@ -142,6 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMatchCardsQueue();
   renderTagChips();
   filterCompaniesList('');
+  renderIndustriesList('');
   renderJobCatalog();
   renderQualifyingJobs();
 
@@ -1590,6 +1670,71 @@ function setTargetCountryFilter(country, label) {
   applyLiveFilters();
 }
 
+function renderIndustriesList(search = '') {
+  const container = document.getElementById('dashIndustriesPillsContainer');
+  if (!container) return;
+  const q = (search || '').toLowerCase().trim();
+  const filtered = ALL_INDUSTRIES.filter(ind => !q || ind.toLowerCase().includes(q));
+
+  container.innerHTML = filtered.map(ind => {
+    const isSelected = (STATE.filters.industries || []).includes(ind);
+    const activeClass = isSelected
+      ? 'bg-[#152c25] text-white border-[#152c25] shadow-xs'
+      : 'bg-[#f3f4f6] text-[#374151] border-[#e5e7eb] hover:bg-[#e5e7eb]';
+    return `<button type="button" onclick="toggleIndustryFilter('${ind}')" class="industry-pill px-3 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer ${activeClass}">${ind}</button>`;
+  }).join('');
+}
+
+function filterIndustriesList(search) {
+  renderIndustriesList(search);
+}
+
+function toggleIndustryFilter(ind) {
+  if (!STATE.filters.industries) STATE.filters.industries = [];
+  const idx = STATE.filters.industries.indexOf(ind);
+  if (idx > -1) {
+    STATE.filters.industries.splice(idx, 1);
+  } else {
+    STATE.filters.industries.push(ind);
+  }
+
+  const count = STATE.filters.industries.length;
+  ['industryFilterBtn', 'dashIndustryFilterBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      if (count > 0) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+
+  ['industryFilterLabel', 'dashIndustryFilterLabel'].forEach(id => {
+    const lbl = document.getElementById(id);
+    if (lbl) {
+      if (count === 0) lbl.innerText = 'Industry';
+      else if (count === 1) lbl.innerText = `Industry: ${STATE.filters.industries[0]}`;
+      else lbl.innerText = `Industry (${count})`;
+    }
+  });
+
+  const searchVal = document.getElementById('dashIndustrySearchInput')?.value || '';
+  renderIndustriesList(searchVal);
+  updateClearAllButtons();
+  applyLiveFilters();
+}
+
+function clearIndustryFilters() {
+  STATE.filters.industries = [];
+  ['industryFilterBtn', 'dashIndustryFilterBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+  ['industryFilterLabel', 'dashIndustryFilterLabel'].forEach(id => {
+    const lbl = document.getElementById(id);
+    if (lbl) lbl.innerText = 'Industry';
+  });
+  const searchVal = document.getElementById('dashIndustrySearchInput')?.value || '';
+  renderIndustriesList(searchVal);
+  updateClearAllButtons();
+  applyLiveFilters();
+}
+
 function setJobTypeFilter(type, label) {
   STATE.filters.jobType = type;
   ['jobTypeFilterBtn', 'dashJobTypeFilterBtn'].forEach(id => {
@@ -1722,7 +1867,8 @@ function clearAllFilters() {
     payMin: '',
     sort: 'ats_score',
     domain: '',
-    targetCountry: ''
+    targetCountry: '',
+    industries: []
   };
   STATE.searchTags = [];
   STATE.excludeKeyword = '';
@@ -1840,6 +1986,16 @@ function resetAllFilterPillUI() {
     if (el) el.innerText = 'Geo: Auto';
   });
   syncRadioInputs(['dashCountryFilter'], '');
+
+  // Industry
+  ['industryFilterBtn', 'dashIndustryFilterBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+  ['industryFilterLabel', 'dashIndustryFilterLabel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = 'Industry';
+  });
+  const indSearch = document.getElementById('dashIndustrySearchInput');
+  if (indSearch) indSearch.value = '';
+  renderIndustriesList('');
 
   // Employment Type
   ['employmentTypeFilterBtn', 'dashEmploymentTypeFilterBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
@@ -2164,6 +2320,9 @@ function applyLiveFilters(immediate = false) {
         }
         if (STATE.filters.targetCountry) {
           params.set('country', STATE.filters.targetCountry);
+        }
+        if (STATE.filters.industries && STATE.filters.industries.length > 0) {
+          STATE.filters.industries.forEach(ind => params.append('industry', ind));
         }
 
         STATE.filters.workplaces.forEach(w => params.append('workplace', w));

@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 
+const ALL_INDUSTRIES = [
+  "Accounting", "AdTech", "Aerospace", "Agriculture", "AI", "Architecture", "Automotive",
+  "Banking", "Biotech", "Building Materials", "Climate Tech", "Construction", "Consumer Goods",
+  "Crypto", "Cybersecurity", "Data Analytics", "Defense", "Developer Tools", "Digital Marketing",
+  "E-commerce", "EdTech", "Education", "Energy", "Engineering Services", "Enterprise Software",
+  "Entertainment", "Environmental Services", "Facilities Services", "Financial Services", "Fintech",
+  "Food & Beverage", "Gambling", "Gaming", "Government", "Health Tech", "Healthcare", "Higher Education",
+  "Home Services", "Hospitality", "HR Tech", "Industrial Automation", "Insurance", "IoT", "IT Services",
+  "K-12 Education", "Legal Services", "Logistics", "Manufacturing", "Medical Devices", "Mental Health",
+  "Nonprofit", "Oil & Gas", "Pharmaceuticals", "Property Management", "PropTech", "Public Safety",
+  "Real Estate", "Recruitment", "RegTech", "Religious Organizations", "Renewable Energy", "Retail",
+  "Robotics", "Senior Care", "Social Services", "Software Development", "Technology Consulting",
+  "Telecommunications", "Telehealth", "Transportation", "Travel", "Utilities", "Wealth Management", "Wholesale"
+];
+
 export function FilterBar() {
   const {
     searchTags,
@@ -17,8 +32,9 @@ export function FilterBar() {
   } = useApp();
 
   const [tagInput, setTagInput] = useState('');
-  const [activeDropdown, setActiveDropdown] = useState(null); // 'location' | 'date' | 'workplace' | 'experience' | 'role'
+  const [activeDropdown, setActiveDropdown] = useState(null); // 'location' | 'date' | 'workplace' | 'experience' | 'role' | 'industry'
   const [locSearch, setLocSearch] = useState('');
+  const [industrySearch, setIndustrySearch] = useState('');
 
   // Handle Tag Input
   function handleTagKeyDown(e) {
@@ -29,6 +45,16 @@ export function FilterBar() {
         setTagInput('');
       }
     }
+  }
+
+  // Industry Toggle
+  function handleToggleIndustry(ind) {
+    const current = filters.industries || [];
+    const exists = current.includes(ind);
+    const updated = exists ? current.filter(i => i !== ind) : [...current, ind];
+    const nextFilters = { ...filters, industries: updated };
+    setFilters(nextFilters);
+    reloadJobs(nextFilters);
   }
 
   // Location Toggle
@@ -98,7 +124,8 @@ export function FilterBar() {
       role: '',
       jobType: '',
       employmentType: '',
-      payMin: null
+      payMin: null,
+      industries: []
     };
     setFilters(cleanFilters);
     setExcludeKeyword('');
@@ -137,6 +164,7 @@ export function FilterBar() {
   const hasActiveFilters = searchTags.length > 0 ||
     filters.locations?.length > 0 ||
     filters.workplaces?.length > 0 ||
+    filters.industries?.length > 0 ||
     filters.datePreset !== 'any' ||
     filters.maxExperience !== null ||
     filters.visa ||
@@ -221,6 +249,60 @@ export function FilterBar() {
                   {opt.label}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Industry Filter Popover (Screenshot Design) */}
+        <div className="relative">
+          <button
+            onClick={() => setActiveDropdown(activeDropdown === 'industry' ? null : 'industry')}
+            className={`filter-btn-pill ${filters.industries?.length > 0 ? 'active' : ''} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={loading}
+          >
+            <span>🏢 {filters.industries?.length > 0 ? `Industry (${filters.industries.length})` : 'Industry'}</span>
+            <span className="text-[10px]">▼</span>
+          </button>
+
+          {activeDropdown === 'industry' && (
+            <div className="location-popover-menu absolute left-0 top-full mt-1.5 w-[500px] max-w-[90vw] bg-white rounded-xl shadow-2xl border border-[#e8ece9] p-3 z-40">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-[#1d2825] uppercase tracking-wider">Industry</span>
+                {filters.industries?.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const next = { ...filters, industries: [] };
+                      setFilters(next);
+                      reloadJobs(next);
+                    }}
+                    className="text-xs text-[#828d86] hover:text-[#b91c1c] font-medium"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder="Search industries"
+                value={industrySearch}
+                onChange={e => setIndustrySearch(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs bg-[#f4f6f4] rounded-md outline-none mb-3 border border-transparent focus:border-[#24684f]"
+              />
+              <div className="max-h-60 overflow-y-auto flex flex-wrap gap-1.5 pr-1">
+                {ALL_INDUSTRIES.filter(ind => !industrySearch || ind.toLowerCase().includes(industrySearch.toLowerCase())).map(ind => {
+                  const isChecked = filters.industries?.includes(ind);
+                  return (
+                    <button
+                      key={ind}
+                      type="button"
+                      onClick={() => handleToggleIndustry(ind)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer ${isChecked ? 'bg-[#152c25] text-white border-[#152c25]' : 'bg-[#f3f4f6] text-[#374151] border-transparent hover:bg-[#e5e7eb]'}`}
+                    >
+                      {ind}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

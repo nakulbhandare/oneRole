@@ -104,6 +104,10 @@ export async function searchJobs(filters = {}) {
   if (filters.domain || filters.job_domain) {
     params.set('domain', filters.domain || filters.job_domain);
   }
+  (filters.industries || []).forEach(ind => params.append('industry', ind));
+  if (filters.industry) {
+    params.append('industry', filters.industry);
+  }
   if (filters.targetCountry || filters.country) {
     params.set('country', filters.targetCountry || filters.country);
   }

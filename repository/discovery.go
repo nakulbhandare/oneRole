@@ -620,6 +620,32 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 		})
 	}
 
+	// Dynamic Multi-Industry Filtering
+	if len(request.Industries) > 0 {
+		var indShould []map[string]interface{}
+		for _, ind := range request.Industries {
+			t := strings.TrimSpace(ind)
+			if t == "" {
+				continue
+			}
+			indShould = append(indShould, map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":    t,
+					"fields":   []string{"canonical_title^5", "skills^4", "company_name^3", "description_text^1", "industry^10", "job_domain^8"},
+					"operator": "or",
+				},
+			})
+		}
+		if len(indShould) > 0 {
+			filterClauses = append(filterClauses, map[string]interface{}{
+				"bool": map[string]interface{}{
+					"should":               indShould,
+					"minimum_should_match": 1,
+				},
+			})
+		}
+	}
+
 	// Case 3.5: Timeline Filtering
 	var esDateAfter *time.Time
 	now := time.Now().UTC()
@@ -886,6 +912,27 @@ func buildMongoJobFilter(request models.JobSearchRequest, now time.Time, omitFac
 				{"canonical_title": bson.M{"$regex": request.JobDomain, "$options": "i"}},
 			},
 		})
+	}
+
+	if len(request.Industries) > 0 {
+		var orConds []bson.M
+		for _, ind := range request.Industries {
+			t := strings.TrimSpace(ind)
+			if t == "" {
+				continue
+			}
+			orConds = append(orConds, bson.M{
+				"$or": []bson.M{
+					{"industry": bson.M{"$regex": t, "$options": "i"}},
+					{"job_domain": bson.M{"$regex": t, "$options": "i"}},
+					{"canonical_title": bson.M{"$regex": t, "$options": "i"}},
+					{"company_name": bson.M{"$regex": t, "$options": "i"}},
+				},
+			})
+		}
+		if len(orConds) > 0 {
+			conditions = append(conditions, bson.M{"$or": orConds})
+		}
 	}
 
 	if query := strings.TrimSpace(request.Query); query != "" && len(request.JobIDs) == 0 {
