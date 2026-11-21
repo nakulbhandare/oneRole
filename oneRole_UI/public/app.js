@@ -3244,67 +3244,21 @@ function deriveCompanyDomain(company) {
 function getValidJobPostingUrl(job) {
   if (!job) return 'https://careers.google.com';
 
-  const rawUrl = (job.sourceUrl || job.source_url || (job.rawJob && job.rawJob.source_url) || '').trim();
-  // If it is already a genuine real external URL (e.g. greenhouse, lever, ashby, workday, smartrecruiters)
+  const rawUrl = (job.sourceUrl || job.source_url || (job.rawJob && (job.rawJob.source_url || job.rawJob.sourceUrl)) || '').trim();
+
+  // If vacancy has an authentic direct external URL (Ashby, Greenhouse, Lever, Workday, SmartRecruiters, or employer careers domain)
   if (rawUrl && /^https?:\/\//i.test(rawUrl)) {
-    const u = rawUrl.toLowerCase();
-    if (u.includes('greenhouse.io') || u.includes('lever.co') || u.includes('ashbyhq.com') ||
-        u.includes('smartrecruiters.com') || u.includes('myworkdayjobs.com') || u.includes('workday.com') ||
-        u.includes('icims.com') || u.includes('jobvite.com') || u.includes('bamboohr.com') ||
-        u.includes('breezy.hr') || u.includes('recruitee.com')) {
-      return rawUrl;
-    }
-    // If it's an authentic company career domain that isn't a synthetic placeholder
-    if (!u.includes('careers.openai.com/jobs/') && !u.includes('careers.netflix.com/jobs/') &&
-        !u.includes('careers.cong-ty') && !u.includes('careers.afeb')) {
+    // Ensure direct dedicated requisition URL is returned directly
+    if (!rawUrl.includes('/jobs/faang-') && !rawUrl.includes('careers.cong-ty') && !rawUrl.includes('careers.afeb')) {
       return rawUrl;
     }
   }
 
   const company = (job.company || (job.rawJob && job.rawJob.company) || '').trim();
   const title = (job.title || (job.rawJob && job.rawJob.title) || '').trim();
-  const c = company.toLowerCase();
 
-  // Curated, 100% verified direct corporate career portal links for top companies
-  if (c.includes('openai')) return 'https://openai.com/careers/search/';
-  if (c.includes('netflix')) return 'https://jobs.netflix.com/';
-  if (c.includes('apple')) return 'https://www.apple.com/careers/us/';
-  if (c.includes('google') || c.includes('alphabet')) return 'https://www.google.com/about/careers/applications/';
-  if (c.includes('meta') || c.includes('facebook')) return 'https://www.metacareers.com/';
-  if (c.includes('amazon') || c.includes('aws')) return 'https://www.amazon.jobs/';
-  if (c.includes('microsoft')) return 'https://careers.microsoft.com/';
-  if (c.includes('nvidia')) return 'https://www.nvidia.com/en-us/about-nvidia/careers/';
-  if (c.includes('tesla')) return 'https://www.tesla.com/careers';
-  if (c.includes('anthropic')) return 'https://www.anthropic.com/careers';
-  if (c.includes('stripe')) return 'https://stripe.com/jobs';
-  if (c.includes('datadog')) return 'https://www.datadoghq.com/careers/';
-  if (c.includes('snowflake')) return 'https://careers.snowflake.com/';
-  if (c.includes('uber')) return 'https://www.uber.com/us/en/careers/';
-  if (c.includes('docker')) return 'https://www.docker.com/careers/';
-  if (c.includes('salesforce')) return 'https://careers.salesforce.com/';
-  if (c.includes('oracle')) return 'https://www.oracle.com/corporate/careers/';
-  if (c.includes('cisco')) return 'https://jobs.cisco.com/';
-  if (c.includes('ibm')) return 'https://www.ibm.com/careers/';
-  if (c.includes('spotify')) return 'https://www.lifeatspotify.com/jobs';
-  if (c.includes('shopify')) return 'https://www.shopify.com/careers';
-  if (c.includes('airbnb')) return 'https://careers.airbnb.com/';
-  if (c.includes('figma')) return 'https://www.figma.com/careers/';
-  if (c.includes('coinbase')) return 'https://www.coinbase.com/careers';
-  if (c.includes('databricks')) return 'https://www.databricks.com/company/careers';
-  if (c.includes('palantir')) return 'https://www.palantir.com/careers/';
-  if (c.includes('crowdstrike')) return 'https://www.crowdstrike.com/careers/';
-  if (c.includes('cloudflare')) return 'https://www.cloudflare.com/careers/';
-  if (c.includes('mongodb')) return 'https://www.mongodb.com/company/careers';
-  if (c.includes('elastic')) return 'https://www.elastic.co/about/careers';
-
-  // For any other company, navigate to their authentic domain careers page
-  const domain = job.domain || deriveCompanyDomain(company);
-  if (domain && !domain.includes('unknown') && !domain.includes('github.com')) {
-    return `https://${domain}`;
-  }
-
-  // Guaranteed valid Google Search fallback for the exact verified requisition
-  const searchQ = encodeURIComponent(`${company} ${title} careers`);
+  // If no direct link available, redirect directly to Google search for the exact job requisition on the company portal
+  const searchQ = encodeURIComponent(`${company} ${title} job application career`);
   return `https://www.google.com/search?q=${searchQ}`;
 }
 
