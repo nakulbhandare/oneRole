@@ -1,0 +1,15 @@
+# Binaries
+bin/server
+bin/*_linux
+
+# Large JSON catalogs
+formatted_comppanies.json
+new_companies.json
+company_all_624k.json
+
+# Temporary logs & output
+*.log
+output_*.md
+stage_artifact_*.md
+.pipeline_*
+.swarm_*

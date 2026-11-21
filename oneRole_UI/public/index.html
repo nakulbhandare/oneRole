@@ -148,15 +148,12 @@
           <button class="nav-tab-pill" id="tabBrowseJobs" onclick="switchNav('browse')">Browse jobs</button>
           <button class="nav-tab-pill" id="tabAutoApply" onclick="switchNav('auto-apply')">Auto Apply</button>
           <button class="nav-tab-pill" id="tabTracker" onclick="switchNav('applications')">Tracker</button>
-          <button class="nav-tab-pill" id="tabNetworking" onclick="switchNav('overview')">Networking</button>
-          <button class="nav-tab-pill" id="tabProfile" onclick="switchNav('profile')">Profile</button>
-          <button class="nav-tab-pill" id="tabResearch" onclick="switchNav('recommended')">Research</button>
-          <button class="nav-tab-pill" id="tabMarketInsights" onclick="switchNav('insights')">Market Insights</button>
           <button class="nav-tab-pill" id="tabMailbox" onclick="switchNav('mailbox')">Recruiter Mailbox <span class="ml-1 px-1.5 py-0.5 bg-[#2d704b] text-white rounded-full text-[9px] font-bold" id="topMailboxBadge">3</span></button>
+          <button class="nav-tab-pill" id="tabProfile" onclick="switchNav('profile')">Profile</button>
         </nav>
       </div>
 
-      <!-- Right: Settings & Credits & Profile -->
+      <!-- Right: Settings & ATS Vault & Profile -->
       <div class="flex items-center space-x-2.5">
         <button onclick="openAnswerBank()" class="px-2.5 py-1 text-xs text-[#24684f] bg-[#eaf4ef] hover:bg-[#d8ece1] rounded-full font-bold flex items-center space-x-1 border border-[#c4e3d1] transition shadow-xs" title="ATS Universal Screening Answer Bank (700+ questions)">
           <span>🛡️</span>
@@ -167,10 +164,6 @@
           <span>Ledger</span>
         </button>
         <button onclick="switchNav('settings')" class="text-xs text-[#526359] hover:text-[#18181b] font-medium">Settings</button>
-        <div class="flex items-center space-x-1.5 px-3 py-1 bg-[#143528] text-[#8ac5a0] text-xs font-semibold rounded-full shadow-sm cursor-pointer" onclick="openPlansModal()">
-          <span>⚡</span>
-          <span>0 left</span>
-        </div>
         <div class="w-7 h-7 rounded-full bg-[#ecd8c7] text-[#754e35] flex items-center justify-center font-bold text-[10px] shadow-sm cursor-pointer" onclick="switchNav('profile')">
           NB
         </div>
@@ -476,38 +469,6 @@
       <!-- =================================================================== -->
       <div id="view-discover" class="view-panel active space-y-5 w-full max-w-[1550px] mx-auto">
         
-        <!-- Dashboard Hero Banner -->
-        <div class="w-full p-6 rounded-[14px] bg-gradient-to-r from-[#edf5ef] via-[#f7f8f6] to-[#edf5ef] border border-[#dce6df] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
-          <div class="space-y-1">
-            <h1 class="text-2xl font-bold text-[#152c25] tracking-tight">Automate your job applications.</h1>
-            <p class="text-xs text-[#526359] max-w-2xl leading-relaxed">Tailor your resume, ace interviews, and land a job. Fast. Our AI matches your skills to the best roles and applies with a plan.</p>
-          </div>
-          <div class="flex items-center space-x-2.5 flex-shrink-0">
-            <button onclick="switchNav('browse')" class="px-4 py-2 bg-white border border-[#c2decc] hover:bg-[#f2f7f4] text-[#152c25] text-xs font-bold rounded-lg shadow-2xs transition flex items-center space-x-1.5">
-              <span>🔍 Browse 3,493+ Jobs</span>
-            </button>
-            <button onclick="openPlansModal()" class="px-4 py-2 bg-[#152c25] hover:bg-[#254b3e] text-white text-xs font-bold rounded-lg shadow-sm transition">
-              See plans &gt;
-            </button>
-          </div>
-        </div>
-
-        <!-- Plan Alert Banner (Image 2 & 4) -->
-        <div class="w-full p-3.5 rounded-[12px] bg-[#fafbf9] border border-[#e5e9e6] flex items-center justify-between shadow-2xs">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-lg bg-[#eef7f2] flex items-center justify-center text-[#15803d]">
-              <span class="text-base text-[#15803d]">✦</span>
-            </div>
-            <div>
-              <h3 class="text-xs font-bold text-[#1d2825]">You're out of free applications.</h3>
-              <p class="text-[11px] text-[#71717a]">Unlock more applications with a plan.</p>
-            </div>
-          </div>
-          <button onclick="showToast('Plans: Pro, Enterprise, and Custom', 'info')" class="px-4 py-1.5 rounded-full bg-[#152c25] hover:bg-[#254b3e] text-white text-xs font-semibold shadow-sm transition">
-            See plans &gt;
-          </button>
-        </div>
-
         <!-- Tsenta Search & Filter System for Dashboard (Image 2, 3 & 4) -->
         <div class="search-filter-box space-y-2 bg-white p-3.5 rounded-[12px] border border-[#e2e7e4] shadow-2xs">
           <!-- Top Row: Tag Chips, Input & Search Button -->
@@ -534,6 +495,52 @@
 
           <!-- Third Row: Filter Pills & Dropdowns -->
           <div class="filter-pills-row">
+            <!-- Domain Selection Pill (Software Engineering vs Finance/Accounting) -->
+            <div class="relative dropdown-container">
+              <button class="filter-pill" id="dashDomainFilterBtn" onclick="toggleFilterDropdown('dashDomainDropdown', event)">
+                <span id="dashDomainFilterLabel">Domain: All</span>
+                <span class="ml-1 text-[9px]">⌵</span>
+              </button>
+              <div id="dashDomainDropdown" class="filter-dropdown-menu hidden" onclick="event.stopPropagation()">
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDomainFilter" value="" checked onchange="setDomainFilter('', 'Domain: All')">
+                  <span>All Domains</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDomainFilter" value="software_engineering" onchange="setDomainFilter('software_engineering', '💻 Software Engineering')">
+                  <span>💻 Software Engineering</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDomainFilter" value="finance_accounting" onchange="setDomainFilter('finance_accounting', '📊 Finance & Accounting')">
+                  <span>📊 Finance & Accounting</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Country Priority Pill (India vs USA vs Global) -->
+            <div class="relative dropdown-container">
+              <button class="filter-pill" id="dashCountryFilterBtn" onclick="toggleFilterDropdown('dashCountryDropdown', event)">
+                <span id="dashCountryFilterLabel">Geo: Auto</span>
+                <span class="ml-1 text-[9px]">⌵</span>
+              </button>
+              <div id="dashCountryDropdown" class="filter-dropdown-menu hidden" onclick="event.stopPropagation()">
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashCountryFilter" value="" checked onchange="setTargetCountryFilter('', 'Geo: Auto')">
+                  <span>🌐 Auto (Global)</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashCountryFilter" value="IN" onchange="setTargetCountryFilter('IN', '🇮🇳 India Priority')">
+                  <span>🇮🇳 India Top Hubs</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashCountryFilter" value="US" onchange="setTargetCountryFilter('US', '🇺🇸 USA Priority')">
+                  <span>🇺🇸 USA Top Hubs</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="filter-pill-divider"></div>
+
             <!-- 1. Date Pill with Dropdown -->
             <div class="relative dropdown-container">
               <button class="filter-pill" id="dashDateFilterBtn" onclick="toggleFilterDropdown('dashDateDropdown', event)">
@@ -551,15 +558,27 @@
                 </label>
                 <label class="filter-dropdown-item">
                   <input type="radio" name="dashDateFilter" value="last_24_hours" onchange="setDateFilter('last_24_hours', 'Last 24 hours')">
-                  <span>Last 24 hours</span>
+                  <span>Last 24 hours (1 day)</span>
                 </label>
                 <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDateFilter" value="last_7_days" onchange="setDateFilter('last_7_days', 'Last 7 days')">
-                  <span>Last 7 days</span>
+                  <input type="radio" name="dashDateFilter" value="last_3_days" onchange="setDateFilter('last_3_days', 'Last 3 days')">
+                  <span>Last 3 days</span>
                 </label>
                 <label class="filter-dropdown-item">
-                  <input type="radio" name="dashDateFilter" value="last_30_days" onchange="setDateFilter('last_30_days', 'Last 30 days')">
-                  <span>Last 30 days</span>
+                  <input type="radio" name="dashDateFilter" value="last_5_days" onchange="setDateFilter('last_5_days', 'Last 5 days')">
+                  <span>Last 5 days</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDateFilter" value="last_1_week" onchange="setDateFilter('last_1_week', 'Last 1 week')">
+                  <span>Last 1 week</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDateFilter" value="last_2_weeks" onchange="setDateFilter('last_2_weeks', 'Last 2 weeks')">
+                  <span>Last 2 weeks</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDateFilter" value="last_4_weeks" onchange="setDateFilter('last_4_weeks', 'Last 1 month')">
+                  <span>Last 4 weeks (1 month)</span>
                 </label>
                 <label class="filter-dropdown-item">
                   <input type="radio" name="dashDateFilter" value="last_60_days" onchange="setDateFilter('last_60_days', 'Last 60 days')">
@@ -957,6 +976,52 @@
 
           <!-- Third Row: Filter Pills & Dropdowns (Image 2, 3, 4 & Filter API Reference) -->
           <div class="filter-pills-row">
+            <!-- Domain Selection Pill (Software Engineering vs Finance/Accounting) -->
+            <div class="relative dropdown-container">
+              <button class="filter-pill" id="dashDomainFilterBtn" onclick="toggleFilterDropdown('dashDomainDropdown', event)">
+                <span id="dashDomainFilterLabel">Domain: All</span>
+                <span class="ml-1 text-[9px]">⌵</span>
+              </button>
+              <div id="dashDomainDropdown" class="filter-dropdown-menu hidden" onclick="event.stopPropagation()">
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDomainFilter" value="" checked onchange="setDomainFilter('', 'Domain: All')">
+                  <span>All Domains</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDomainFilter" value="software_engineering" onchange="setDomainFilter('software_engineering', '💻 Software Engineering')">
+                  <span>💻 Software Engineering</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashDomainFilter" value="finance_accounting" onchange="setDomainFilter('finance_accounting', '📊 Finance & Accounting')">
+                  <span>📊 Finance & Accounting</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Country Priority Pill (India vs USA vs Global) -->
+            <div class="relative dropdown-container">
+              <button class="filter-pill" id="dashCountryFilterBtn" onclick="toggleFilterDropdown('dashCountryDropdown', event)">
+                <span id="dashCountryFilterLabel">Geo: Auto</span>
+                <span class="ml-1 text-[9px]">⌵</span>
+              </button>
+              <div id="dashCountryDropdown" class="filter-dropdown-menu hidden" onclick="event.stopPropagation()">
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashCountryFilter" value="" checked onchange="setTargetCountryFilter('', 'Geo: Auto')">
+                  <span>🌐 Auto (Global)</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashCountryFilter" value="IN" onchange="setTargetCountryFilter('IN', '🇮🇳 India Priority')">
+                  <span>🇮🇳 India Top Hubs</span>
+                </label>
+                <label class="filter-dropdown-item">
+                  <input type="radio" name="dashCountryFilter" value="US" onchange="setTargetCountryFilter('US', '🇺🇸 USA Priority')">
+                  <span>🇺🇸 USA Top Hubs</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="filter-pill-divider"></div>
+
             <!-- 1. Date Pill with Dropdown -->
             <div class="relative dropdown-container">
               <button class="filter-pill" id="dateFilterBtn" onclick="toggleFilterDropdown('dateDropdown', event)">

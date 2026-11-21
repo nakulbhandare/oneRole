@@ -42,7 +42,9 @@ const STATE = {
     applyCapability: '',
     employmentType: '',
     payMin: '',
-    sort: 'ats_score'
+    sort: 'ats_score',
+    domain: '',
+    targetCountry: ''
   }
 };
 window.STATE = STATE;
@@ -1550,6 +1552,44 @@ function setRoleFilter(role, label) {
   applyLiveFilters();
 }
 
+function setDomainFilter(domain, label) {
+  STATE.filters.domain = domain;
+  ['domainFilterBtn', 'dashDomainFilterBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      if (domain) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+  ['domainFilterLabel', 'dashDomainFilterLabel'].forEach(id => {
+    const lbl = document.getElementById(id);
+    if (lbl) lbl.innerText = label;
+  });
+  document.getElementById('dashDomainDropdown')?.classList.add('hidden');
+  syncRadioInputs(['dashDomainFilter'], domain);
+  updateClearAllButtons();
+  applyLiveFilters();
+}
+
+function setTargetCountryFilter(country, label) {
+  STATE.filters.targetCountry = country;
+  ['countryFilterBtn', 'dashCountryFilterBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      if (country) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+  ['countryFilterLabel', 'dashCountryFilterLabel'].forEach(id => {
+    const lbl = document.getElementById(id);
+    if (lbl) lbl.innerText = label;
+  });
+  document.getElementById('dashCountryDropdown')?.classList.add('hidden');
+  syncRadioInputs(['dashCountryFilter'], country);
+  updateClearAllButtons();
+  applyLiveFilters();
+}
+
 function setJobTypeFilter(type, label) {
   STATE.filters.jobType = type;
   ['jobTypeFilterBtn', 'dashJobTypeFilterBtn'].forEach(id => {
@@ -1680,7 +1720,9 @@ function clearAllFilters() {
     applyCapability: '',
     employmentType: '',
     payMin: '',
-    sort: 'ats_score'
+    sort: 'ats_score',
+    domain: '',
+    targetCountry: ''
   };
   STATE.searchTags = [];
   STATE.excludeKeyword = '';
@@ -1782,6 +1824,22 @@ function resetAllFilterPillUI() {
     if (el) el.innerText = '⚙ Apply';
   });
   syncRadioInputs(['applyFilter', 'dashApplyFilter'], '');
+
+  // Domain
+  ['domainFilterBtn', 'dashDomainFilterBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+  ['domainFilterLabel', 'dashDomainFilterLabel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = 'Domain: All';
+  });
+  syncRadioInputs(['dashDomainFilter'], '');
+
+  // Country
+  ['countryFilterBtn', 'dashCountryFilterBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+  ['countryFilterLabel', 'dashCountryFilterLabel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = 'Geo: Auto';
+  });
+  syncRadioInputs(['dashCountryFilter'], '');
 
   // Employment Type
   ['employmentTypeFilterBtn', 'dashEmploymentTypeFilterBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
@@ -2100,6 +2158,12 @@ function applyLiveFilters(immediate = false) {
         }
         if (STATE.filters.employmentType) {
           params.set('employment_type', STATE.filters.employmentType);
+        }
+        if (STATE.filters.domain) {
+          params.set('domain', STATE.filters.domain);
+        }
+        if (STATE.filters.targetCountry) {
+          params.set('country', STATE.filters.targetCountry);
         }
 
         STATE.filters.workplaces.forEach(w => params.append('workplace', w));

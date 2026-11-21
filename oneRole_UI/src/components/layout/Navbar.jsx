@@ -9,9 +9,7 @@ export function Navbar() {
     { id: 'browse', label: 'Browse jobs' },
     { id: 'auto-apply', label: 'Auto Apply' },
     { id: 'tracker', label: 'Tracker' },
-    { id: 'networking', label: 'Networking' },
-    { id: 'profile', label: 'Profile' },
-    { id: 'research', label: 'Research' }
+    { id: 'profile', label: 'Profile' }
   ];
 
   return (
@@ -77,15 +75,6 @@ export function Navbar() {
             >
               Settings
             </button>
-
-            <div
-              onClick={() => setActiveModal('plans')}
-              className="flex items-center space-x-1.5 px-3 py-1 bg-[#143528] text-[#8ac5a0] text-xs font-semibold rounded-full shadow-sm cursor-pointer hover:bg-[#1c4737] transition focus:outline-none focus:ring-2 focus:ring-[#8ac5a0] focus:ring-opacity-50"
-              title="View Subscription Plans"
-            >
-              <span>⚡</span>
-              <span>0 left</span>
-            </div>
 
             <button
               onClick={() => setCurrentTab('profile')}

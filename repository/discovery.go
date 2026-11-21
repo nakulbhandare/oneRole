@@ -147,7 +147,7 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	var esHighlights map[string]map[string][]string
 	hasSearchQuery := strings.TrimSpace(request.Query) != ""
 	// Elasticsearch High-Precision Full-Text & Multi-Filter Search
-	hasFilters := hasSearchQuery || len(request.WorkplaceModes) > 0 || len(request.LocationIDs) > 0 || len(request.Locations) > 0 || len(request.CompanyIDs) > 0
+	hasFilters := hasSearchQuery || len(request.WorkplaceModes) > 0 || len(request.LocationIDs) > 0 || len(request.Locations) > 0 || len(request.CompanyIDs) > 0 || request.JobDomain != "" || request.TargetCountry != "" || (request.Date.Preset != "" && request.Date.Preset != models.DateAny)
 	if hasFilters {
 		esIDs, highlights, err := queryElasticsearchJobIDs(ctx, request)
 		if err == nil {
@@ -558,6 +558,179 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 		}
 	}
 
+	// Case 1 & Case 2: Strict Domain & Profession Isolation
+	domain := strings.ToLower(strings.TrimSpace(request.JobDomain))
+	if domain == "" {
+		qLower := strings.ToLower(qStr)
+		techKeywords := []string{"go", "golang", "python", "react", "kubernetes", "k8s", "rust", "java", "c++", "aws", "frontend", "backend", "fullstack", "devops", "software", "engineer", "architect", "developer", "typescript", "javascript", "node", "docker", "sre"}
+		financeKeywords := []string{"accountant", "accounting", "cpa", "audit", "finance", "bookkeeper", "tax", "controller", "gaap", "payroll", "financial", "treasury"}
+		for _, kw := range techKeywords {
+			if strings.Contains(qLower, kw) {
+				domain = "software_engineering"
+				break
+			}
+		}
+		if domain == "" {
+			for _, kw := range financeKeywords {
+				if strings.Contains(qLower, kw) {
+					domain = "finance_accounting"
+					break
+				}
+			}
+		}
+	}
+
+	if domain == "software_engineering" {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"job_domain": "software_engineering"}},
+					{"multi_match": map[string]interface{}{
+						"query":  "Software Engineer Developer Backend Frontend Fullstack Cloud DevOps Architect Programmer SRE Platform",
+						"fields": []string{"canonical_title^5"},
+					}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+		mustNotClauses = append(mustNotClauses, map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":  "Accountant Auditor Tax Controller Bookkeeper Dental Nurse Veterinarian",
+				"fields": []string{"canonical_title"},
+			},
+		})
+	} else if domain == "finance_accounting" {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"term": map[string]interface{}{"job_domain": "finance_accounting"}},
+					{"multi_match": map[string]interface{}{
+						"query":  "Accountant Accounting Controller Auditor CPA Bookkeeper Tax Payroll Finance Treasury",
+						"fields": []string{"canonical_title^5"},
+					}},
+				},
+				"minimum_should_match": 1,
+			},
+		})
+		mustNotClauses = append(mustNotClauses, map[string]interface{}{
+			"multi_match": map[string]interface{}{
+				"query":  "Software Engineer Developer Frontend Backend Kubernetes Rust DevOps SRE",
+				"fields": []string{"canonical_title"},
+			},
+		})
+	}
+
+	// Case 3.5: Timeline Filtering
+	var esDateAfter *time.Time
+	now := time.Now().UTC()
+	switch request.Date.Preset {
+	case models.DateLast6Hours:
+		v := now.Add(-6 * time.Hour)
+		esDateAfter = &v
+	case models.DateLast24Hours, models.DateLast1Day:
+		v := now.Add(-24 * time.Hour)
+		esDateAfter = &v
+	case models.DateLast3Days:
+		v := now.Add(-3 * 24 * time.Hour)
+		esDateAfter = &v
+	case models.DateLast5Days:
+		v := now.Add(-5 * 24 * time.Hour)
+		esDateAfter = &v
+	case models.DateLast1Week, models.DateLast7Days:
+		v := now.Add(-7 * 24 * time.Hour)
+		esDateAfter = &v
+	case models.DateLast2Weeks:
+		v := now.Add(-14 * 24 * time.Hour)
+		esDateAfter = &v
+	case models.DateLast4Weeks, models.DateLast1Month, models.DateLast30Days:
+		v := now.Add(-30 * 24 * time.Hour)
+		esDateAfter = &v
+	case models.DateLast60Days:
+		v := now.Add(-60 * 24 * time.Hour)
+		esDateAfter = &v
+	}
+	if request.Date.PublishedAfter != nil {
+		esDateAfter = request.Date.PublishedAfter
+	}
+	if esDateAfter != nil {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"range": map[string]interface{}{
+				"first_seen_at": map[string]interface{}{
+					"gte": esDateAfter.Format(time.RFC3339),
+				},
+			},
+		})
+	}
+
+	// Case 3.4 & Case 4: 4-Tier Hierarchy Ranking & Geo-Affinity
+	faangList := []string{
+		"Google", "Meta", "Apple", "Netflix", "Amazon", "Microsoft", "OpenAI", "NVIDIA", "Anthropic", "Tesla",
+	}
+	mncList := []string{
+		"Cisco", "IBM", "Oracle", "Salesforce", "Uber", "Stripe", "Datadog", "Snowflake", "Figma", "Coinbase",
+		"Adobe", "Intel", "Qualcomm", "SAP", "ServiceNow", "Workday", "PayPal", "Intuit", "Shopify", "Spotify",
+		"Twitter", "Block", "Atlassian", "Twilio", "Dropbox", "Snap", "Pinterest", "Airbnb", "DoorDash", "Instacart",
+		"Robinhood", "Palantir", "Databricks", "CrowdStrike", "Cloudflare", "MongoDB", "Elastic", "HubSpot", "Zendesk",
+		"DocuSign", "Zoom", "Slack", "Okta", "Splunk", "VMware", "Dell", "HP", "Broadcom", "eBay", "Walmart",
+		"Visa", "Mastercard", "American Express", "JPMorgan Chase", "Goldman Sachs", "Morgan Stanley", "Citigroup",
+		"Bank of America", "Capital One", "Bloomberg", "Citadel", "Jane Street", "Two Sigma", "TCS", "Infosys",
+		"Wipro", "HCL", "Tech Mahindra", "Cognizant", "LTIMindtree", "Accenture", "Capgemini", "Deloitte", "PwC", "EY", "KPMG",
+	}
+
+	shouldClauses := []map[string]interface{}{
+		// Tier 1: FAANG (Top Boost)
+		{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"terms": map[string]interface{}{"company_name.keyword": faangList}},
+					{"term": map[string]interface{}{"company_tier": "faang"}},
+				},
+				"boost": 100.0,
+			},
+		},
+		// Tier 2: MNC Companies (High Boost)
+		{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					{"terms": map[string]interface{}{"company_name.keyword": mncList}},
+					{"term": map[string]interface{}{"company_tier": "mnc"}},
+				},
+				"boost": 50.0,
+			},
+		},
+		// Tier 3: Startups (Standard Boost)
+		{
+			"term": map[string]interface{}{
+				"company_tier": map[string]interface{}{
+					"value": "startup",
+					"boost": 10.0,
+				},
+			},
+		},
+	}
+
+	// Case 4: Geo-Affinity Priority (India / USA regional boost if no explicit location chosen)
+	if len(locStrings) == 0 {
+		targetCountry := strings.ToUpper(strings.TrimSpace(request.TargetCountry))
+		if targetCountry == "IN" || targetCountry == "INDIA" {
+			shouldClauses = append(shouldClauses, map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":  "India Bengaluru Bangalore Hyderabad Pune Gurgaon Noida Delhi Mumbai Chennai",
+					"fields": []string{"display_location^3", "location^2", "location_canonical^2"},
+					"boost":  30.0,
+				},
+			})
+		} else if targetCountry == "US" || targetCountry == "USA" || targetCountry == "UNITED STATES" {
+			shouldClauses = append(shouldClauses, map[string]interface{}{
+				"multi_match": map[string]interface{}{
+					"query":  "United States US USA San Francisco New York Seattle Austin California Texas",
+					"fields": []string{"display_location^3", "location^2", "location_canonical^2"},
+					"boost":  30.0,
+				},
+			})
+		}
+	}
+
 	size := 300
 	if request.Limit > 0 {
 		size = max(request.Limit*3, 200)
@@ -569,18 +742,7 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 				"must":     mustClauses,
 				"filter":   filterClauses,
 				"must_not": mustNotClauses,
-				"should": []map[string]interface{}{
-					{
-						"terms": map[string]interface{}{
-							"company_name.keyword": []string{
-								"Google", "Meta", "Apple", "Netflix", "Amazon", "Microsoft",
-								"OpenAI", "NVIDIA", "Uber", "Stripe", "Datadog", "Snowflake",
-								"Docker", "Lyft", "Oracle", "Figma", "Coinbase", "Databricks",
-							},
-							"boost": 2.5,
-						},
-					},
-				},
+				"should":   shouldClauses,
 			},
 		},
 		"highlight": map[string]interface{}{
@@ -714,6 +876,15 @@ func buildMongoJobFilter(request models.JobSearchRequest, now time.Time, omitFac
 	if len(request.JobIDs) > 0 {
 		conditions = append(conditions, bson.M{
 			"_id": bson.M{"$in": request.JobIDs},
+		})
+	}
+
+	if request.JobDomain != "" {
+		conditions = append(conditions, bson.M{
+			"$or": []bson.M{
+				{"job_domain": request.JobDomain},
+				{"canonical_title": bson.M{"$regex": request.JobDomain, "$options": "i"}},
+			},
 		})
 	}
 
@@ -1019,13 +1190,22 @@ func addMongoDateFilters(conditions *[]bson.M, date models.DateFilter, now time.
 	case models.DateLast6Hours:
 		v := now.Add(-6 * time.Hour)
 		after, before = &v, &now
-	case models.DateLast24Hours:
+	case models.DateLast24Hours, models.DateLast1Day:
 		v := now.Add(-24 * time.Hour)
 		after, before = &v, &now
-	case models.DateLast7Days:
+	case models.DateLast3Days:
+		v := now.Add(-3 * 24 * time.Hour)
+		after, before = &v, &now
+	case models.DateLast5Days:
+		v := now.Add(-5 * 24 * time.Hour)
+		after, before = &v, &now
+	case models.DateLast1Week, models.DateLast7Days:
 		v := now.Add(-7 * 24 * time.Hour)
 		after, before = &v, &now
-	case models.DateLast30Days:
+	case models.DateLast2Weeks:
+		v := now.Add(-14 * 24 * time.Hour)
+		after, before = &v, &now
+	case models.DateLast4Weeks, models.DateLast1Month, models.DateLast30Days:
 		v := now.Add(-30 * 24 * time.Hour)
 		after, before = &v, &now
 	case models.DateLast60Days:

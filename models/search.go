@@ -36,6 +36,8 @@ type JobSearchRequest struct {
 	Cursor                       *string           `json:"cursor,omitempty"`
 	Limit                        int               `json:"limit"`
 	IncludeFacets                bool              `json:"include_facets"`
+	JobDomain                    string            `json:"job_domain,omitempty"`
+	TargetCountry                string            `json:"target_country,omitempty"`
 }
 
 type DateFilter struct {
@@ -61,7 +63,14 @@ type DatePreset string
 const (
 	DateLast6Hours  DatePreset = "last_6_hours"
 	DateLast24Hours DatePreset = "last_24_hours"
+	DateLast1Day    DatePreset = "last_1_day"
+	DateLast3Days   DatePreset = "last_3_days"
+	DateLast5Days   DatePreset = "last_5_days"
+	DateLast1Week   DatePreset = "last_1_week"
 	DateLast7Days   DatePreset = "last_7_days"
+	DateLast2Weeks  DatePreset = "last_2_weeks"
+	DateLast4Weeks  DatePreset = "last_4_weeks"
+	DateLast1Month  DatePreset = "last_1_month"
 	DateLast30Days  DatePreset = "last_30_days"
 	DateLast60Days  DatePreset = "last_60_days"
 	DateCustom      DatePreset = "custom"

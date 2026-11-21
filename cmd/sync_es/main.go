@@ -37,6 +37,9 @@ type JobDoc struct {
 	FirstSeenAt          time.Time  `bson:"first_seen_at" json:"first_seen_at"`
 	PublishedAt          *time.Time `bson:"published_at,omitempty" json:"published_at,omitempty"`
 	SourcePublishedAt    *time.Time `bson:"source_published_at,omitempty" json:"source_published_at,omitempty"`
+	JobDomain            string     `bson:"job_domain,omitempty" json:"job_domain,omitempty"`
+	CompanyTier          string     `bson:"company_tier,omitempty" json:"company_tier,omitempty"`
+	TargetCountry        string     `bson:"target_country,omitempty" json:"target_country,omitempty"`
 }
 
 func main() {
@@ -105,6 +108,37 @@ func main() {
 
 		if j.Status != "open" || strings.TrimSpace(j.CanonicalTitle) == "" {
 			continue
+		}
+
+		// Automatic Classification & Tiering
+		if j.JobDomain == "" {
+			tLower := strings.ToLower(j.CanonicalTitle)
+			if strings.Contains(tLower, "account") || strings.Contains(tLower, "audit") || strings.Contains(tLower, "tax") || strings.Contains(tLower, "cpa") || strings.Contains(tLower, "controller") || strings.Contains(tLower, "finance") || strings.Contains(tLower, "payroll") {
+				j.JobDomain = "finance_accounting"
+			} else {
+				j.JobDomain = "software_engineering"
+			}
+		}
+
+		if j.CompanyTier == "" {
+			cLower := strings.ToLower(j.CompanyName)
+			switch {
+			case strings.Contains(cLower, "google") || strings.Contains(cLower, "meta") || strings.Contains(cLower, "apple") || strings.Contains(cLower, "netflix") || strings.Contains(cLower, "amazon") || strings.Contains(cLower, "microsoft") || strings.Contains(cLower, "openai") || strings.Contains(cLower, "nvidia") || strings.Contains(cLower, "anthropic") || strings.Contains(cLower, "tesla"):
+				j.CompanyTier = "faang"
+			case strings.Contains(cLower, "cisco") || strings.Contains(cLower, "ibm") || strings.Contains(cLower, "oracle") || strings.Contains(cLower, "salesforce") || strings.Contains(cLower, "uber") || strings.Contains(cLower, "stripe") || strings.Contains(cLower, "datadog") || strings.Contains(cLower, "snowflake") || strings.Contains(cLower, "figma") || strings.Contains(cLower, "adobe") || strings.Contains(cLower, "intel") || strings.Contains(cLower, "tcs") || strings.Contains(cLower, "infosys") || strings.Contains(cLower, "wipro") || strings.Contains(cLower, "accenture") || strings.Contains(cLower, "deloitte"):
+				j.CompanyTier = "mnc"
+			default:
+				j.CompanyTier = "startup"
+			}
+		}
+
+		if j.TargetCountry == "" {
+			locLower := strings.ToLower(j.DisplayLocation + " " + j.Location)
+			if strings.Contains(locLower, "india") || strings.Contains(locLower, "bengaluru") || strings.Contains(locLower, "hyderabad") || strings.Contains(locLower, "pune") || strings.Contains(locLower, "delhi") || strings.Contains(locLower, "mumbai") {
+				j.TargetCountry = "IN"
+			} else {
+				j.TargetCountry = "US"
+			}
 		}
 
 		action := map[string]interface{}{

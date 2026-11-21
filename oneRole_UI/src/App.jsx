@@ -2,7 +2,6 @@ import React from 'react';
 import { useApp } from './context/AppContext';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
-import { HeroBanner } from './components/dashboard/HeroBanner';
 import { MatchCardsQueue } from './components/dashboard/MatchCardsQueue';
 import { FilterBar } from './components/dashboard/FilterBar';
 import { JobCatalogGrid } from './components/dashboard/JobCatalogGrid';
@@ -10,7 +9,6 @@ import { ApplicationTracker } from './components/tracker/ApplicationTracker';
 import { AutoApplyView } from './components/autoApply/AutoApplyView';
 import { ProfileView } from './components/profile/ProfileView';
 import { JobDetailModal } from './components/modals/JobDetailModal';
-import { PlansModal } from './components/modals/PlansModal';
 import { AddRoleModal } from './components/modals/AddRoleModal';
 import { ToastContainer } from './components/common/Toast';
 import LoginPage from './components/auth/LoginPage';
@@ -39,7 +37,6 @@ export function App() {
       <main className="main-content-canvas max-w-7xl mx-auto w-full px-4 sm:px-6 py-5 flex-1">
         {currentTab === 'dashboard' || currentTab === 'browse' ? (
           <div className="space-y-5">
-            <HeroBanner />
             <MatchCardsQueue />
             <FilterBar />
             <JobCatalogGrid />
@@ -62,7 +59,6 @@ export function App() {
 
       {/* Global Modals & Toasts */}
       <JobDetailModal />
-      <PlansModal />
       <AddRoleModal />
       <ToastContainer />
     </div>

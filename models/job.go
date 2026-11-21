@@ -32,6 +32,9 @@ type Job struct {
 	ApplicationCapability  ApplicationCapability       `json:"application_capability"`
 	SourceURL              string                      `json:"source_url"`
 	Highlights             map[string][]string         `json:"highlights,omitempty"`
+	JobDomain              string                      `json:"job_domain,omitempty" bson:"job_domain,omitempty"`
+	CompanyTier            string                      `json:"company_tier,omitempty" bson:"company_tier,omitempty"`
+	TargetCountry          string                      `json:"target_country,omitempty" bson:"target_country,omitempty"`
 }
 
 type ProvenanceStatus string
