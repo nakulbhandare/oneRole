@@ -2268,6 +2268,84 @@ function extractJobExperience(job) {
 let _liveFiltersAbortController = null;
 let _liveFiltersDebounceTimer = null;
 
+function getBackendSort(sortMode, hasQuery) {
+  if (sortMode === 'salary_desc') return 'salary_desc';
+  if (sortMode === 'first_seen_desc') return 'first_seen_desc';
+  if (sortMode === 'published_desc') return 'published_desc';
+  if (sortMode === 'relevance') return 'relevance';
+  // Client sort mode 'ats_score' or any custom client-side sort:
+  return hasQuery ? 'relevance' : 'published_desc';
+}
+
+function buildJobSearchParams(cursor = null) {
+  const params = new URLSearchParams();
+  params.set('limit', '100');
+
+  let queryParts = [];
+  if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
+    queryParts.push(STATE.filters.searchTags.join(' '));
+  }
+  const liveInputVal = (document.getElementById('dashTagSearchInputField')?.value || document.getElementById('tagSearchInputField')?.value || '').trim();
+  if (liveInputVal && !STATE.filters.searchTags.includes(liveInputVal)) {
+    queryParts.push(liveInputVal);
+  }
+  if (STATE.filters.role) {
+    queryParts.push(STATE.filters.role);
+  }
+
+  const hasQuery = queryParts.length > 0;
+  if (hasQuery) {
+    params.set('q', queryParts.join(' '));
+  }
+
+  const backendSort = getBackendSort(STATE.filters && STATE.filters.sort, hasQuery);
+  params.set('sort', backendSort);
+
+  if (cursor) {
+    params.set('cursor', cursor);
+  }
+
+  if (STATE.filters.exclude) {
+    params.set('exclude', STATE.filters.exclude);
+  }
+  if (STATE.filters.datePreset && STATE.filters.datePreset !== 'any') {
+    params.set('date_preset', STATE.filters.datePreset);
+  }
+  if (STATE.filters.degreeLevel) {
+    params.set('degree_level', STATE.filters.degreeLevel);
+  }
+  if (STATE.filters.maxExperience) {
+    params.set('max_experience_years', STATE.filters.maxExperience);
+    params.set('include_unknown_experience', 'true');
+  }
+  if (STATE.filters.visa) {
+    params.set('visa_sponsorship', 'yes');
+  }
+  if (STATE.filters.jobType) {
+    params.set('job_type', STATE.filters.jobType);
+  }
+  if (STATE.filters.employmentType) {
+    params.set('employment_type', STATE.filters.employmentType);
+  }
+  if (STATE.filters.domain) {
+    params.set('domain', STATE.filters.domain);
+  }
+  if (STATE.filters.targetCountry) {
+    params.set('country', STATE.filters.targetCountry);
+  }
+  if (STATE.filters.industries && STATE.filters.industries.length > 0) {
+    STATE.filters.industries.forEach(ind => params.append('industry', ind));
+  }
+
+  STATE.filters.workplaces.forEach(w => params.append('workplace', w));
+  STATE.filters.locations.forEach(loc => params.append('location', loc));
+  if (STATE.filters.companies && STATE.filters.companies.length > 0) {
+    STATE.filters.companies.forEach(comp => params.append('company_id', comp));
+  }
+
+  return { params, queryParts };
+}
+
 function applyLiveFilters(immediate = false) {
   return new Promise((resolve) => {
     if (_liveFiltersDebounceTimer) {
@@ -2294,66 +2372,7 @@ function applyLiveFilters(immediate = false) {
         renderCardSkeletons('feedJobGrid', STATE.catalogRowsPerPage || 24, 'bento');
         renderCardSkeletons('qualifyingJobsContainer', 4, 'list');
 
-        const params = new URLSearchParams();
-        params.set('limit', '100');
-
-        let queryParts = [];
-        if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
-          queryParts.push(STATE.filters.searchTags.join(' '));
-        }
-        // Include any live text typed in the active search input
-        const liveInputVal = (document.getElementById('dashTagSearchInputField')?.value || document.getElementById('tagSearchInputField')?.value || '').trim();
-        if (liveInputVal && !STATE.filters.searchTags.includes(liveInputVal)) {
-          queryParts.push(liveInputVal);
-        }
-        if (STATE.filters.role) {
-          queryParts.push(STATE.filters.role);
-        }
-        if (queryParts.length > 0) {
-          params.set('q', queryParts.join(' '));
-          params.set('sort', 'relevance');
-        } else {
-          params.set('sort', 'published_desc');
-        }
-
-        if (STATE.filters.exclude) {
-          params.set('exclude', STATE.filters.exclude);
-        }
-        if (STATE.filters.datePreset && STATE.filters.datePreset !== 'any') {
-          params.set('date_preset', STATE.filters.datePreset);
-        }
-        if (STATE.filters.degreeLevel) {
-          params.set('degree_level', STATE.filters.degreeLevel);
-        }
-        if (STATE.filters.maxExperience) {
-          params.set('max_experience_years', STATE.filters.maxExperience);
-          params.set('include_unknown_experience', 'true');
-        }
-        if (STATE.filters.visa) {
-          params.set('visa_sponsorship', 'yes');
-        }
-        if (STATE.filters.jobType) {
-          params.set('job_type', STATE.filters.jobType);
-        }
-        if (STATE.filters.employmentType) {
-          params.set('employment_type', STATE.filters.employmentType);
-        }
-        if (STATE.filters.domain) {
-          params.set('domain', STATE.filters.domain);
-        }
-        if (STATE.filters.targetCountry) {
-          params.set('country', STATE.filters.targetCountry);
-        }
-        if (STATE.filters.industries && STATE.filters.industries.length > 0) {
-          STATE.filters.industries.forEach(ind => params.append('industry', ind));
-        }
-
-        STATE.filters.workplaces.forEach(w => params.append('workplace', w));
-        STATE.filters.locations.forEach(loc => params.append('location', loc));
-        if (STATE.filters.companies && STATE.filters.companies.length > 0) {
-          STATE.filters.companies.forEach(comp => params.append('company_id', comp));
-        }
-
+        const { params, queryParts } = buildJobSearchParams(null);
         const res = await authenticatedFetch(`/api/v1/jobs/search?${params.toString()}`, { signal });
         STATE.isFetchingJobs = false;
 
@@ -2588,34 +2607,7 @@ async function fetchNextJobBatch() {
   if (btnNext) btnNext.innerHTML = `<span class="inline-block animate-spin mr-1">⌛</span>Loading...`;
 
   try {
-    let queryParts = [];
-    if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
-      queryParts.push(STATE.filters.searchTags.join(' '));
-    }
-    const liveInputVal = (document.getElementById('dashTagSearchInputField')?.value || document.getElementById('tagSearchInputField')?.value || '').trim();
-    if (liveInputVal && !STATE.filters.searchTags.includes(liveInputVal)) {
-      queryParts.push(liveInputVal);
-    }
-    if (STATE.filters.role) queryParts.push(STATE.filters.role);
-
-    const params = new URLSearchParams();
-    params.set('limit', '100');
-    if (queryParts.length > 0) {
-      params.set('q', queryParts.join(' '));
-    }
-    if (STATE.filters && STATE.filters.sort) {
-      params.set('sort', STATE.filters.sort);
-    } else {
-      params.set('sort', queryParts.length > 0 ? 'relevance' : 'published_desc');
-    }
-    params.set('cursor', STATE.jobCursor);
-    if (STATE.filters.exclude) params.set('exclude', STATE.filters.exclude);
-    if (STATE.filters.datePreset && STATE.filters.datePreset !== 'any') params.set('date_preset', STATE.filters.datePreset);
-    if (STATE.filters.domain) params.set('domain', STATE.filters.domain);
-    if (STATE.filters.targetCountry) params.set('country', STATE.filters.targetCountry);
-    STATE.filters.workplaces.forEach(w => params.append('workplace', w));
-    STATE.filters.locations.forEach(loc => params.append('location', loc));
-
+    const { params, queryParts } = buildJobSearchParams(STATE.jobCursor);
     const res = await authenticatedFetch(`/api/v1/jobs/search?${params.toString()}`);
     if (res && res.ok) {
       const data = await res.json();
@@ -2636,15 +2628,19 @@ async function fetchNextJobBatch() {
         renderMatchCardsQueue();
         showToast(`Loaded ${processed.length} new vacancies into feed`, 'info');
       }
+    } else {
+      console.warn('Next batch request returned non-OK status:', res ? res.status : 'network error');
     }
   } catch (err) {
     console.warn('Error fetching next job batch:', err);
   } finally {
     STATE.isLoadingMoreCatalog = false;
+    const totalJobs = (STATE.jobs || []).length;
+    const perPage = STATE.catalogRowsPerPage || 24;
     renderCatalogPagination(
-      (STATE.jobs || []).length,
+      totalJobs,
       STATE.catalogCurrentPage || 1,
-      Math.max(1, Math.ceil((STATE.jobs || []).length / (STATE.catalogRowsPerPage || 24)))
+      Math.max(1, Math.ceil(totalJobs / perPage))
     );
   }
 }
@@ -2689,13 +2685,14 @@ function renderJobCatalog() {
   const pageJobs = displayJobs.slice(startIdx, endIdx);
 
   const countBadge = document.getElementById('jobCatalogCountBadge');
-  if (countBadge) countBadge.innerText = `${totalJobs} Vacancies`;
+  const hasMore = !!STATE.jobCursor;
+  if (countBadge) countBadge.innerText = hasMore ? `${totalJobs}+ Vacancies` : `${totalJobs} Vacancies`;
 
   // Update pagination info spans
   const elById = id => document.getElementById(id);
   if (elById('catalogPageStart')) elById('catalogPageStart').innerText = totalJobs === 0 ? 0 : startIdx + 1;
   if (elById('catalogPageEnd')) elById('catalogPageEnd').innerText = endIdx;
-  if (elById('catalogPageTotal')) elById('catalogPageTotal').innerText = totalJobs;
+  if (elById('catalogPageTotal')) elById('catalogPageTotal').innerText = hasMore ? `${totalJobs}+` : totalJobs;
 
   if (totalJobs === 0) {
     container.innerHTML = `
@@ -2818,15 +2815,22 @@ function goCatalogPage(page) {
   if (page < 1) return;
 
   // If user requests a page that exceeds loaded batches and server has next cursor, fetch next batch
-  if (page >= totalPages && STATE.jobCursor && !STATE.isLoadingMoreCatalog) {
+  if (page > totalPages && STATE.jobCursor && !STATE.isLoadingMoreCatalog) {
+    const btnNext = document.querySelector('#catalogPaginationControls button:last-child');
+    if (btnNext) btnNext.innerHTML = `<span class="inline-block animate-spin mr-1">⌛</span>Loading...`;
+
     fetchNextJobBatch().then(() => {
       // Re-evaluate page bounds after batch has loaded
       const newTotal = (STATE.jobs || []).length;
       const newTotalPages = Math.max(1, Math.ceil(newTotal / perPage));
       if (page <= newTotalPages) {
         STATE.catalogCurrentPage = page;
-        renderJobCatalog();
+      } else {
+        STATE.catalogCurrentPage = newTotalPages;
       }
+      renderJobCatalog();
+      const section = document.getElementById('jobCatalogSection');
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     return;
   }
@@ -2836,6 +2840,11 @@ function goCatalogPage(page) {
   renderJobCatalog();
   const section = document.getElementById('jobCatalogSection');
   if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Background prefetch: if user is on the last loaded page and server still has more, prefetch next batch
+  if (page === totalPages && STATE.jobCursor && !STATE.isLoadingMoreCatalog) {
+    fetchNextJobBatch();
+  }
 }
 
 function setCatalogRowsPerPage(val) {
@@ -4769,7 +4778,7 @@ function renderCardSkeletons(containerId, count = 5, variant = 'match') {
 
 let inFlightPollingTimer = null;
 let inFlightPollCount = 0;
-const MAX_INFLIGHT_POLL_COUNT = 10; // Stop polling after 10 cycles (25s) to avoid runaway requests
+const MAX_INFLIGHT_POLL_COUNT = 5; // Poll max 5 cycles (15s) after an apply action to verify status
 
 function startInFlightPolling() {
   if (inFlightPollingTimer) return;
