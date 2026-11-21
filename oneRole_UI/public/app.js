@@ -2438,11 +2438,30 @@ function processIncomingJobsBatch(jobs, queryParts = []) {
     result = result.filter(j => {
       const titleLower = (j.title || '').toLowerCase();
       const descLower = (j.description || '').toLowerCase();
-      const combined = `${titleLower} ${descLower}`;
-      // Mandatory match: each term must appear in title or description
+      const skillsLower = Array.isArray(j.skills) ? j.skills.map(s => String(s).toLowerCase()).join(' ') : '';
+      const combined = `${titleLower} ${skillsLower} ${descLower}`;
+
+      // 100% Precision: check each user search keyword
       return activeKeywords.every(kw => {
         const k = kw.toLowerCase().trim();
-        return !k || combined.includes(k);
+        if (!k) return true;
+
+        // If user searched "golang", allow "golang" OR exact standalone word "go"
+        if (k === 'golang') {
+          return /\bgolang\b/.test(combined) || /\bgo\b/.test(titleLower) || /\bgo\b/.test(skillsLower) || /\bgo\b/.test(descLower);
+        }
+        // If user searched "k8s", allow "k8s" or "kubernetes"
+        if (k === 'k8s') {
+          return /\bk8s\b/.test(combined) || /\bkubernetes\b/.test(combined);
+        }
+        if (k === 'kubernetes') {
+          return /\bkubernetes\b/.test(combined) || /\bk8s\b/.test(combined);
+        }
+
+        // For all other terms, require exact word boundary match in title, skills, or description
+        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const wordRegex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}([^a-zA-Z0-9]|$)`, 'i');
+        return wordRegex.test(combined);
       });
     });
   }
@@ -4654,18 +4673,31 @@ function renderCardSkeletons(containerId, count = 5, variant = 'match') {
 }
 
 let inFlightPollingTimer = null;
+let inFlightPollCount = 0;
+const MAX_INFLIGHT_POLL_COUNT = 10; // Stop polling after 10 cycles (25s) to avoid runaway requests
 
 function startInFlightPolling() {
   if (inFlightPollingTimer) return;
+  inFlightPollCount = 0;
   inFlightPollingTimer = setInterval(async () => {
+    inFlightPollCount++;
     const hasInFlight = STATE.applications && STATE.applications.some(a => a.status === 'in_flight');
-    if (!hasInFlight) {
+    if (!hasInFlight || inFlightPollCount >= MAX_INFLIGHT_POLL_COUNT) {
       clearInterval(inFlightPollingTimer);
       inFlightPollingTimer = null;
+      // Mark any still in_flight items as submitted locally if time exceeded
+      if (inFlightPollCount >= MAX_INFLIGHT_POLL_COUNT && STATE.applications) {
+        STATE.applications.forEach(a => {
+          if (a.status === 'in_flight') a.status = 'submitted';
+        });
+        localStorage.setItem('onerole_local_apps', JSON.stringify(STATE.applications.slice(0, 100)));
+        updateTrackerCounts();
+        renderAppTrackerTable();
+      }
       return;
     }
     await fetchApplications();
-  }, 2500);
+  }, 3000);
 }
 
 async function fetchApplications() {
@@ -4809,10 +4841,7 @@ async function fetchApplications() {
 
     STATE.applications = combined;
 
-    // Keep polling active only if any item is still genuinely in-flight
-    if (combined.some(a => a.status === 'in_flight')) {
-      startInFlightPolling();
-    }
+    // Do NOT re-invoke startInFlightPolling inside fetchApplications to prevent recursive timer loops
   } catch (err) {
     console.error('Error fetching real applications from MongoDB:', err);
     STATE.applications = JSON.parse(localStorage.getItem('onerole_local_apps') || '[]');
