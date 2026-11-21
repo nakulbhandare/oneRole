@@ -1349,6 +1349,29 @@
           <div id="feedJobGrid" class="bento-job-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <!-- Dynamically populated by renderJobCatalog() -->
           </div>
+
+          <!-- Catalog Pagination Bar -->
+          <div id="catalogPaginationBar" class="flex flex-wrap items-center justify-between gap-3 pt-3.5 pb-2 border-t border-[#e2e7e4] text-xs">
+            <div class="text-[#78827e] font-medium text-xs">
+              Showing <span id="catalogPageStart" class="font-bold text-[#1d2825]">1</span> – <span id="catalogPageEnd" class="font-bold text-[#1d2825]">24</span> of <span id="catalogPageTotal" class="font-bold text-[#1d2825]">0</span> vacancies
+            </div>
+
+            <!-- Page Buttons (Prev, Numbers, Next) -->
+            <div class="flex items-center space-x-1" id="catalogPaginationControls">
+              <!-- Dynamically populated via renderCatalogPagination() -->
+            </div>
+
+            <!-- Rows Per Page Selector -->
+            <div class="flex items-center space-x-2 text-xs text-[#78827e]">
+              <span>Rows per page:</span>
+              <select id="catalogRowsPerPageSelect" onchange="setCatalogRowsPerPage(this.value)" class="bg-white border border-[#d2ded6] rounded px-2 py-1 text-xs text-[#1d2825] font-semibold cursor-pointer focus:outline-none focus:border-[#24684f]">
+                <option value="12">12</option>
+                <option value="24" selected>24</option>
+                <option value="48">48</option>
+                <option value="96">96</option>
+              </select>
+            </div>
+          </div>
         </div>
 
 

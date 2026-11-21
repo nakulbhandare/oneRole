@@ -22,6 +22,8 @@ const STATE = {
   appCompanySearch: '',
   currentPage: 1,
   rowsPerPage: 12,
+  catalogCurrentPage: 1,
+  catalogRowsPerPage: 24,
   resumeTailoring: true,
   filterMetadata: null,
   filters: {
@@ -2272,7 +2274,7 @@ function applyLiveFilters(immediate = false) {
         const signal = _liveFiltersAbortController.signal;
 
         const params = new URLSearchParams();
-        params.set('limit', '25');
+        params.set('limit', '100');
 
         let queryParts = [];
         if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
@@ -2406,6 +2408,7 @@ function applyLiveFilters(immediate = false) {
           }
 
           STATE.jobs = filteredJobs;
+          STATE.catalogCurrentPage = 1;
           try {
             sessionStorage.setItem('onerole_cached_jobs', JSON.stringify(filteredJobs.slice(0, 50)));
           } catch (e) {}
@@ -2470,21 +2473,35 @@ function renderJobCatalog() {
     });
   }
 
-  const countBadge = document.getElementById('jobCatalogCountBadge');
-  if (countBadge) {
-    countBadge.innerText = `${displayJobs.length} Vacancies`;
-  }
+  const totalJobs = displayJobs.length;
+  const perPage = STATE.catalogRowsPerPage || 24;
+  const totalPages = Math.max(1, Math.ceil(totalJobs / perPage));
+  if ((STATE.catalogCurrentPage || 1) > totalPages) STATE.catalogCurrentPage = totalPages;
+  const page = Math.max(1, Math.min(STATE.catalogCurrentPage || 1, totalPages));
+  const startIdx = (page - 1) * perPage;
+  const endIdx = Math.min(startIdx + perPage, totalJobs);
+  const pageJobs = displayJobs.slice(startIdx, endIdx);
 
-  if (displayJobs.length === 0) {
+  const countBadge = document.getElementById('jobCatalogCountBadge');
+  if (countBadge) countBadge.innerText = `${totalJobs} Vacancies`;
+
+  // Update pagination info spans
+  const elById = id => document.getElementById(id);
+  if (elById('catalogPageStart')) elById('catalogPageStart').innerText = totalJobs === 0 ? 0 : startIdx + 1;
+  if (elById('catalogPageEnd')) elById('catalogPageEnd').innerText = endIdx;
+  if (elById('catalogPageTotal')) elById('catalogPageTotal').innerText = totalJobs;
+
+  if (totalJobs === 0) {
     container.innerHTML = `
       <div class="col-span-full card p-8 text-center text-[#71717a] text-xs">
         No vacancies match the current search filters. Try adjusting your search tags or clearing excludes.
       </div>
     `;
+    renderCatalogPagination(0, 1, 1);
     return;
   }
 
-  container.innerHTML = displayJobs.slice(0, 100).map(job => {
+  container.innerHTML = pageJobs.map(job => {
     const isSelected = STATE.selectedJobIds.has(job.id);
     const atsScore = computeRealtimeATSScore(job, STATE.profile);
     const highlightedTitle = highlightSearchTerms(job.title || 'Software Engineer');
@@ -2531,6 +2548,68 @@ function renderJobCatalog() {
       </div>
     `;
   }).join('');
+
+  renderCatalogPagination(totalJobs, page, totalPages);
+}
+
+function renderCatalogPagination(total, currentPage, totalPages) {
+  const bar = document.getElementById('catalogPaginationBar');
+  if (bar) bar.style.display = total === 0 ? 'none' : 'flex';
+
+  const ctrl = document.getElementById('catalogPaginationControls');
+  if (!ctrl) return;
+
+  const btnBase = 'px-2.5 py-1 rounded text-xs font-semibold border transition cursor-pointer select-none';
+  const activeClass = 'bg-[#152c25] text-white border-[#152c25]';
+  const inactiveClass = 'bg-white text-[#374151] border-[#e5e7eb] hover:bg-[#f3f4f6]';
+  const disabledClass = 'bg-[#f9fafb] text-[#9ca3af] border-[#e5e7eb] cursor-not-allowed opacity-60';
+
+  let html = '';
+
+  // Prev button
+  html += `<button onclick="goCatalogPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="${btnBase} ${currentPage === 1 ? disabledClass : inactiveClass}">‹ Prev</button>`;
+
+  // Page number buttons (up to 7 around current)
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  pages.forEach(p => {
+    if (p === '...') {
+      html += `<span class="px-1 text-xs text-[#9ca3af] select-none">…</span>`;
+    } else {
+      html += `<button onclick="goCatalogPage(${p})" class="${btnBase} ${p === currentPage ? activeClass : inactiveClass}">${p}</button>`;
+    }
+  });
+
+  // Next button
+  html += `<button onclick="goCatalogPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="${btnBase} ${currentPage === totalPages ? disabledClass : inactiveClass}">Next ›</button>`;
+
+  ctrl.innerHTML = html;
+}
+
+function goCatalogPage(page) {
+  const totalJobs = (STATE.jobs || []).length;
+  const perPage = STATE.catalogRowsPerPage || 24;
+  const totalPages = Math.max(1, Math.ceil(totalJobs / perPage));
+  if (page < 1 || page > totalPages) return;
+  STATE.catalogCurrentPage = page;
+  renderJobCatalog();
+  const section = document.getElementById('jobCatalogSection');
+  if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setCatalogRowsPerPage(val) {
+  STATE.catalogRowsPerPage = parseInt(val, 10) || 24;
+  STATE.catalogCurrentPage = 1;
+  renderJobCatalog();
 }
 
 function detectATSLabel(url) {
