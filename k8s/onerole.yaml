@@ -31,7 +31,7 @@ spec:
   storageClassName: default
   resources:
     requests:
-      storage: 8Gi
+      storage: 128Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
