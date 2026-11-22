@@ -83,7 +83,7 @@ func (s SourceSyncScheduler) ScheduleOnce(ctx context.Context) (started, failed 
 			for _, source := range companySources {
 				if _, err := s.Store.StartSourceSync(ctx, source, nowFn().UTC()); err != nil {
 					failedCount.Add(1)
-					s.report(fmt.Errorf("start source sync %s (company %s): SOURCE_SYNC_START_FAILED", source.ID, companyID))
+					s.report(fmt.Errorf("start source sync %s (company %s): SOURCE_SYNC_START_FAILED: %w", source.ID, companyID, err))
 					continue
 				}
 				startedCount.Add(1)

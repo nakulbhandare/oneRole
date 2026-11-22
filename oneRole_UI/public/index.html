@@ -12,6 +12,43 @@
   <link rel="stylesheet" href="/styles.css?v=2.9">
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
+    /* Strict 5-in-a-Row Match Cards Queue (Tsenta Design Language) */
+    .match-cards-grid {
+      display: grid !important;
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      gap: 12px !important;
+      width: 100% !important;
+      align-items: stretch !important;
+    }
+    @media (max-width: 900px) {
+      .match-cards-grid {
+        display: flex !important;
+        overflow-x: auto !important;
+        scroll-snap-type: x mandatory !important;
+        padding-bottom: 8px !important;
+        gap: 12px !important;
+      }
+      .match-cards-grid > .job-match-card {
+        flex: 0 0 240px !important;
+        scroll-snap-align: start !important;
+      }
+    }
+    .job-match-card {
+      border-radius: 18px !important;
+      padding: 16px 16px 14px 16px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      min-height: 220px !important;
+      height: 228px !important;
+      border: 1px solid rgba(0, 0, 0, 0.05) !important;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+      position: relative !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+
     /* Strict Bento Grid for Verified Vacancies */
     .bento-job-grid {
       display: grid !important;
@@ -2787,7 +2824,7 @@
           <span>🚫</span>
           <span>Closed? Remove</span>
         </button>
-        <button onclick="showToast('Marked as not interested', 'info'); closeJobDrawer();" class="text-[#78827e] hover:text-[#1d2825] font-semibold">
+        <button onclick="passCurrentDrawerJob()" class="text-[#78827e] hover:text-[#1d2825] font-semibold" title="Pass this role for the current search filter">
           Not interested
         </button>
       </div>
@@ -2932,6 +2969,6 @@
   <!-- TOAST CONTAINER -->
   <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
-  <script src="/app.js?v=4.3"></script>
+  <script src="/app.js?v=5.1"></script>
 </body>
 </html>

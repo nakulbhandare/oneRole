@@ -996,8 +996,17 @@ function highlightSearchTerms(text, terms = []) {
     });
   });
 
+  if (!text) return '';
+
+  // Strip all non-mark HTML tags upfront to guarantee no stray tags break DOM hierarchy
+  const cleanInput = String(text)
+    .replace(/<(?!\/?mark\b)[^>]+>/gi, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   if (words.size === 0) {
-    return /(<[^>]+>)/.test(text) ? text : safeEscape(text);
+    return /(<[^>]+>)/.test(cleanInput) ? cleanInput : safeEscape(cleanInput);
   }
 
   // Sort terms descending by length so longer phrases match first
@@ -1014,14 +1023,14 @@ function highlightSearchTerms(text, terms = []) {
 
   const patterns = sortedTerms.map(buildTermPattern).filter(Boolean);
   if (patterns.length === 0) {
-    return /(<[^>]+>)/.test(text) ? text : safeEscape(text);
+    return /(<[^>]+>)/.test(cleanInput) ? cleanInput : safeEscape(cleanInput);
   }
 
   const regex = new RegExp(`(${patterns.join('|')})`, 'gi');
 
   // Tokenize by HTML tags while tracking if we are inside an existing <mark> tag
   let insideMark = false;
-  return text.split(/(<[^>]+>)/g).map(token => {
+  return cleanInput.split(/(<[^>]+>)/g).map(token => {
     if (token.startsWith('<') && token.endsWith('>')) {
       if (/^<\s*mark\b/i.test(token)) insideMark = true;
       if (/^<\s*\/\s*mark\b/i.test(token)) insideMark = false;
@@ -1040,11 +1049,15 @@ function highlightSearchTerms(text, terms = []) {
 }
 
 let _liveSearchDebounce = null;
-function handleLiveSearchInput(val) {
-  // Show skeletons immediately on user keystroke so user sees feedback right away
+function showAllCardSkeletons() {
   renderCardSkeletons('coloredMatchCardsContainer', 5, 'match');
   renderCardSkeletons('feedJobGrid', STATE.catalogRowsPerPage || 24, 'bento');
   renderCardSkeletons('qualifyingJobsContainer', 4, 'list');
+}
+
+function handleLiveSearchInput(val) {
+  // Show skeletons immediately on user keystroke so user sees feedback right away
+  showAllCardSkeletons();
 
   if (_liveSearchDebounce) clearTimeout(_liveSearchDebounce);
   _liveSearchDebounce = setTimeout(() => {
@@ -1060,6 +1073,7 @@ function handleLiveSearchBlur(inputEl) {
     STATE.searchTags.push(val);
     renderTagChips();
     inputEl.value = '';
+    showAllCardSkeletons();
     applyLiveFilters(true);
   }
 }
@@ -1070,6 +1084,7 @@ function commitSearchTag() {
   const inputEl = (feedInp && feedInp.value.trim()) ? feedInp : ((dashInp && dashInp.value.trim()) ? dashInp : (feedInp || dashInp));
   if (!inputEl) return;
   const val = (inputEl.value || '').trim();
+  showAllCardSkeletons();
   if (val && !STATE.filters.searchTags.includes(val)) {
     STATE.filters.searchTags.push(val);
     STATE.searchTags.push(val);
@@ -1113,6 +1128,7 @@ function filterCatalogWithExcludes(val) {
   });
 
   updateClearAllButtons();
+  showAllCardSkeletons();
   applyLiveFilters();
 }
 
@@ -1120,6 +1136,7 @@ function handleTagInputKey(e) {
   if (e.key === 'Enter' || e.key === ',') {
     e.preventDefault();
     const val = (e.target.value || '').trim().replace(/^,+|,+$/g, '');
+    showAllCardSkeletons();
     if (val && !STATE.filters.searchTags.includes(val)) {
       STATE.filters.searchTags.push(val);
       STATE.searchTags.push(val);
@@ -1131,7 +1148,9 @@ function handleTagInputKey(e) {
         if (input) input.value = '';
       });
 
-      applyLiveFilters();
+      applyLiveFilters(true);
+    } else {
+      applyLiveFilters(true);
     }
   }
 }
@@ -1140,7 +1159,8 @@ function removeSearchTag(tag) {
   STATE.filters.searchTags = STATE.filters.searchTags.filter(t => t !== tag);
   STATE.searchTags = STATE.searchTags.filter(t => t !== tag);
   renderTagChips();
-  applyLiveFilters();
+  showAllCardSkeletons();
+  applyLiveFilters(true);
 }
 
 // ============================================================================
@@ -2178,15 +2198,11 @@ function convertJobToCard(job, idx) {
   // Applicant count badge (matching 5th card in reference image)
   const badge = idx === 4 ? 7 : (idx === 2 ? 3 : null);
 
-  const rawHighlights = job.highlights || (job.rawJob && job.rawJob.highlights) || null;
-  let titleHighlighted = null;
-  if (rawHighlights && rawHighlights.canonical_title && rawHighlights.canonical_title.length > 0) {
-    titleHighlighted = rawHighlights.canonical_title[0];
-  } else {
-    titleHighlighted = highlightSearchTerms(job.title || 'Senior Software Engineer');
-  }
+  const cleanTitle = stripHtml(job.title || (job.rawJob && job.rawJob.title) || 'Senior Software Engineer');
+  const titleHighlighted = highlightSearchTerms(cleanTitle);
 
   let descSnippet = null;
+  const rawHighlights = job.highlights || (job.rawJob && job.rawJob.highlights) || null;
   if (rawHighlights) {
     if (rawHighlights.description_text && rawHighlights.description_text.length > 0) {
       descSnippet = rawHighlights.description_text[0];
@@ -2197,28 +2213,40 @@ function convertJobToCard(job, idx) {
     }
   }
 
-  // If no ES highlight snippet, extract snippet around search keyword from job description
+  // Sanitize descSnippet if it came from ES highlights (strip stray tags, convert <em> to <mark>)
+  if (descSnippet) {
+    const sanitized = descSnippet
+      .replace(/<em\b[^>]*>/gi, '<mark class="search-highlight font-bold bg-[#fef08a] text-stone-900 px-1 py-0.5 rounded border border-[#fde047] shadow-2xs">')
+      .replace(/<\/em>/gi, '</mark>');
+    descSnippet = highlightSearchTerms(sanitized);
+  }
+
+  // If no ES highlight snippet, extract snippet around search keyword from clean plain text job description
   if (!descSnippet) {
-    const rawDesc = job.description || (job.rawJob && job.rawJob.description) || job.desc || '';
-    if (rawDesc) {
+    const plainDesc = stripHtml(job.description || (job.rawJob && job.rawJob.description) || job.desc || '');
+    if (plainDesc) {
       const searchTerms = [
         ...(STATE.filters?.searchTags || []),
         (document.getElementById('dashTagSearchInputField')?.value || '').trim()
       ].filter(t => t && t.length > 1);
       
+      let matchIdx = -1;
       if (searchTerms.length > 0) {
-        const lowerDesc = rawDesc.toLowerCase();
-        let matchIdx = -1;
+        const lowerDesc = plainDesc.toLowerCase();
         for (const t of searchTerms) {
           matchIdx = lowerDesc.indexOf(t.toLowerCase());
           if (matchIdx !== -1) break;
         }
-        if (matchIdx !== -1) {
-          const start = Math.max(0, matchIdx - 30);
-          const end = Math.min(rawDesc.length, matchIdx + 110);
-          let snippet = (start > 0 ? '…' : '') + rawDesc.slice(start, end).trim() + (end < rawDesc.length ? '…' : '');
-          descSnippet = highlightSearchTerms(snippet);
-        }
+      }
+
+      if (matchIdx !== -1) {
+        const start = Math.max(0, matchIdx - 30);
+        const end = Math.min(plainDesc.length, matchIdx + 110);
+        const snippetText = (start > 0 ? '…' : '') + plainDesc.slice(start, end).trim() + (end < plainDesc.length ? '…' : '');
+        descSnippet = highlightSearchTerms(snippetText);
+      } else {
+        const snippetText = plainDesc.slice(0, 110).trim() + (plainDesc.length > 110 ? '…' : '');
+        descSnippet = highlightSearchTerms(snippetText);
       }
     }
   }
@@ -2226,7 +2254,7 @@ function convertJobToCard(job, idx) {
   return {
     key: job.id || `job-${idx}`,
     id: job.id,
-    title: job.title || 'Senior Software Engineer (Golang)',
+    title: cleanTitle,
     titleHighlighted: titleHighlighted,
     descSnippet: descSnippet,
     company: job.company || 'Enterprise Employer',
@@ -2347,6 +2375,10 @@ function buildJobSearchParams(cursor = null) {
 }
 
 function applyLiveFilters(immediate = false) {
+  // Show clean card skeletons across views immediately so user sees instant shimmer
+  STATE.isFetchingJobs = true;
+  showAllCardSkeletons();
+
   return new Promise((resolve) => {
     if (_liveFiltersDebounceTimer) {
       clearTimeout(_liveFiltersDebounceTimer);
@@ -2367,10 +2399,7 @@ function applyLiveFilters(immediate = false) {
         STATE.loadedJobIds.clear();
         STATE.isFetchingJobs = true;
 
-        // Render card skeletons across views immediately while API is fetching
-        renderCardSkeletons('coloredMatchCardsContainer', 5, 'match');
-        renderCardSkeletons('feedJobGrid', STATE.catalogRowsPerPage || 24, 'bento');
-        renderCardSkeletons('qualifyingJobsContainer', 4, 'list');
+        showAllCardSkeletons();
 
         const { params, queryParts } = buildJobSearchParams(null);
         const res = await authenticatedFetch(`/api/v1/jobs/search?${params.toString()}`, { signal });
@@ -2432,18 +2461,20 @@ function applyLiveFilters(immediate = false) {
 function processIncomingJobsBatch(jobs, queryParts = []) {
   if (!jobs || !Array.isArray(jobs)) return [];
 
-  // Deduplicate against STATE.loadedJobIds
+  // Deduplicate against STATE.loadedJobIds and filter out permanently applied or currently passed jobs
   const deduped = [];
   jobs.forEach(j => {
     if (j && j.id && !STATE.loadedJobIds.has(j.id)) {
       STATE.loadedJobIds.add(j.id);
-      deduped.push(j);
+      if (!isJobApplied(j)) {
+        deduped.push(j);
+      }
     }
   });
 
   let result = deduped;
 
-  // Case 3.1: Mandatory Keyword Filter (keyword MUST be present in title or description)
+  // Case 3.1: Mandatory Keyword Filter (keyword MUST be present in title, skills, or technical requirements)
   const activeKeywords = [];
   if (STATE.filters.searchTags && STATE.filters.searchTags.length > 0) {
     activeKeywords.push(...STATE.filters.searchTags);
@@ -2458,20 +2489,42 @@ function processIncomingJobsBatch(jobs, queryParts = []) {
 
   if (activeKeywords.length > 0) {
     result = result.filter(j => {
-      const titleLower = (j.title || '').toLowerCase();
-      const descLower = (j.description || '').toLowerCase();
-      const skillsLower = Array.isArray(j.skills) ? j.skills.map(s => String(s).toLowerCase()).join(' ') : '';
+      const titleLower = (j.title || (j.rawJob && j.rawJob.title) || '').toLowerCase();
+      const descLower = (j.description || (j.rawJob && j.rawJob.description) || '').toLowerCase();
+      const skillsLower = Array.isArray(j.skills) ? j.skills.map(s => String(s).toLowerCase()).join(' ') : (Array.isArray(j.rawJob?.skills) ? j.rawJob.skills.map(s => String(s).toLowerCase()).join(' ') : '');
       const combined = `${titleLower} ${skillsLower} ${descLower}`;
+
+      // Reject non-technical / non-engineering positions when technical search is active
+      const isIrrelevantNonTech = /clerk|customer support|internal communications|integrated business planning|receptionist|cashier|nurse|driver|caregiver|living clerk|administrative assistant|office coordinator/i.test(titleLower);
+      if (isIrrelevantNonTech) return false;
 
       // 100% Precision: check each user search keyword
       return activeKeywords.every(kw => {
         const k = kw.toLowerCase().trim();
         if (!k) return true;
 
-        // If user searched "golang", allow "golang" OR exact standalone word "go"
-        if (k === 'golang') {
-          return /\bgolang\b/.test(combined) || /\bgo\b/.test(titleLower) || /\bgo\b/.test(skillsLower) || /\bgo\b/.test(descLower);
+        // High-Precision Match: If user searched "golang" or "go", require authentic language reference
+        if (k === 'golang' || k === 'go') {
+          const isGoInTitle = /\bgolang\b/i.test(titleLower) ||
+            /\bgo\s+(developer|engineer|programmer|backend|software)\b/i.test(titleLower) ||
+            (/\bgo\b/i.test(titleLower) && !/go[- ]to[- ]market|go[- ]live|on[- ]the[- ]go/i.test(titleLower));
+          const isGoInSkills = /\bgolang\b/i.test(skillsLower) || /\bgo\b/i.test(skillsLower);
+          const isGoInDesc = /\bgolang\b/i.test(descLower) ||
+            /\b(go|golang)\s*([/,.;+]|\band\b|\bor\b)\s*(python|c\+\+|rust|java|kubernetes|k8s|grpc|microservices|distributed|backend|systems|cloud|docker|aws)\b/i.test(descLower) ||
+            /\b(use|using|in|with|learn|write|written|develop|built|experience with|proficient in|programming in)\s+(golang|go)\b/i.test(descLower);
+          return isGoInTitle || isGoInSkills || isGoInDesc;
         }
+
+        // High-Precision Match: If user searched "java", require authentic Java language reference (not JavaScript!)
+        if (k === 'java') {
+          const isJavaInTitle = /\bjava\b/i.test(titleLower) && !/\bjavascript\b/i.test(titleLower);
+          const isJavaInSkills = /\bjava\b/i.test(skillsLower) && !/\bjavascript\b/i.test(skillsLower);
+          const isJavaInDesc = (/\bjava\b/i.test(descLower) && !/javascript/i.test(descLower)) ||
+            /\b(spring\s*boot|hibernate|micronaut|quarkus|jvm)\b/i.test(descLower) ||
+            /\b(java)\s*([/,.;+]|\band\b|\bor\b)\s*(python|go|golang|c\+\+|kotlin|scala|microservices|backend|aws|sql)\b/i.test(descLower);
+          return isJavaInTitle || isJavaInSkills || isJavaInDesc;
+        }
+
         // If user searched "k8s", allow "k8s" or "kubernetes"
         if (k === 'k8s') {
           return /\bk8s\b/.test(combined) || /\bkubernetes\b/.test(combined);
@@ -2958,11 +3011,10 @@ async function applyToJob(jobId) {
 
   const removedQueue = new Set(JSON.parse(localStorage.getItem('onerole_removed_queue_cards') || '[]'));
   removedQueue.add(jobId);
-  removedQueue.add(compKey);
   localStorage.setItem('onerole_removed_queue_cards', JSON.stringify(Array.from(removedQueue)));
 
   // 5. Remove from active match cards and maintain queue of 5
-  ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => c.id !== jobId && c.key !== jobId && (c.company || '').toLowerCase().trim() !== compKey);
+  ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => c.id !== jobId && c.key !== jobId);
   maintainQueueOf5();
   renderMatchCardsQueue();
 
@@ -3909,6 +3961,13 @@ function closeJobDrawer() {
   }
 }
 
+function passCurrentDrawerJob() {
+  if (!currentDrawerJob) return;
+  const cardKey = currentDrawerJob.key || currentDrawerJob.id;
+  closeJobDrawer();
+  passCard(cardKey);
+}
+
 function markCurrentJobUnavailable() {
   if (!currentDrawerJob) return;
 
@@ -3967,6 +4026,17 @@ const BACKUP_MATCH_CARDS = [];
 
 let ACTIVE_QUEUE_CARDS = [];
 
+function getCurrentFilterContext() {
+  const tags = (STATE.filters && STATE.filters.searchTags) ? STATE.filters.searchTags.map(t => t.toLowerCase().trim()).sort().join('+') : '';
+  const role = (STATE.filters && STATE.filters.role) ? STATE.filters.role.toLowerCase().trim() : '';
+  const liveInp = (document.getElementById('dashTagSearchInputField')?.value || document.getElementById('tagSearchInputField')?.value || '').toLowerCase().trim();
+  const parts = [];
+  if (tags) parts.push(tags);
+  if (role) parts.push(role);
+  if (liveInp) parts.push(liveInp);
+  return parts.join('+') || 'all';
+}
+
 function isJobApplied(jobOrCard) {
   if (!jobOrCard) return false;
   const id = jobOrCard.id || (jobOrCard.rawJob && jobOrCard.rawJob.id) || jobOrCard.key || '';
@@ -3974,7 +4044,7 @@ function isJobApplied(jobOrCard) {
   const comp = (jobOrCard.company || (jobOrCard.rawJob && jobOrCard.rawJob.company) || '').toLowerCase().trim();
   const jobKey = comp && title ? `${comp}::${title}` : '';
 
-  // 1. Check persistent applied job IDs
+  // 1. Check persistent applied job IDs (Globally excluded everywhere - once applied, never reappear)
   let appliedIds;
   try {
     appliedIds = new Set(JSON.parse(localStorage.getItem('onerole_applied_job_ids') || '[]'));
@@ -3985,17 +4055,21 @@ function isJobApplied(jobOrCard) {
   if (jobKey && appliedIds.has(jobKey)) return true;
   if (jobOrCard.key && appliedIds.has(jobOrCard.key)) return true;
 
-  // 2. Check removed queue cards
-  let removedKeys;
+  // 2. Check filter-scoped passed cards (Instagram-like feed architecture)
+  // If user passed a job under "java", it stays hidden for "java". But if user searches "golang", it reappears if relevant!
+  let passedByFilter = {};
   try {
-    removedKeys = new Set(JSON.parse(localStorage.getItem('onerole_removed_queue_cards') || '[]'));
+    passedByFilter = JSON.parse(localStorage.getItem('onerole_passed_by_filter') || '{}');
   } catch (e) {
-    removedKeys = new Set();
+    passedByFilter = {};
   }
-  if (id && removedKeys.has(id)) return true;
-  if (jobOrCard.key && removedKeys.has(jobOrCard.key)) return true;
-  if (comp && removedKeys.has(comp)) return true;
-  if (jobKey && removedKeys.has(jobKey)) return true;
+  const currContext = getCurrentFilterContext();
+  const jobPassedContexts = passedByFilter[id] || (jobOrCard.key ? passedByFilter[jobOrCard.key] : null);
+  if (jobPassedContexts && Array.isArray(jobPassedContexts)) {
+    if (jobPassedContexts.includes(currContext) || (currContext === 'all' && jobPassedContexts.length > 0)) {
+      return true;
+    }
+  }
 
   // 3. Check live STATE.applications and local stored applications
   let localApps = [];
@@ -4024,25 +4098,20 @@ let REPLENISH_OFFSET = 25;
 let IS_FETCHING_REPLENISH = false;
 
 function maintainQueueOf5(targetSize = QUEUE_TARGET_SIZE) {
-  // 1. Deduplicate ACTIVE_QUEUE_CARDS against itself (prevent duplicate companies in active queue)
-  const seenComps = new Set();
+  // 1. Deduplicate ACTIVE_QUEUE_CARDS strictly by distinct card key / job id (allowing multiple roles from top companies)
   const seenKeys = new Set();
   ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => {
     if (!c) return false;
-    const comp = (c.company || '').toLowerCase().trim();
-    const key = c.key || c.id || comp;
-    if (seenKeys.has(key) || (comp && seenComps.has(comp))) {
-      return false;
-    }
-    if (key) seenKeys.add(key);
-    if (comp) seenComps.add(comp);
+    const key = c.key || c.id;
+    if (!key || seenKeys.has(key)) return false;
+    seenKeys.add(key);
     return true;
   });
 
-  // 2. Filter active queue to keep only cards that have NOT been applied to or removed
+  // 2. Filter active queue to keep only cards that have NOT been applied to or passed in current filter context
   ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => !isJobApplied(c));
 
-  // 3. Replenish from REPLENISH_QUEUE_CARDS (real MongoDB search results)
+  // 3. Replenish from REPLENISH_QUEUE_CARDS and STATE.jobs to ALWAYS maintain exactly targetSize (5) cards
   if (ACTIVE_QUEUE_CARDS.length < targetSize) {
     if (REPLENISH_QUEUE_CARDS.length === 0 && STATE.jobs && STATE.jobs.length > 0) {
       REPLENISH_QUEUE_CARDS = STATE.jobs
@@ -4050,35 +4119,31 @@ function maintainQueueOf5(targetSize = QUEUE_TARGET_SIZE) {
         .filter(c => !isJobApplied(c));
     }
 
-    const activeKeys = new Set(ACTIVE_QUEUE_CARDS.map(c => c.key));
-    const activeComps = new Set(ACTIVE_QUEUE_CARDS.map(c => (c.company || '').toLowerCase().trim()));
+    const activeKeys = new Set(ACTIVE_QUEUE_CARDS.map(c => c.key || c.id));
 
     while (ACTIVE_QUEUE_CARDS.length < targetSize && REPLENISH_QUEUE_CARDS.length > 0) {
       const nextCard = REPLENISH_QUEUE_CARDS.shift();
-      const comp = (nextCard.company || '').toLowerCase().trim();
-      if (!activeKeys.has(nextCard.key) && !activeComps.has(comp) && !isJobApplied(nextCard)) {
+      const cardKey = nextCard.key || nextCard.id;
+      if (!activeKeys.has(cardKey) && !isJobApplied(nextCard)) {
         nextCard.isNew = true;
         ACTIVE_QUEUE_CARDS.push(nextCard);
-        activeKeys.add(nextCard.key);
-        activeComps.add(comp);
+        activeKeys.add(cardKey);
       }
     }
 
-    // Fallback to STATE.jobs if needed
+    // Fallback to STATE.jobs if needed to ensure full queue of 5
     if (ACTIVE_QUEUE_CARDS.length < targetSize && STATE.jobs && STATE.jobs.length > 0) {
       for (let i = 0; i < STATE.jobs.length; i++) {
         if (ACTIVE_QUEUE_CARDS.length >= targetSize) break;
         const job = STATE.jobs[i];
         if (isJobApplied(job)) continue;
-        const comp = (job.company || '').toLowerCase().trim();
-        if (activeComps.has(comp)) continue;
 
         const jobCard = convertJobToCard(job, i);
-        if (!activeKeys.has(jobCard.key) && !activeComps.has(comp) && !isJobApplied(jobCard)) {
+        const cardKey = jobCard.key || jobCard.id;
+        if (!activeKeys.has(cardKey) && !isJobApplied(jobCard)) {
           jobCard.isNew = true;
           ACTIVE_QUEUE_CARDS.push(jobCard);
-          activeKeys.add(jobCard.key);
-          activeComps.add(comp);
+          activeKeys.add(cardKey);
         }
       }
     }
@@ -4121,14 +4186,17 @@ async function fetchMoreJobsForReplenish() {
   if (IS_FETCHING_REPLENISH) return;
   IS_FETCHING_REPLENISH = true;
   try {
-    const res = await authenticatedFetch(`/api/v1/jobs?limit=25&offset=${REPLENISH_OFFSET}`);
+    const { params, queryParts } = buildJobSearchParams(STATE.jobCursor);
+    const res = await authenticatedFetch(`/api/v1/jobs/search?${params.toString()}`);
     if (res && res.ok) {
       const data = await res.json();
-      const newJobs = data.items || data.data || [];
-      if (newJobs.length > 0) {
-        REPLENISH_OFFSET += newJobs.length;
+      const rawJobs = data.items || data.data || [];
+      STATE.jobCursor = data.next_cursor || null;
+      STATE.hasMoreCatalog = !!data.next_cursor;
+      const verifiedJobs = processIncomingJobsBatch(rawJobs, queryParts);
+      if (verifiedJobs.length > 0) {
         const existingIds = new Set((STATE.jobs || []).map(j => j.id));
-        newJobs.forEach((j, idx) => {
+        verifiedJobs.forEach((j, idx) => {
           if (!existingIds.has(j.id) && !isJobApplied(j)) {
             STATE.jobs.push(j);
             REPLENISH_QUEUE_CARDS.push(convertJobToCard(j, STATE.jobs.length + idx));
@@ -4219,37 +4287,46 @@ function renderMatchCardsQueue() {
     return;
   }
 
+  const themes = ['card-mint', 'card-pink', 'card-aqua', 'card-peach', 'card-butter'];
   container.innerHTML = ACTIVE_QUEUE_CARDS.slice(0, 5).map((card, idx) => {
     const domain = card.domain || deriveCompanyDomain(card.company);
     const badgeHtml = card.badge ? `<span class="inline-flex items-center space-x-0.5 text-[9px] bg-black/10 px-1.5 py-0.5 rounded-full font-semibold text-[#374151] ml-1.5">👤 ${card.badge} applicants</span>` : '';
     const animClass = card.isNew ? 'card-entering' : '';
     card.isNew = false;
+    const themeClass = card.theme || themes[idx % themes.length];
+
+    const safeTitle = escapeHtml(card.title || 'Engineering Role');
+    const displayTitle = card.titleHighlighted || highlightSearchTerms(card.title || 'Engineering Role');
+    const safeCompany = escapeHtml(card.company || 'Enterprise Employer');
+    const safeLoc = escapeHtml(card.location || 'Remote · US');
+    const safeTime = escapeHtml(card.time || 'Recently');
+    const displaySnippet = card.descSnippet || '';
 
     return `
-      <div id="card-queue-${card.key}" class="job-match-card ${card.theme} ${animClass} cursor-pointer transition-all duration-300 transform" onclick="openJobDrawer('${card.key}')">
+      <div id="card-queue-${card.key}" class="job-match-card ${themeClass} ${animClass} cursor-pointer transition-all duration-300 transform" onclick="openJobDrawer('${card.key}')">
         <!-- Top Row: Location, Time & Match Score Gauge -->
         <div class="flex items-start justify-between">
           <div class="space-y-0.5 min-w-0 pr-2">
             <div class="flex items-center space-x-1 flex-wrap">
-              <span class="text-xs text-[#374151] font-medium flex items-center leading-tight truncate">${escapeHtml(card.location)}</span>
+              <span class="text-xs text-[#374151] font-medium flex items-center leading-tight truncate">${safeLoc}</span>
               ${badgeHtml}
             </div>
-            <span class="text-[11px] text-[#6b7280] block">${escapeHtml(card.time)}</span>
+            <span class="text-[11px] text-[#6b7280] block">${safeTime}</span>
           </div>
           <div class="circle-score-wrap flex-shrink-0">
-            <span class="circle-score-val">${card.score}%</span>
+            <span class="circle-score-val">${card.score || 85}%</span>
             <span class="circle-score-sub">MATCH</span>
           </div>
         </div>
 
         <!-- Middle: Prominent Clean Job Title & Matched Description Snippet -->
-        <div class="my-auto py-1.5">
-          <h3 class="text-[16px] md:text-[17px] font-semibold text-[#18181b] leading-snug line-clamp-2" title="${escapeHtml(card.title)}">
-            ${card.titleHighlighted || highlightSearchTerms(card.title)}
+        <div class="my-auto py-1.5 min-w-0">
+          <h3 class="text-[16px] md:text-[17px] font-semibold text-[#18181b] leading-snug line-clamp-2" title="${safeTitle}">
+            ${displayTitle}
           </h3>
-          ${card.descSnippet ? `
+          ${displaySnippet ? `
             <p class="text-[11px] text-[#4b5563] mt-1.5 leading-snug line-clamp-2">
-              ${card.descSnippet}
+              ${displaySnippet}
             </p>
           ` : ''}
         </div>
@@ -4257,14 +4334,14 @@ function renderMatchCardsQueue() {
         <!-- Bottom Row: Company Info & Action Buttons -->
         <div class="pt-3 border-t border-black/8 flex items-center justify-between" onclick="event.stopPropagation()">
           <div class="flex items-center space-x-1.5 min-w-0 flex-1 mr-1.5">
-            ${renderCompanyLogoMarkup(card.company, domain, 'w-5 h-5', 'w-4 h-4', 'text-[9px]')}
+            ${renderCompanyLogoMarkup(card.company || 'Enterprise', domain, 'w-5 h-5', 'w-4 h-4', 'text-[9px]')}
             <div class="min-w-0 truncate">
-              <span class="text-xs font-bold text-[#18181b] block truncate" title="${escapeHtml(card.company)}">${escapeHtml(card.company)}</span>
+              <span class="text-xs font-bold text-[#18181b] block truncate" title="${safeCompany}">${safeCompany}</span>
             </div>
           </div>
           <div class="flex items-center space-x-1 flex-shrink-0">
             <button type="button" class="btn-card-pass" onclick="passCard('${card.key}', event)">Pass</button>
-            <button type="button" class="btn-card-apply" onclick="applySingleCard('${escapeHtml(card.title)}', '${escapeHtml(card.company)}', '${card.key}', event)">Apply</button>
+            <button type="button" class="btn-card-apply" onclick="applySingleCard('${safeTitle}', '${safeCompany}', '${card.key}', event)">Apply</button>
           </div>
         </div>
       </div>
@@ -4349,9 +4426,9 @@ async function applySingleCard(title, company, cardKey, event, options = {}) {
     cardEl.classList.add('card-exiting', 'bento-card-exiting');
   }
 
-  ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => c.key !== card.key && (c.company || '').toLowerCase().trim() !== compKey);
+  ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => c.key !== card.key && c.id !== targetJobId);
   
-  // Record permanent deduplication
+  // Record permanent deduplication for this specific applied job across all views
   const appliedIds = new Set(JSON.parse(localStorage.getItem('onerole_applied_job_ids') || '[]'));
   if (targetJobId) appliedIds.add(targetJobId);
   if (card.id) appliedIds.add(card.id);
@@ -4362,7 +4439,6 @@ async function applySingleCard(title, company, cardKey, event, options = {}) {
   removed.add(card.key);
   if (targetJobId) removed.add(targetJobId);
   if (card.id) removed.add(card.id);
-  removed.add(compKey);
   localStorage.setItem('onerole_removed_queue_cards', JSON.stringify(Array.from(removed)));
 
   if (!options.skipRender) {
@@ -4499,17 +4575,27 @@ function passCard(cardKey, event) {
 
   setTimeout(() => {
     if (cardKey) {
-      const removed = JSON.parse(localStorage.getItem('onerole_removed_queue_cards') || '[]');
-      if (!removed.includes(cardKey)) {
-        removed.push(cardKey);
-        localStorage.setItem('onerole_removed_queue_cards', JSON.stringify(removed));
+      // Filter-scoped dismissal: store pass under current filter context (e.g. 'java')
+      // If user later searches 'golang', this job will be permitted to reappear if it strongly matches 'golang'
+      const currContext = getCurrentFilterContext();
+      let passedByFilter = {};
+      try {
+        passedByFilter = JSON.parse(localStorage.getItem('onerole_passed_by_filter') || '{}');
+      } catch (e) {
+        passedByFilter = {};
       }
-      ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => c.key !== cardKey);
+      if (!passedByFilter[cardKey]) passedByFilter[cardKey] = [];
+      if (!passedByFilter[cardKey].includes(currContext)) {
+        passedByFilter[cardKey].push(currContext);
+      }
+      localStorage.setItem('onerole_passed_by_filter', JSON.stringify(passedByFilter));
+
+      ACTIVE_QUEUE_CARDS = ACTIVE_QUEUE_CARDS.filter(c => (c.key !== cardKey && c.id !== cardKey));
     }
 
     maintainQueueOf5();
     renderMatchCardsQueue();
-    showToast('Role passed. Added next match to queue.', 'info');
+    showToast('Role passed for current filter. Added next match to queue.', 'info');
   }, 140);
 }
 

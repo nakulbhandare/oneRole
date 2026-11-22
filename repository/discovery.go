@@ -595,7 +595,7 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 		})
 		mustNotClauses = append(mustNotClauses, map[string]interface{}{
 			"multi_match": map[string]interface{}{
-				"query":  "Accountant Auditor Tax Controller Bookkeeper Dental Nurse Veterinarian",
+				"query":  "Accountant Auditor Tax Controller Bookkeeper Dental Nurse Veterinarian Clerk Cashier Caregiver Driver Customer Support Communications Receptionist Retail Store Associate",
 				"fields": []string{"canonical_title"},
 			},
 		})
@@ -704,32 +704,32 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 	}
 
 	shouldClauses := []map[string]interface{}{
-		// Tier 1: FAANG (Top Boost)
+		// Tier 1: FAANG (Top Boost +500.0)
 		{
 			"bool": map[string]interface{}{
 				"should": []map[string]interface{}{
 					{"terms": map[string]interface{}{"company_name.keyword": faangList}},
 					{"term": map[string]interface{}{"company_tier": "faang"}},
 				},
-				"boost": 100.0,
+				"boost": 500.0,
 			},
 		},
-		// Tier 2: MNC Companies (High Boost)
+		// Tier 2: MNC Companies (High Boost +500.0)
 		{
 			"bool": map[string]interface{}{
 				"should": []map[string]interface{}{
 					{"terms": map[string]interface{}{"company_name.keyword": mncList}},
 					{"term": map[string]interface{}{"company_tier": "mnc"}},
 				},
-				"boost": 50.0,
+				"boost": 500.0,
 			},
 		},
-		// Tier 3: Startups (Standard Boost)
+		// Tier 3: Startups (Standard Boost +100.0)
 		{
 			"term": map[string]interface{}{
 				"company_tier": map[string]interface{}{
 					"value": "startup",
-					"boost": 10.0,
+					"boost": 100.0,
 				},
 			},
 		},
@@ -853,7 +853,6 @@ func expandSkillSynonyms(query string) string {
 		return ""
 	}
 	synonyms := map[string][]string{
-		"golang":     {"go"},
 		"go":         {"golang"},
 		"k8s":        {"kubernetes"},
 		"kubernetes": {"k8s"},
@@ -866,7 +865,6 @@ func expandSkillSynonyms(query string) string {
 		"reactjs":    {"react"},
 		"react":      {"reactjs"},
 		"nodejs":     {"node"},
-		"node":       {"nodejs"},
 		"postgres":   {"postgresql"},
 		"postgresql": {"postgres"},
 		"tf":         {"terraform"},

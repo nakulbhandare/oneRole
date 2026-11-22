@@ -8,3 +8,6 @@ graphify-env
 *.pem
 /tmp
 *.log
+bin/
+company_all_624k.json
+company_sync_audit_report.json

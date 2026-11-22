@@ -343,17 +343,27 @@ func (r *JobSourceRepository) StartSourceSync(ctx context.Context, source job_so
 		}).Decode(&runningRun)
 
 		if findErr == nil {
-			if runningRun.LeaseToken != source.LeaseToken || runningRun.ConfigVersion != source.ConfigVersion || runningRun.ConnectorVersion != source.ConnectorVersion {
-				return ErrSourceLeaseLost
+			// If running run belongs to the active lease holder, resume it
+			if runningRun.LeaseToken == source.LeaseToken && runningRun.ConfigVersion == source.ConfigVersion && runningRun.ConnectorVersion == source.ConnectorVersion {
+				run = SourceSyncRun{
+					ID:               runningRun.ID,
+					Source:           source,
+					StartedAt:        runningRun.StartedAt.UTC(),
+					CheckpointBefore: runningRun.CheckpointBefore,
+					ResumeCursor:     runningRun.CheckpointAfter,
+				}
+				return nil
 			}
-			run = SourceSyncRun{
-				ID:               runningRun.ID,
-				Source:           source,
-				StartedAt:        runningRun.StartedAt.UTC(),
-				CheckpointBefore: runningRun.CheckpointBefore,
-				ResumeCursor:     runningRun.CheckpointAfter,
-			}
-			return nil
+
+			// Otherwise, the previous lease expired or was abandoned; mark it timed_out and start fresh
+			_, _ = r.db.Collection("source_sync_runs").UpdateOne(sessCtx,
+				bson.M{"_id": runningRun.ID},
+				bson.M{"$set": bson.M{
+					"status":        "timed_out",
+					"error_message": "Lease superseded by new sync run",
+					"finished_at":   nowUTC,
+				}},
+			)
 		}
 
 		runRecord := sourceSyncRunDoc{

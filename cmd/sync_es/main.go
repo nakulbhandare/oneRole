@@ -65,7 +65,7 @@ func main() {
 	defer client.Disconnect(ctx)
 
 	coll := client.Database("onerole").Collection("jobs")
-	findOpts := options.Find().SetBatchSize(1000)
+	findOpts := options.Find().SetBatchSize(500).SetProjection(bson.M{"description_html": 0})
 	cursor, err := coll.Find(ctx, bson.M{"status": "open"}, findOpts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Mongo find error: %v\n", err)
@@ -75,13 +75,13 @@ func main() {
 
 	var bulkBuf bytes.Buffer
 	count := 0
-	batchSize := 500
+	batchSize := 250
 
 	flushBatch := func() error {
 		if bulkBuf.Len() == 0 {
 			return nil
 		}
-		req, err := http.NewRequestWithContext(ctx, "POST", esURL+"/onerole_jobs/_bulk", &bulkBuf)
+		req, err := http.NewRequestWithContext(ctx, "POST", esURL+"/_bulk", &bulkBuf)
 		if err != nil {
 			return err
 		}
@@ -91,9 +91,28 @@ func main() {
 			return err
 		}
 		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode >= 300 {
-			body, _ := io.ReadAll(resp.Body)
 			return fmt.Errorf("bulk status %d: %s", resp.StatusCode, string(body))
+		}
+		var bulkResp struct {
+			Errors bool `json:"errors"`
+			Items  []map[string]struct {
+				Status int `json:"status"`
+				Error  struct {
+					Type   string `json:"type"`
+					Reason string `json:"reason"`
+				} `json:"error"`
+			} `json:"items"`
+		}
+		if err := json.Unmarshal(body, &bulkResp); err == nil && bulkResp.Errors {
+			for _, it := range bulkResp.Items {
+				for _, op := range it {
+					if op.Error.Type != "" {
+						return fmt.Errorf("ES item error: %s: %s", op.Error.Type, op.Error.Reason)
+					}
+				}
+			}
 		}
 		bulkBuf.Reset()
 		return nil
@@ -101,54 +120,71 @@ func main() {
 
 	start := time.Now()
 	for cursor.Next(ctx) {
-		var j JobDoc
-		if err := cursor.Decode(&j); err != nil {
+		var doc bson.M
+		if err := cursor.Decode(&doc); err != nil {
 			continue
 		}
 
-		if j.Status != "open" || strings.TrimSpace(j.CanonicalTitle) == "" {
+		status, _ := doc["status"].(string)
+		title, _ := doc["canonical_title"].(string)
+		if title == "" {
+			title, _ = doc["title"].(string)
+		}
+		if status != "open" || strings.TrimSpace(title) == "" {
 			continue
+		}
+
+		id, _ := doc["_id"].(string)
+		companyName, _ := doc["company_name"].(string)
+		if companyName == "" {
+			companyName, _ = doc["company"].(string)
 		}
 
 		// Automatic Classification & Tiering
-		if j.JobDomain == "" {
-			tLower := strings.ToLower(j.CanonicalTitle)
+		if doc["job_domain"] == nil || doc["job_domain"] == "" {
+			tLower := strings.ToLower(title)
 			if strings.Contains(tLower, "account") || strings.Contains(tLower, "audit") || strings.Contains(tLower, "tax") || strings.Contains(tLower, "cpa") || strings.Contains(tLower, "controller") || strings.Contains(tLower, "finance") || strings.Contains(tLower, "payroll") {
-				j.JobDomain = "finance_accounting"
+				doc["job_domain"] = "finance_accounting"
 			} else {
-				j.JobDomain = "software_engineering"
+				doc["job_domain"] = "software_engineering"
 			}
 		}
 
-		if j.CompanyTier == "" {
-			cLower := strings.ToLower(j.CompanyName)
+		if doc["company_tier"] == nil || doc["company_tier"] == "" {
+			cLower := strings.ToLower(companyName)
 			switch {
 			case strings.Contains(cLower, "google") || strings.Contains(cLower, "meta") || strings.Contains(cLower, "apple") || strings.Contains(cLower, "netflix") || strings.Contains(cLower, "amazon") || strings.Contains(cLower, "microsoft") || strings.Contains(cLower, "openai") || strings.Contains(cLower, "nvidia") || strings.Contains(cLower, "anthropic") || strings.Contains(cLower, "tesla"):
-				j.CompanyTier = "faang"
+				doc["company_tier"] = "faang"
 			case strings.Contains(cLower, "cisco") || strings.Contains(cLower, "ibm") || strings.Contains(cLower, "oracle") || strings.Contains(cLower, "salesforce") || strings.Contains(cLower, "uber") || strings.Contains(cLower, "stripe") || strings.Contains(cLower, "datadog") || strings.Contains(cLower, "snowflake") || strings.Contains(cLower, "figma") || strings.Contains(cLower, "adobe") || strings.Contains(cLower, "intel") || strings.Contains(cLower, "tcs") || strings.Contains(cLower, "infosys") || strings.Contains(cLower, "wipro") || strings.Contains(cLower, "accenture") || strings.Contains(cLower, "deloitte"):
-				j.CompanyTier = "mnc"
+				doc["company_tier"] = "mnc"
 			default:
-				j.CompanyTier = "startup"
+				doc["company_tier"] = "startup"
 			}
 		}
 
-		if j.TargetCountry == "" {
-			locLower := strings.ToLower(j.DisplayLocation + " " + j.Location)
+		if doc["target_country"] == nil || doc["target_country"] == "" {
+			dispLoc, _ := doc["display_location"].(string)
+			loc, _ := doc["location"].(string)
+			locLower := strings.ToLower(dispLoc + " " + loc)
 			if strings.Contains(locLower, "india") || strings.Contains(locLower, "bengaluru") || strings.Contains(locLower, "hyderabad") || strings.Contains(locLower, "pune") || strings.Contains(locLower, "delhi") || strings.Contains(locLower, "mumbai") {
-				j.TargetCountry = "IN"
+				doc["target_country"] = "IN"
 			} else {
-				j.TargetCountry = "US"
+				doc["target_country"] = "US"
 			}
 		}
+
+		delete(doc, "_id")
+		doc["id"] = id
+		doc["canonical_title"] = title
 
 		action := map[string]interface{}{
 			"index": map[string]interface{}{
 				"_index": "onerole_jobs",
-				"_id":    j.ID,
+				"_id":    id,
 			},
 		}
 		actBytes, _ := json.Marshal(action)
-		docBytes, _ := json.Marshal(j)
+		docBytes, _ := json.Marshal(doc)
 
 		bulkBuf.Write(actBytes)
 		bulkBuf.WriteByte('\n')
@@ -161,9 +197,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Flush batch error: %v\n", err)
 				os.Exit(1)
 			}
-			if count%5000 == 0 {
-				fmt.Printf("Indexed %d jobs in %v...\n", count, time.Since(start))
-			}
+			fmt.Printf("Indexed %d jobs in %v...\n", count, time.Since(start))
 		}
 	}
 
