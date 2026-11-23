@@ -5258,26 +5258,19 @@ function renderCardSkeletons(containerId, count = 5, variant = 'match') {
 
 let inFlightPollingTimer = null;
 let inFlightPollCount = 0;
-const MAX_INFLIGHT_POLL_COUNT = 5; // Poll max 5 cycles (15s) after an apply action to verify status
+const MAX_INFLIGHT_POLL_COUNT = 45; // Poll up to 45 cycles (~135s) matching 120s worker timeout
 
 function startInFlightPolling() {
   if (inFlightPollingTimer) return;
   inFlightPollCount = 0;
   inFlightPollingTimer = setInterval(async () => {
     inFlightPollCount++;
-    const hasInFlight = STATE.applications && STATE.applications.some(a => a.status === 'in_flight');
+    const hasInFlight = STATE.applications && STATE.applications.some(a => a.status === 'in_flight' || a.rawStatus === 'QUEUED' || a.rawStatus === 'PREPARING' || a.rawStatus === 'SUBMITTING');
     if (!hasInFlight || inFlightPollCount >= MAX_INFLIGHT_POLL_COUNT) {
       clearInterval(inFlightPollingTimer);
       inFlightPollingTimer = null;
-      // Mark any still in_flight items as submitted locally if time exceeded
-      if (inFlightPollCount >= MAX_INFLIGHT_POLL_COUNT && STATE.applications) {
-        STATE.applications.forEach(a => {
-          if (a.status === 'in_flight') a.status = 'submitted';
-        });
-        localStorage.setItem('onerole_local_apps', JSON.stringify(STATE.applications.slice(0, 100)));
-        updateTrackerCounts();
-        renderAppTrackerTable();
-      }
+      // Do NOT fabricate submitted status. Re-fetch authoritative status from MongoDB.
+      await fetchApplications();
       return;
     }
     await fetchApplications();
@@ -5404,7 +5397,8 @@ async function fetchApplications() {
     for (const app of allPool) {
       const compKey = (app.company || '').toLowerCase().trim();
       const roleKey = (app.role || '').toLowerCase().trim();
-      const dedupKey = app.id || app.job_id || (compKey ? `${compKey}::${roleKey}` : '');
+      const cleanId = (app.id && !app.id.startsWith('app-pending-') && !app.id.startsWith('app-live-')) ? app.id : null;
+      const dedupKey = app.job_id || cleanId || (compKey ? `${compKey}::${roleKey}` : (app.id || ''));
       if (dedupKey && !seenComps.has(dedupKey)) {
         seenComps.add(dedupKey);
         delete app._isMongo;
@@ -5504,7 +5498,8 @@ function updateTrackerCounts() {
   for (const app of sortedApps) {
     const compKey = (app.company || '').toLowerCase().trim();
     const roleKey = (app.role || '').toLowerCase().trim();
-    const dedupKey = app.id || app.job_id || (compKey ? `${compKey}::${roleKey}` : '');
+    const cleanId = (app.id && !app.id.startsWith('app-pending-') && !app.id.startsWith('app-live-')) ? app.id : null;
+    const dedupKey = app.job_id || cleanId || (compKey ? `${compKey}::${roleKey}` : (app.id || ''));
     if (dedupKey && !seenComps.has(dedupKey)) {
       seenComps.add(dedupKey);
       dedupedApps.push(app);
@@ -5597,7 +5592,8 @@ function renderAppTrackerTable() {
   for (const app of sortedApps) {
     const compKey = (app.company || '').toLowerCase().trim();
     const roleKey = (app.role || '').toLowerCase().trim();
-    const dedupKey = app.id || app.job_id || (compKey ? `${compKey}::${roleKey}` : '');
+    const cleanId = (app.id && !app.id.startsWith('app-pending-') && !app.id.startsWith('app-live-')) ? app.id : null;
+    const dedupKey = app.job_id || cleanId || (compKey ? `${compKey}::${roleKey}` : (app.id || ''));
     if (dedupKey && !seenComps.has(dedupKey)) {
       seenComps.add(dedupKey);
       if (app.created_at || app.submitted_at) {
