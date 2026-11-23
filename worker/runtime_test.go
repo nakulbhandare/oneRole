@@ -42,7 +42,12 @@ func TestRuntimeLooksUpPreprovisionedDurablesWhenProvisioningDisabled(t *testing
 		{stream: queue.StreamApplications, name: "application-packet-prepare-v1"},
 		{stream: queue.StreamApplications, name: "application-batch-fanout-v1"},
 		{stream: queue.StreamApplications, name: "application-submit-v1"},
+		{stream: queue.StreamApplications, name: "application-submit-api-v1"},
+		{stream: queue.StreamApplications, name: "application-submit-browser-v1"},
+		{stream: queue.StreamApplications, name: "application-verify-v1"},
 		{stream: queue.StreamApplications, name: "application-reconcile-v1"},
+		{stream: queue.StreamApplications, name: "application-retry-v1"},
+		{stream: queue.StreamApplications, name: "application-dlq-v1"},
 		{stream: queue.StreamDiscovery, name: "discovery-source-sync-v1"},
 	}
 	if len(client.lookups) != len(want) || len(runtime.runners) != len(want) {

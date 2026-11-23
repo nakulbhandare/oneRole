@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onerole-worker-reconcile
+  namespace: onerole
+  labels:
+    app: onerole-worker-reconcile
+    app.kubernetes.io/name: onerole-worker-reconcile
+    app.kubernetes.io/part-of: onerole-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: onerole-worker-reconcile
+  template:
+    metadata:
+      labels:
+        app: onerole-worker-reconcile
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: reconcile-worker
+        image: oneroleacr.azurecr.io/onerole-api:latest
+        imagePullPolicy: Always
+        command: ["/app/server"]
+        args: ["--mode=worker-reconcile"]
+        ports:
+        - containerPort: 8090
+          name: health
+        env:
+        - name: NATS_URL
+          value: "nats://nats:4222"
+        - name: DATABASE_URL
+          value: "mongodb://mongodb:27017/onerole"
+        - name: CONSUMER_NAME
+          value: "application-reconcile-v1"
+        - name: CONCURRENCY
+          value: "20"
+        resources:
+          requests:
+            cpu: 150m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8090
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8090
+          initialDelaySeconds: 15
+          periodSeconds: 20

@@ -39,6 +39,7 @@ type JobSearchRequest struct {
 	JobDomain                    string            `json:"job_domain,omitempty"`
 	Industries                   []string          `json:"industries,omitempty"`
 	TargetCountry                string            `json:"target_country,omitempty"`
+	CompanyTier                  string            `json:"company_tier,omitempty"`
 }
 
 type DateFilter struct {
@@ -148,6 +149,7 @@ type JobSort string
 
 const (
 	SortRelevance     JobSort = "relevance"
+	SortATSScore      JobSort = "ats_score"
 	SortPublishedDesc JobSort = "published_desc"
 	SortFirstSeenDesc JobSort = "first_seen_desc"
 	SortSalaryDesc    JobSort = "salary_desc"

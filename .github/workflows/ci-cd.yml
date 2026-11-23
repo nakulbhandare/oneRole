@@ -16,6 +16,7 @@ jobs:
     outputs:
       ui: ${{ steps.filter.outputs.ui }}
       api: ${{ steps.filter.outputs.api }}
+      worker: ${{ steps.filter.outputs.worker }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -38,6 +39,9 @@ jobs:
               - 'config/**'
               - 'connectors/**'
               - 'k8s/**'
+            worker:
+              - 'connectors/ats_submit/**'
+              - 'k8s/worker_chromium.yaml'
 
   deploy-ui:
     needs: detect-changes
@@ -118,3 +122,43 @@ jobs:
         run: |
           kubectl set image deployment/onerole-api api=${{ secrets.ACR_REGISTRY }}/onerole-api:${{ github.sha }} -n onerole
           kubectl rollout status deployment/onerole-api -n onerole --timeout=180s
+
+  deploy-worker:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.worker == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push Worker Image
+        run: |
+          docker build \
+            -t ${{ secrets.ACR_REGISTRY }}/onerole-worker-chromium:${{ github.sha }} \
+            -t ${{ secrets.ACR_REGISTRY }}/onerole-worker-chromium:latest \
+            -f connectors/ats_submit/Dockerfile .
+          docker push ${{ secrets.ACR_REGISTRY }}/onerole-worker-chromium:${{ github.sha }}
+          docker push ${{ secrets.ACR_REGISTRY }}/onerole-worker-chromium:latest
+
+      - name: Set AKS Context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Deploy Worker Pods
+        run: |
+          kubectl set image deployment/onerole-worker-chromium worker=${{ secrets.ACR_REGISTRY }}/onerole-worker-chromium:${{ github.sha }} -n onerole
+          kubectl rollout status deployment/onerole-worker-chromium -n onerole --timeout=180s

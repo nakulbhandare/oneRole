@@ -1,13 +1,29 @@
 package models
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
-// ApplicationStatus is the internal workflow state. DISCOVERED and MATCHED
-// are deliberately not public API states; clients see an application only
-// after preparation begins.
+// ApplicationStatus is the internal workflow state.
 type ApplicationStatus string
 
 const (
+	// Canonical Rule 8 Application Workflow Statuses
+	StatusDiscovered          ApplicationStatus = "DISCOVERED"
+	StatusEligible            ApplicationStatus = "ELIGIBLE"
+	StatusPreparing           ApplicationStatus = "PREPARING"
+	StatusReady               ApplicationStatus = "READY"
+	StatusQueued              ApplicationStatus = "QUEUED"
+	StatusSubmitting          ApplicationStatus = "SUBMITTING"
+	StatusSubmittedUnverified ApplicationStatus = "SUBMITTED_UNVERIFIED"
+	StatusSubmittedConfirmed  ApplicationStatus = "SUBMITTED_CONFIRMED"
+	StatusActionRequired      ApplicationStatus = "ACTION_REQUIRED"
+	StatusRejected            ApplicationStatus = "REJECTED"
+	StatusFailed              ApplicationStatus = "FAILED"
+	StatusUnknown             ApplicationStatus = "UNKNOWN"
+
+	// Legacy / Compatibility Status Aliases
 	ApplicationDiscovered            ApplicationStatus = "discovered"
 	ApplicationMatched               ApplicationStatus = "matched"
 	ApplicationPreparing             ApplicationStatus = "preparing"
@@ -28,6 +44,50 @@ const (
 	ApplicationSkipped               ApplicationStatus = "skipped"
 	ApplicationRejectedByUser        ApplicationStatus = "rejected_by_user"
 )
+
+// NormalizeApplicationStatus maps any raw or legacy status string to its canonical Rule 8 status.
+func NormalizeApplicationStatus(raw string) ApplicationStatus {
+	switch strings.ToUpper(strings.TrimSpace(raw)) {
+	case "DISCOVERED":
+		return StatusDiscovered
+	case "ELIGIBLE", "MATCHED":
+		return StatusEligible
+	case "PREPARING", "NEEDS_USER_INPUT":
+		return StatusPreparing
+	case "READY", "READY_FOR_REVIEW", "APPROVED":
+		return StatusReady
+	case "QUEUED":
+		return StatusQueued
+	case "SUBMITTING", "IN_FLIGHT":
+		return StatusSubmitting
+	case "SUBMITTED_UNVERIFIED", "SUBMISSION_UNCONFIRMED":
+		return StatusSubmittedUnverified
+	case "SUBMITTED_CONFIRMED", "SUBMITTED":
+		return StatusSubmittedConfirmed
+	case "ACTION_REQUIRED", "REQUIRES_MANUAL_ACTION":
+		return StatusActionRequired
+	case "REJECTED", "REJECTED_BY_USER", "SKIPPED", "DUPLICATE", "EXPIRED":
+		return StatusRejected
+	case "FAILED", "FAILED_PERMANENT", "FAILED_RETRYABLE", "STUCK":
+		return StatusFailed
+	case "UNKNOWN":
+		return StatusUnknown
+	default:
+		return StatusUnknown
+	}
+}
+
+// IsRule8Status returns true if the status is one of the 12 canonical Rule 8 statuses.
+func IsRule8Status(s ApplicationStatus) bool {
+	switch s {
+	case StatusDiscovered, StatusEligible, StatusPreparing, StatusReady, StatusQueued,
+		StatusSubmitting, StatusSubmittedUnverified, StatusSubmittedConfirmed,
+		StatusActionRequired, StatusRejected, StatusFailed, StatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
 
 // PublicApplicationStatus mirrors the public /api/v1 Application.status enum.
 type PublicApplicationStatus string
@@ -55,17 +115,23 @@ const (
 // Application is the public representation returned by the /api/v1 API. Its
 // status cannot carry internal pre-application states.
 type Application struct {
-	ID                 string                  `json:"id" bson:"_id"`
-	JobID              string                  `json:"job_id" bson:"job_id"`
-	CompanyName        string                  `json:"company_name,omitempty" bson:"company_name,omitempty"`
-	JobTitle           string                  `json:"job_title,omitempty" bson:"job_title,omitempty"`
-	Status             PublicApplicationStatus `json:"status" bson:"status"`
-	Capability         ApplicationCapability   `json:"capability" bson:"capability_snapshot"`
-	PauseReason        *string                 `json:"pause_reason,omitempty" bson:"pause_reason,omitempty"`
-	LastError          *string                 `json:"last_error,omitempty" bson:"last_error,omitempty"`
-	VerifiedReceiptID  *string                 `json:"verified_receipt_id,omitempty" bson:"verified_receipt_id,omitempty"`
-	CreatedAt          time.Time               `json:"created_at" bson:"created_at"`
-	UpdatedAt          time.Time               `json:"updated_at" bson:"updated_at"`
+	ID                   string                  `json:"id" bson:"_id"`
+	JobID                string                  `json:"job_id" bson:"job_id"`
+	CompanyName          string                  `json:"company_name,omitempty" bson:"company_name,omitempty"`
+	JobTitle             string                  `json:"job_title,omitempty" bson:"job_title,omitempty"`
+	Status               PublicApplicationStatus `json:"status" bson:"status"`
+	CanonicalStatus      ApplicationStatus       `json:"canonical_status,omitempty" bson:"canonical_status,omitempty"`
+	Capability           ApplicationCapability   `json:"capability" bson:"capability_snapshot"`
+	PauseReason          *string                 `json:"pause_reason,omitempty" bson:"pause_reason,omitempty"`
+	LastError            *string                 `json:"last_error,omitempty" bson:"last_error,omitempty"`
+	VerifiedReceiptID    *string                 `json:"verified_receipt_id,omitempty" bson:"verified_receipt_id,omitempty"`
+	ConfirmationEvidence map[string]any          `json:"confirmation_evidence,omitempty" bson:"confirmation_evidence,omitempty"`
+	FencingToken         int64                   `json:"fencing_token,omitempty" bson:"fencing_token,omitempty"`
+	LeaseOwner           *string                 `json:"lease_owner,omitempty" bson:"lease_owner,omitempty"`
+	LeaseExpiresAt       *time.Time              `json:"lease_expires_at,omitempty" bson:"lease_expires_at,omitempty"`
+	AttemptCount         int                     `json:"attempt_count,omitempty" bson:"attempt_count,omitempty"`
+	CreatedAt            time.Time               `json:"created_at" bson:"created_at"`
+	UpdatedAt            time.Time               `json:"updated_at" bson:"updated_at"`
 }
 
 // ApplicationEvent represents an append-only audit event in an application's lifecycle.

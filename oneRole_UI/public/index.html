@@ -9,7 +9,7 @@
   <link rel="alternate icon" type="image/png" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/favicon.png">
-  <link rel="stylesheet" href="/styles.css?v=2.9">
+  <link rel="stylesheet" href="/styles.css?v=3.1">
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
     /* Strict 5-in-a-Row Match Cards Queue (Tsenta Design Language) */
@@ -222,14 +222,19 @@
       <div class="border-t border-[#314a3f]"></div>
 
       <!-- User Profile Pill -->
-      <div class="flex items-center space-x-3 px-1 py-1 cursor-pointer" onclick="switchNav('profile')">
-        <div class="w-8 h-8 rounded-full bg-[#ecd8c7] text-[#754e35] flex items-center justify-center font-bold text-xs">
-          NB
+      <div class="flex items-center justify-between px-1 py-1">
+        <div class="flex items-center space-x-3 cursor-pointer min-w-0 flex-1" onclick="switchNav('profile')">
+          <div class="w-8 h-8 rounded-full bg-[#ecd8c7] text-[#754e35] flex items-center justify-center font-bold text-xs" id="sidebarUserInitials">
+            NB
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-bold text-white truncate" id="sidebarUserName">Nakul Bhandare</p>
+            <p class="text-[10px] text-[#9fb0a7] truncate" id="sidebarUserEmail">bhandarenakul11@gmail.com</p>
+          </div>
         </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-xs font-bold text-white truncate" id="sidebarUserName">Nakul Bhandare</p>
-          <p class="text-[10px] text-[#9fb0a7] truncate" id="sidebarUserEmail">bhandarenakul11@gmail.com</p>
-        </div>
+        <button onclick="handleLogout()" class="p-1.5 text-[#9fb0a7] hover:text-white rounded transition" title="Sign Out">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
       </div>
     </div>
   </aside>
@@ -268,7 +273,7 @@
         </nav>
       </div>
 
-      <!-- Right: Settings & ATS Vault & Profile -->
+      <!-- Right: Settings & ATS Vault & User Auth Dropdown -->
       <div class="flex items-center space-x-2.5">
         <button onclick="openAnswerBank()" class="px-2.5 py-1 text-xs text-[#24684f] bg-[#eaf4ef] hover:bg-[#d8ece1] rounded-full font-bold flex items-center space-x-1 border border-[#c4e3d1] transition shadow-xs" title="ATS Universal Screening Answer Bank (700+ questions)">
           <span>🛡️</span>
@@ -279,8 +284,37 @@
           <span>Ledger</span>
         </button>
         <button onclick="switchNav('settings')" class="text-xs text-[#526359] hover:text-[#18181b] font-medium">Settings</button>
-        <div class="w-7 h-7 rounded-full bg-[#ecd8c7] text-[#754e35] flex items-center justify-center font-bold text-[10px] shadow-sm cursor-pointer" onclick="switchNav('profile')">
-          NB
+        
+        <!-- Auth Controls (Dynamic Logged Out / Logged In) -->
+        <div id="navLoggedOutControls" class="flex items-center space-x-2" style="display: none;">
+          <button onclick="switchNav('login')" class="px-3 py-1 text-xs font-semibold text-[#152c25] hover:text-[#24684f] transition">Sign In</button>
+          <button onclick="switchNav('signup')" class="px-3 py-1 text-xs font-bold bg-[#152c25] hover:bg-[#254b3e] text-white rounded-full transition shadow-xs">Sign Up</button>
+        </div>
+
+        <div id="navLoggedInControls" class="relative">
+          <div id="navUserAvatar" class="w-7 h-7 rounded-full bg-[#ecd8c7] text-[#754e35] flex items-center justify-center font-bold text-[10px] shadow-sm cursor-pointer select-none" onclick="toggleUserDropdown()" title="Account & Profile">
+            NB
+          </div>
+          <!-- User Dropdown Menu -->
+          <div id="navUserDropdown" class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e8ece9] py-2 z-50 hidden">
+            <div class="px-4 py-2 border-b border-[#f0f3f1]">
+              <p class="text-xs font-bold text-[#1d2825] truncate" id="dropdownUserName">Nakul Bhandare</p>
+              <p class="text-[10px] text-[#78827e] truncate" id="dropdownUserEmail">bhandarenakul11@gmail.com</p>
+            </div>
+            <a href="javascript:void(0)" onclick="switchNav('profile'); closeUserDropdown();" class="flex items-center px-4 py-2 text-xs text-[#374151] hover:bg-[#f7f9f8] transition">
+              <span class="mr-2">👤</span> Profile & Resume
+            </a>
+            <a href="javascript:void(0)" onclick="openAnswerBank(); closeUserDropdown();" class="flex items-center px-4 py-2 text-xs text-[#374151] hover:bg-[#f7f9f8] transition">
+              <span class="mr-2">🛡️</span> ATS Universal Vault
+            </a>
+            <a href="javascript:void(0)" onclick="switchNav('settings'); closeUserDropdown();" class="flex items-center px-4 py-2 text-xs text-[#374151] hover:bg-[#f7f9f8] transition">
+              <span class="mr-2">⚙️</span> Preferences & Sync
+            </a>
+            <div class="border-t border-[#f0f3f1] my-1"></div>
+            <a href="javascript:void(0)" onclick="handleLogout(); closeUserDropdown();" class="flex items-center px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition font-semibold">
+              <span class="mr-2">🚪</span> Sign Out
+            </a>
+          </div>
         </div>
       </div>
     </header>
@@ -1407,6 +1441,17 @@
               <span>Real-time backend data</span>
             </div>
           </div>
+
+          <!-- 4-Tier Hierarchy Feed Navigation -->
+          <div class="flex items-center gap-2 overflow-x-auto py-1 text-xs" id="tierFilterContainer">
+            <span class="text-[11px] font-bold text-[#4a5551] flex-shrink-0 uppercase tracking-wider">Hierarchy:</span>
+            <button onclick="setTierFilter('all')" id="tierBtn-all" class="tier-nav-btn active px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer bg-[#24684f] text-white shadow-2xs flex-shrink-0">All Tiers (1.1k+)</button>
+            <button onclick="setTierFilter('faang')" id="tierBtn-faang" class="tier-nav-btn px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer bg-[#fef3c7] text-[#92400e] border border-[#fde68a] hover:brightness-95 flex-shrink-0">🏛️ Tier 1: FAANG / Tier-1 Tech (500+)</button>
+            <button onclick="setTierFilter('mnc')" id="tierBtn-mnc" class="tier-nav-btn px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer bg-[#ede9fe] text-[#5b21b6] border border-[#ddd6fe] hover:brightness-95 flex-shrink-0">🏢 Tier 2: MNC / Enterprise (500+)</button>
+            <button onclick="setTierFilter('startup')" id="tierBtn-startup" class="tier-nav-btn px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0] hover:brightness-95 flex-shrink-0">🚀 Tier 3: Startups (100+)</button>
+            <button onclick="setTierFilter('internship')" id="tierBtn-internship" class="tier-nav-btn px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe] hover:brightness-95 flex-shrink-0">🎓 Tier 4: Internships</button>
+          </div>
+
           <div id="feedJobGrid" class="bento-job-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <!-- Dynamically populated by renderJobCatalog() -->
           </div>
@@ -2239,6 +2284,240 @@
           </div>
         </div>
       </div>
+
+      <!-- =================================================================== -->
+      <!-- VIEW: LOGIN (Sign In to OneRole - Centered Enterprise Layout)        -->
+      <!-- =================================================================== -->
+      <div id="view-login" class="view-panel w-full min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-[#fafbfc] relative overflow-hidden">
+        <!-- Subtle Top Ambient Glow -->
+        <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-gradient-to-b from-[#24684f]/15 to-transparent blur-3xl rounded-full pointer-events-none"></div>
+
+        <!-- Centered Card -->
+        <div class="w-full max-w-[460px] bg-white border border-[#dce3de] rounded-2xl shadow-xl p-8 sm:p-10 space-y-6 relative z-10">
+          
+          <!-- Logo & Header -->
+          <div class="text-center space-y-2">
+            <div class="w-12 h-12 rounded-2xl bg-[#d8eadb] mx-auto flex items-center justify-center shadow-xs border border-[#c4e3d1]">
+              <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+                <path d="M7 23L12 7L16 16L19 10L24 23M7 24H24" stroke="#174a38" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-extrabold text-[#11241d] tracking-tight">Sign in to OneRole</h1>
+            <p class="text-xs text-[#66756d]">Enterprise autonomous candidate intelligence & ATS submission engine</p>
+          </div>
+
+          <!-- Cluster Status Badge -->
+          <div class="flex items-center justify-center">
+            <div class="inline-flex items-center space-x-2 text-[11px] text-[#526359] font-medium bg-[#f3f6f4] px-3 py-1 rounded-full border border-[#e2e7e4] shadow-2xs">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Production Cluster: <strong class="text-[#152c25]">Operational</strong></span>
+            </div>
+          </div>
+
+          <!-- 1-Click Fast Pass for Nakul Bhandare -->
+          <div class="p-3.5 rounded-xl bg-gradient-to-r from-[#eaf6ee] to-[#e1f0e7] border border-[#b9e0ca] shadow-2xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-extrabold tracking-wider uppercase text-[#18533d] flex items-center space-x-1">
+                <span>⚡</span>
+                <span>Fast-Pass Authorized Session</span>
+              </span>
+              <span class="text-[10px] font-semibold text-[#24684f] bg-white/90 px-2 py-0.5 rounded-full border border-[#c4e3d1]">Pre-Verified</span>
+            </div>
+            <button type="button" onclick="handleDevLoginQuick()" class="w-full py-2.5 px-3 bg-[#152c25] hover:bg-[#1f4237] text-white text-xs font-bold rounded-lg transition shadow-sm flex items-center justify-center space-x-2">
+              <span>Continue as Nakul Bhandare</span>
+              <span class="text-[#86efac] font-normal text-[11px]">(bhandarenakul11@gmail.com)</span>
+              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </button>
+          </div>
+
+          <!-- Divider -->
+          <div class="relative flex items-center justify-center">
+            <div class="border-t border-[#e2e7e4] w-full"></div>
+            <span class="bg-white px-3 text-[10px] uppercase tracking-wider text-[#85958c] font-bold absolute">or continue with enterprise SSO</span>
+          </div>
+
+          <!-- OAuth / Enterprise Identity Providers -->
+          <div class="grid grid-cols-2 gap-3">
+            <a href="/api/v1/auth/oauth/google/start" class="py-2.5 px-3 bg-white border border-[#d8deda] hover:bg-[#f5f7f6] hover:border-[#b8c4bc] rounded-xl text-xs font-semibold text-[#2f3e37] transition flex items-center justify-center space-x-2 shadow-2xs">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+              <span>Google Workspace</span>
+            </a>
+            <a href="/api/v1/auth/oauth/github/start" class="py-2.5 px-3 bg-white border border-[#d8deda] hover:bg-[#f5f7f6] hover:border-[#b8c4bc] rounded-xl text-xs font-semibold text-[#2f3e37] transition flex items-center justify-center space-x-2 shadow-2xs">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+              <span>GitHub Enterprise</span>
+            </a>
+          </div>
+
+          <!-- Alert / Error Banner -->
+          <div id="loginAlert" class="hidden p-3 rounded-xl text-xs font-medium border"></div>
+
+          <!-- Form: Work Email & Password -->
+          <form id="loginForm" onsubmit="handleLoginFormSubmit(event)" class="space-y-4">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-[#1d2825]" for="loginEmail">Work Email</label>
+              <div class="relative">
+                <input id="loginEmail" type="email" required placeholder="you@company.com" autocomplete="email" class="w-full px-3.5 py-2.5 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs placeholder-[#9ca8a1]">
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="block text-xs font-bold text-[#1d2825]" for="loginPassword">Password</label>
+                <a href="javascript:void(0)" onclick="switchNav('forgot-password')" class="text-[11px] font-semibold text-[#24684f] hover:underline">Forgot password?</a>
+              </div>
+              <div class="relative">
+                <input id="loginPassword" type="password" required placeholder="••••••••" autocomplete="current-password" class="w-full px-3.5 py-2.5 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs placeholder-[#9ca8a1]">
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-xs pt-1">
+              <label class="flex items-center space-x-2 text-[#526359] cursor-pointer">
+                <input type="checkbox" id="loginRememberMe" checked class="rounded border-[#d8deda] text-[#24684f] focus:ring-[#24684f]">
+                <span>Remember this workstation for 30 days</span>
+              </label>
+            </div>
+
+            <button type="submit" id="loginSubmitBtn" class="w-full py-2.5 bg-[#152c25] hover:bg-[#1f4237] text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center justify-center space-x-2">
+              <span>Sign In to Console</span>
+            </button>
+          </form>
+
+          <!-- Footer Switch to Signup -->
+          <div class="text-center pt-2 text-xs text-[#78827e] border-t border-[#e8edea]">
+            <span>Don't have an enterprise account? </span>
+            <a href="javascript:void(0)" onclick="switchNav('signup')" class="font-bold text-[#24684f] hover:underline">Request access / Sign up</a>
+          </div>
+        </div>
+
+        <!-- Below Card Security & Compliance Badges -->
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-[#78827e] relative z-10">
+          <span class="flex items-center space-x-1.5">
+            <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            <strong class="text-[#1d2825]">SOC 2 Type II</strong> Certified
+          </span>
+          <span>·</span>
+          <span>256-bit AES / TLS 1.3</span>
+          <span>·</span>
+          <span>Single-Tenant Partitioning</span>
+        </div>
+
+        <div class="mt-2 text-center text-[11px] text-[#9ca3af] relative z-10">
+          <span>© 2026 OneRole Inc.</span> · 
+          <a href="javascript:void(0)" class="hover:text-[#1d2825]">Privacy Policy</a> · 
+          <a href="javascript:void(0)" class="hover:text-[#1d2825]">Security Architecture</a> · 
+          <a href="javascript:void(0)" class="hover:text-[#1d2825]">System Status</a>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- VIEW: SIGNUP (Create OneRole Account - Centered Enterprise Layout)   -->
+      <!-- =================================================================== -->
+      <div id="view-signup" class="view-panel w-full min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-[#fafbfc] relative overflow-hidden">
+        <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-gradient-to-b from-[#24684f]/15 to-transparent blur-3xl rounded-full pointer-events-none"></div>
+
+        <div class="w-full max-w-[480px] bg-white border border-[#dce3de] rounded-2xl shadow-xl p-8 sm:p-10 space-y-5 relative z-10">
+          <div class="text-center space-y-2">
+            <div class="w-12 h-12 rounded-2xl bg-[#d8eadb] mx-auto flex items-center justify-center shadow-xs border border-[#c4e3d1]">
+              <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+                <path d="M7 23L12 7L16 16L19 10L24 23M7 24H24" stroke="#174a38" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-extrabold text-[#11241d] tracking-tight">Create your OneRole account</h1>
+            <p class="text-xs text-[#66756d]">Deploy your autonomous candidate intelligence cluster in seconds.</p>
+          </div>
+
+          <!-- Alert / Error Banner -->
+          <div id="signupAlert" class="hidden p-3 rounded-xl text-xs font-medium border"></div>
+
+          <form id="signupForm" onsubmit="handleSignupFormSubmit(event)" class="space-y-3.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="block text-xs font-bold text-[#1d2825]" for="signupName">Full Name</label>
+                <input id="signupName" type="text" required placeholder="Nakul Bhandare" autocomplete="name" class="w-full px-3 py-2 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs">
+              </div>
+              <div class="space-y-1">
+                <label class="block text-xs font-bold text-[#1d2825]" for="signupRole">Target Role</label>
+                <input id="signupRole" type="text" placeholder="Senior Backend Engineer" class="w-full px-3 py-2 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs">
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-xs font-bold text-[#1d2825]" for="signupEmail">Work Email</label>
+              <input id="signupEmail" type="email" required placeholder="you@company.com" autocomplete="email" class="w-full px-3 py-2 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="block text-xs font-bold text-[#1d2825]" for="signupPassword">Password</label>
+                <input id="signupPassword" type="password" required minlength="8" placeholder="Min. 8 characters" autocomplete="new-password" class="w-full px-3 py-2 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs">
+              </div>
+              <div class="space-y-1">
+                <label class="block text-xs font-bold text-[#1d2825]" for="signupConfirmPassword">Confirm Password</label>
+                <input id="signupConfirmPassword" type="password" required minlength="8" placeholder="Repeat password" autocomplete="new-password" class="w-full px-3 py-2 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs">
+              </div>
+            </div>
+
+            <label class="flex items-start space-x-2 text-[11px] text-[#526359] cursor-pointer pt-1">
+              <input type="checkbox" id="signupTerms" required checked class="mt-0.5 rounded border-[#d8deda] text-[#24684f] focus:ring-[#24684f]">
+              <span>I agree to OneRole's Terms of Service, Privacy Policy, and automated ATS application dispatch.</span>
+            </label>
+
+            <button type="submit" id="signupSubmitBtn" class="w-full py-2.5 bg-[#152c25] hover:bg-[#1f4237] text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center justify-center space-x-2">
+              <span>Create Enterprise Account</span>
+            </button>
+          </form>
+
+          <div class="text-center pt-2 text-xs text-[#78827e] border-t border-[#e8edea]">
+            <span>Already have an account? </span>
+            <a href="javascript:void(0)" onclick="switchNav('login')" class="font-bold text-[#24684f] hover:underline">Sign in</a>
+          </div>
+        </div>
+
+        <div class="mt-4 text-center text-[11px] text-[#85958c] relative z-10">
+          <span>Protected by Enterprise TLS 1.3 Encryption and Single-Tenant Partitioning</span>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- VIEW: FORGOT PASSWORD (Password Recovery - Centered Layout)         -->
+      <!-- =================================================================== -->
+      <div id="view-forgot-password" class="view-panel w-full min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-[#fafbfc] relative overflow-hidden">
+        <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-gradient-to-b from-[#24684f]/15 to-transparent blur-3xl rounded-full pointer-events-none"></div>
+
+        <div class="w-full max-w-[440px] bg-white border border-[#dce3de] rounded-2xl shadow-xl p-8 sm:p-10 space-y-5 relative z-10">
+          <div class="text-center space-y-2">
+            <div class="w-12 h-12 rounded-2xl bg-[#d8eadb] mx-auto flex items-center justify-center shadow-xs border border-[#c4e3d1]">
+              <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+                <path d="M7 23L12 7L16 16L19 10L24 23M7 24H24" stroke="#174a38" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-extrabold text-[#11241d] tracking-tight">Reset your password</h1>
+            <p class="text-xs text-[#66756d]">Enter your registered work email and we'll dispatch reset instructions.</p>
+          </div>
+
+          <div id="forgotAlert" class="hidden p-3 rounded-xl text-xs font-medium border"></div>
+
+          <form id="forgotForm" onsubmit="handleForgotPasswordSubmit(event)" class="space-y-4">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-[#1d2825]" for="forgotEmail">Registered Work Email</label>
+              <input id="forgotEmail" type="email" required placeholder="you@company.com" autocomplete="email" class="w-full px-3.5 py-2.5 text-xs bg-white border border-[#d8deda] rounded-xl focus:outline-none focus:border-[#24684f] focus:ring-2 focus:ring-[#24684f]/20 transition text-[#1d2825] shadow-2xs">
+            </div>
+
+            <button type="submit" id="forgotSubmitBtn" class="w-full py-2.5 bg-[#152c25] hover:bg-[#1f4237] text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center justify-center space-x-2">
+              <span>Send Reset Instructions</span>
+            </button>
+          </form>
+
+          <div class="text-center pt-2 text-xs text-[#78827e] border-t border-[#e8edea]">
+            <span>Remembered your password? </span>
+            <a href="javascript:void(0)" onclick="switchNav('login')" class="font-bold text-[#24684f] hover:underline">Back to Sign in</a>
+          </div>
+        </div>
+
+        <div class="mt-4 text-center text-[11px] text-[#85958c] relative z-10">
+          <span>© 2026 OneRole Inc.</span>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -2969,6 +3248,6 @@
   <!-- TOAST CONTAINER -->
   <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
-  <script src="/app.js?v=5.1"></script>
+  <script src="/app.js?v=5.4"></script>
 </body>
 </html>

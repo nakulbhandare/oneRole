@@ -185,10 +185,10 @@ func NormalizeJobSearchRequest(req models.JobSearchRequest) (models.JobSearchReq
 	validateEnums("employment_types", req.EmploymentTypes,
 		[]models.EmploymentType{models.EmploymentFullTime, models.EmploymentPartTime, models.EmploymentContract, models.EmploymentTemporary, models.EmploymentSeasonal, models.EmploymentFreelance, models.EmploymentInternship, models.EmploymentApprenticeship, models.EmploymentOther}, add)
 
-	if req.Sort == "" {
+	if req.Sort == "" || req.Sort == models.SortATSScore {
 		req.Sort = models.SortRelevance
 	}
-	if !oneOf(string(req.Sort), string(models.SortRelevance), string(models.SortPublishedDesc), string(models.SortFirstSeenDesc), string(models.SortSalaryDesc)) {
+	if !oneOf(string(req.Sort), string(models.SortRelevance), string(models.SortATSScore), string(models.SortPublishedDesc), string(models.SortFirstSeenDesc), string(models.SortSalaryDesc)) {
 		add("sort", "invalid_enum", "is not a supported sort order")
 	}
 	if req.Cursor != nil {
@@ -203,6 +203,10 @@ func NormalizeJobSearchRequest(req models.JobSearchRequest) (models.JobSearchReq
 		req.Limit = 25
 	} else if req.Limit < 1 || req.Limit > 100 {
 		add("limit", "out_of_range", "must be between 1 and 100")
+	}
+
+	if req.CompanyTier != "" {
+		req.CompanyTier = strings.ToLower(strings.TrimSpace(req.CompanyTier))
 	}
 
 	return req, errs

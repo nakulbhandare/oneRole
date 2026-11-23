@@ -148,7 +148,12 @@ func NewRuntime(config RuntimeConfig, dependencies RuntimeDependencies, onError 
 		queue.EventApplicationPrepareRequested,
 		queue.EventApplicationBatchRequested,
 		queue.EventApplicationSubmitRequested,
+		queue.EventApplicationSubmitAPIRequested,
+		queue.EventApplicationSubmitBrowserRequested,
+		queue.EventApplicationVerifyRequested,
 		queue.EventApplicationReconcileRequested,
+		queue.EventApplicationRetryRequested,
+		queue.EventApplicationDLQRequested,
 	}
 	handlers := make(map[string]EventHandler, len(appTypes)+1)
 	for _, eventType := range appTypes {
@@ -180,7 +185,12 @@ func (r *Runtime) ensureConsumers(ctx context.Context) error {
 		{queue.StreamApplications, "application-packet-prepare-v1", queue.SubjectApplicationPrepare},
 		{queue.StreamApplications, "application-batch-fanout-v1", queue.SubjectApplicationBatch},
 		{queue.StreamApplications, "application-submit-v1", queue.SubjectApplicationSubmit},
+		{queue.StreamApplications, "application-submit-api-v1", queue.SubjectApplicationSubmitAPI},
+		{queue.StreamApplications, "application-submit-browser-v1", queue.SubjectApplicationSubmitBrowser},
+		{queue.StreamApplications, "application-verify-v1", queue.SubjectApplicationVerify},
 		{queue.StreamApplications, "application-reconcile-v1", queue.SubjectApplicationReconcile},
+		{queue.StreamApplications, "application-retry-v1", queue.SubjectApplicationRetry},
+		{queue.StreamApplications, "application-dlq-v1", queue.SubjectApplicationDLQ},
 		{queue.StreamDiscovery, "discovery-source-sync-v1", queue.SubjectSourceSync},
 	}
 	for _, spec := range consumerSpecs {

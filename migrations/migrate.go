@@ -149,7 +149,43 @@ func Apply(ctx context.Context, database *mongo.Database) error {
 				Options: options.Index().SetUnique(true),
 			},
 			{
+				Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "job_id", Value: 1}},
+				Options: options.Index().SetUnique(true),
+			},
+			{
 				Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "status", Value: 1}, {Key: "created_at", Value: -1}},
+			},
+			{
+				Keys: bson.D{{Key: "status", Value: 1}, {Key: "lease_expires_at", Value: 1}},
+			},
+		},
+		"submission_attempts": {
+			{
+				Keys: bson.D{{Key: "application_id", Value: 1}, {Key: "started_at", Value: -1}},
+			},
+			{
+				Keys: bson.D{{Key: "lease_owner", Value: 1}, {Key: "lease_expires_at", Value: 1}},
+			},
+			{
+				Keys: bson.D{{Key: "status", Value: 1}, {Key: "started_at", Value: -1}},
+			},
+			{
+				Keys: bson.D{{Key: "job_id", Value: 1}, {Key: "status", Value: 1}},
+			},
+		},
+		"form_schemas": {
+			{
+				Keys:    bson.D{{Key: "provider", Value: 1}, {Key: "job_id", Value: 1}, {Key: "version", Value: -1}},
+				Options: options.Index().SetUnique(true),
+			},
+			{
+				Keys: bson.D{{Key: "job_id", Value: 1}},
+			},
+		},
+		"ats_adapter_registry": {
+			{
+				Keys:    bson.D{{Key: "provider", Value: 1}},
+				Options: options.Index().SetUnique(true),
 			},
 		},
 		"application_batches": {

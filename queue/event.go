@@ -21,25 +21,35 @@ var (
 // Event types are stable, versioned outbox values. JetStream subjects are
 // deliberately separate and are derived by SubjectForEventType.
 const (
-	EventApplicationPrepareRequested   = "application.packet.prepare.requested"
-	EventApplicationBatchRequested     = "application.batch.fanout.requested"
-	EventApplicationSubmitRequested    = "application.submit.requested"
-	EventApplicationReconcileRequested = "application.reconcile.requested"
-	EventSourceSyncRequested           = "discovery.source.sync.requested"
-	EventJobNormalizeRequested         = "discovery.job.normalize.requested"
-	EventJobIndexRequested             = "discovery.job.index.requested"
-	EventMaintenanceRequested          = "maintenance.execute.requested"
+	EventApplicationPrepareRequested       = "application.packet.prepare.requested"
+	EventApplicationBatchRequested         = "application.batch.fanout.requested"
+	EventApplicationSubmitRequested        = "application.submit.requested"
+	EventApplicationSubmitAPIRequested     = "application.submit.api.requested"
+	EventApplicationSubmitBrowserRequested = "application.submit.browser.requested"
+	EventApplicationVerifyRequested        = "application.verify.requested"
+	EventApplicationReconcileRequested     = "application.reconcile.requested"
+	EventApplicationRetryRequested         = "application.retry.requested"
+	EventApplicationDLQRequested           = "application.dlq.requested"
+	EventSourceSyncRequested               = "discovery.source.sync.requested"
+	EventJobNormalizeRequested             = "discovery.job.normalize.requested"
+	EventJobIndexRequested                 = "discovery.job.index.requested"
+	EventMaintenanceRequested              = "maintenance.execute.requested"
 )
 
 const (
-	SubjectApplicationPrepare   = "application.packet.prepare"
-	SubjectApplicationBatch     = "application.batch.fanout"
-	SubjectApplicationSubmit    = "application.submit"
-	SubjectApplicationReconcile = "application.reconcile"
-	SubjectSourceSync           = "discovery.source.sync"
-	SubjectJobNormalize         = "discovery.job.normalize"
-	SubjectJobIndex             = "discovery.job.index"
-	SubjectMaintenance          = "maintenance.execute"
+	SubjectApplicationPrepare       = "application.packet.prepare"
+	SubjectApplicationBatch         = "application.batch.fanout"
+	SubjectApplicationSubmit        = "application.submit"
+	SubjectApplicationSubmitAPI     = "application.submit.api"
+	SubjectApplicationSubmitBrowser = "application.submit.browser"
+	SubjectApplicationVerify        = "application.verify"
+	SubjectApplicationReconcile     = "application.reconcile"
+	SubjectApplicationRetry         = "application.retry"
+	SubjectApplicationDLQ           = "application.dlq"
+	SubjectSourceSync               = "discovery.source.sync"
+	SubjectJobNormalize             = "discovery.job.normalize"
+	SubjectJobIndex                 = "discovery.job.index"
+	SubjectMaintenance              = "maintenance.execute"
 )
 
 // Event contains only identity and routing metadata. Payload values are
@@ -66,14 +76,19 @@ type eventContract struct {
 }
 
 var eventContracts = map[string]eventContract{
-	EventApplicationPrepareRequested:   {SubjectApplicationPrepare, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
-	EventApplicationBatchRequested:     {SubjectApplicationBatch, "application_batch", "batch_id", []string{"batch_id", "actor_user_id"}, false},
-	EventApplicationSubmitRequested:    {SubjectApplicationSubmit, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
-	EventApplicationReconcileRequested: {SubjectApplicationReconcile, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
-	EventSourceSyncRequested:           {SubjectSourceSync, "source_sync_run", "sync_run_id", []string{"source_id", "sync_run_id"}, true},
-	EventJobNormalizeRequested:         {SubjectJobNormalize, "job_observation", "observation_id", []string{"observation_id"}, true},
-	EventJobIndexRequested:             {SubjectJobIndex, "job", "job_id", []string{"job_id"}, true},
-	EventMaintenanceRequested:          {SubjectMaintenance, "maintenance_task", "task_id", []string{"task_id"}, true},
+	EventApplicationPrepareRequested:       {SubjectApplicationPrepare, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventApplicationBatchRequested:         {SubjectApplicationBatch, "application_batch", "batch_id", []string{"batch_id", "actor_user_id"}, false},
+	EventApplicationSubmitRequested:        {SubjectApplicationSubmit, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventApplicationSubmitAPIRequested:     {SubjectApplicationSubmitAPI, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventApplicationSubmitBrowserRequested: {SubjectApplicationSubmitBrowser, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventApplicationVerifyRequested:        {SubjectApplicationVerify, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventApplicationReconcileRequested:     {SubjectApplicationReconcile, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventApplicationRetryRequested:         {SubjectApplicationRetry, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventApplicationDLQRequested:           {SubjectApplicationDLQ, "application", "application_id", []string{"application_id", "actor_user_id"}, false},
+	EventSourceSyncRequested:               {SubjectSourceSync, "source_sync_run", "sync_run_id", []string{"source_id", "sync_run_id"}, true},
+	EventJobNormalizeRequested:             {SubjectJobNormalize, "job_observation", "observation_id", []string{"observation_id"}, true},
+	EventJobIndexRequested:                 {SubjectJobIndex, "job", "job_id", []string{"job_id"}, true},
+	EventMaintenanceRequested:              {SubjectMaintenance, "maintenance_task", "task_id", []string{"task_id"}, true},
 }
 
 func SubjectForEventType(eventType string) (string, bool) {

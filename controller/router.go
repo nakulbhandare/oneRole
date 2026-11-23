@@ -93,6 +93,9 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 
 	mux.HandleFunc("GET /api/v1/auth/csrf", authHandler.CSRF)
 	mux.HandleFunc("GET /api/v1/auth/providers", authHandler.Providers)
+	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+	mux.HandleFunc("POST /api/v1/auth/reset-password", authHandler.ResetPassword)
 	mux.HandleFunc("POST /api/v1/auth/dev-login", authHandler.DevLogin)
 	mux.HandleFunc("GET /api/v1/auth/oauth/{provider}/start", authHandler.StartOAuth)
 	mux.HandleFunc("GET /api/v1/auth/oauth/{provider}/callback", authHandler.OAuthCallback)
@@ -123,6 +126,7 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 		mux.Handle("GET /api/v1/jobs/recommendations", tenantScope(http.HandlerFunc(autoApplyHandler.Recommendations)))
 		mux.Handle("GET /api/v1/applications/{applicationID}/resume", tenantScope(http.HandlerFunc(autoApplyHandler.Resume)))
 		mux.Handle("POST /api/v1/applications/{applicationID}/assist", tenantScope(http.HandlerFunc(autoApplyHandler.Assist)))
+		mux.Handle("POST /api/v1/applications/{applicationID}/edge-complete", tenantScope(http.HandlerFunc(autoApplyHandler.EdgeComplete)))
 		mux.Handle("GET /api/v1/notifications/email/status", http.HandlerFunc(autoApplyHandler.EmailStatus))
 		mux.Handle("POST /api/v1/notifications/email/test", http.HandlerFunc(autoApplyHandler.TestEmail))
 	}

@@ -47,3 +47,31 @@ func TestTransitionApplicationRejectsIllegalAndUnknownTransitions(t *testing.T) 
 		t.Fatal("unknown source status must fail")
 	}
 }
+
+func TestTransitionApplicationRule8CanonicalTransitions(t *testing.T) {
+	// SUBMITTING -> SUBMITTED_CONFIRMED requires VerifiedReceiptID
+	if err := TransitionApplication(models.StatusSubmitting, models.StatusSubmittedConfirmed, TransitionEvidence{}); err == nil {
+		t.Fatal("Rule 8 transition to SUBMITTED_CONFIRMED without receipt evidence must fail")
+	}
+	if err := TransitionApplication(models.StatusSubmitting, models.StatusSubmittedConfirmed, TransitionEvidence{VerifiedReceiptID: "EMP-RECEIPT-998"}); err != nil {
+		t.Fatalf("Rule 8 transition with verified employer receipt failed: %v", err)
+	}
+
+	// QUEUED -> SUBMITTING
+	if err := TransitionApplication(models.StatusQueued, models.StatusSubmitting, TransitionEvidence{}); err != nil {
+		t.Fatalf("Rule 8 QUEUED -> SUBMITTING failed: %v", err)
+	}
+
+	// SUBMITTING -> SUBMITTED_UNVERIFIED requires AmbiguousOutcome
+	if err := TransitionApplication(models.StatusSubmitting, models.StatusSubmittedUnverified, TransitionEvidence{}); err == nil {
+		t.Fatal("SUBMITTING -> SUBMITTED_UNVERIFIED without ambiguous evidence must fail")
+	}
+	if err := TransitionApplication(models.StatusSubmitting, models.StatusSubmittedUnverified, TransitionEvidence{AmbiguousOutcome: true}); err != nil {
+		t.Fatalf("Rule 8 ambiguous transition failed: %v", err)
+	}
+
+	// Terminal confirmed state cannot return to queue
+	if err := TransitionApplication(models.StatusSubmittedConfirmed, models.StatusQueued, TransitionEvidence{}); err == nil {
+		t.Fatal("terminal confirmed state cannot return to queue")
+	}
+}

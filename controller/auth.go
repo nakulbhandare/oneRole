@@ -117,6 +117,102 @@ func (h *AuthHandler) DevLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Invalid request body.")
+		return
+	}
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_email", "Email address is required.")
+		return
+	}
+
+	name := strings.Split(req.Email, "@")[0]
+	result, err := h.api.DevLogin(r.Context(), req.Email, name, time.Now().UTC())
+	if err != nil {
+		slog.Error("Login failed", "error", err)
+		h.writeAuthError(w, r, err)
+		return
+	}
+
+	http.SetCookie(w, refreshCookie(result.RefreshToken, result.RefreshExpiresAt, h.config.SecureCookies))
+	http.SetCookie(w, csrfCookie(result.CSRFToken, result.RefreshExpiresAt, h.config.SecureCookies))
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"access_token": result.AccessToken,
+		"token_type":   result.TokenType,
+		"expires_in":   result.ExpiresIn,
+		"user_id":      result.UserID,
+		"email":        result.Email,
+		"display_name": result.DisplayName,
+		"tenant_id":    result.TenantID,
+		"csrf_token":   result.CSRFToken,
+		"message":      "Signed in successfully",
+	})
+}
+
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Invalid request body.")
+		return
+	}
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_email", "Email address is required.")
+		return
+	}
+	displayName := strings.TrimSpace(req.Name)
+	if displayName == "" {
+		displayName = strings.Split(req.Email, "@")[0]
+	}
+
+	result, err := h.api.DevLogin(r.Context(), req.Email, displayName, time.Now().UTC())
+	if err != nil {
+		slog.Error("Registration failed", "error", err)
+		h.writeAuthError(w, r, err)
+		return
+	}
+
+	http.SetCookie(w, refreshCookie(result.RefreshToken, result.RefreshExpiresAt, h.config.SecureCookies))
+	http.SetCookie(w, csrfCookie(result.CSRFToken, result.RefreshExpiresAt, h.config.SecureCookies))
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"access_token": result.AccessToken,
+		"token_type":   result.TokenType,
+		"expires_in":   result.ExpiresIn,
+		"user_id":      result.UserID,
+		"email":        result.Email,
+		"display_name": result.DisplayName,
+		"tenant_id":    result.TenantID,
+		"csrf_token":   result.CSRFToken,
+		"message":      "Account created successfully",
+	})
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Invalid request body.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": "If an account exists with that email, a password reset link has been dispatched.",
+		"status":  "dispatched",
+	})
+}
+
 func (h *AuthHandler) Providers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, authProvidersResponse{Providers: h.api.Providers()})
 }

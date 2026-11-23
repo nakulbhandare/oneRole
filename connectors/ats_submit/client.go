@@ -303,11 +303,19 @@ func parseRetryAfter(header http.Header) time.Duration {
 	}
 	seconds, err := strconv.Atoi(retryAfter)
 	if err == nil {
-		return time.Duration(seconds) * time.Second
+		d := time.Duration(seconds) * time.Second
+		if d > 2*time.Second {
+			d = 2 * time.Second
+		}
+		return d
 	}
 	t, err := http.ParseTime(retryAfter)
 	if err == nil {
-		return time.Until(t)
+		d := time.Until(t)
+		if d > 2*time.Second {
+			d = 2 * time.Second
+		}
+		return d
 	}
 	return 0
 }
@@ -410,6 +418,82 @@ func (c *Client) SubmitLever(ctx context.Context, board, jobID string, profile *
 		return nil, lastErr
 	}
 	return nil, fmt.Errorf("lever submission failed")
+}
+
+func (c *Client) SubmitSmartRecruiters(ctx context.Context, jobURL string, profile *models.CandidateProfile, answers map[string]string) (*SubmitResult, error) {
+	if jobURL == "" || profile == nil {
+		return nil, fmt.Errorf("jobURL and profile are required")
+	}
+
+	u, err := url.Parse(jobURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid smartrecruiters url: %w", err)
+	}
+
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("could not extract company and posting ID from URL path: %s", u.Path)
+	}
+	company := parts[0]
+	postingID := parts[1]
+	if idx := strings.Index(postingID, "-"); idx != -1 {
+		postingID = postingID[:idx]
+	}
+
+	email := resolveApplicationEmail(profile)
+	payload := map[string]any{
+		"firstName":   profile.FirstName,
+		"lastName":    profile.LastName,
+		"email":       email,
+		"phoneNumber": profile.Phone,
+		"location": map[string]string{
+			"city":    profile.City,
+			"country": "us",
+		},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal smartrecruiters payload: %w", err)
+	}
+
+	endpoint := fmt.Sprintf("https://api.smartrecruiters.com/v1/companies/%s/postings/%s/candidates", company, postingID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("smartrecruiters API request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	respStr := string(respBytes)
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var resDoc struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(respBytes, &resDoc)
+		receiptID := resDoc.ID
+		if receiptID == "" {
+			receiptID = fmt.Sprintf("SR-%s-%s", company, postingID)
+		}
+		return &SubmitResult{
+			Success:       true,
+			ReceiptID:     receiptID,
+			SubmissionURL: endpoint,
+			Provider:      "smartrecruiters_api",
+			SubmittedAt:   time.Now().UTC(),
+			Details:       map[string]string{"response": respStr, "candidate_id": resDoc.ID},
+		}, nil
+	}
+
+	return nil, fmt.Errorf("smartrecruiters API returned HTTP %d: %s", resp.StatusCode, respStr)
 }
 
 func (c *Client) SubmitGenericWeb(ctx context.Context, jobURL string, profile *models.CandidateProfile) (*SubmitResult, error) {
@@ -550,16 +634,22 @@ func (c *Client) runBrowserSubmitter(ctx context.Context, jobURL string, profile
 		}
 	}
 
-	forceDirect := os.Getenv("FORCE_DIRECT_SUBMISSION") == "true" || os.Getenv("CONTAINER_ENV") == "true"
-	if nodeErr != nil || !scriptExists || forceDirect {
-		return directCarrierSubmit(ctx, jobURL, email, profile)
+	if nodeErr != nil || !scriptExists {
+		// Attempt direct candidate-facing API before failing
+		if strings.Contains(jobURL, "smartrecruiters.com") {
+			return c.SubmitSmartRecruiters(ctx, jobURL, profile, answers)
+		}
+		return nil, fmt.Errorf("browser automation runtime unavailable (node: %v, script: %t)", nodeErr, scriptExists)
 	}
 
 	cmd := exec.CommandContext(ctx, "node", "connectors/ats_submit/browser_submitter.js", string(payloadBytes))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("[ATS-Submit] Browser automation error: %v: %s. Falling back to direct carrier submission...", err, string(out))
-		return directCarrierSubmit(ctx, jobURL, email, profile)
+		log.Printf("[ATS-Submit] Browser automation error: %v: %s", err, string(out))
+		if strings.Contains(jobURL, "smartrecruiters.com") {
+			return c.SubmitSmartRecruiters(ctx, jobURL, profile, answers)
+		}
+		return nil, fmt.Errorf("browser automation error: %w (output: %s)", err, string(out))
 	}
 
 	var res struct {
@@ -578,13 +668,16 @@ func (c *Client) runBrowserSubmitter(ctx context.Context, jobURL string, profile
 		if errMsg == "" {
 			errMsg = string(out)
 		}
-		log.Printf("[ATS-Submit] Browser automation failed: %s. Falling back to direct carrier submission...", errMsg)
-		return directCarrierSubmit(ctx, jobURL, email, profile)
+		log.Printf("[ATS-Submit] Browser automation unconfirmed: %s", errMsg)
+		if strings.Contains(jobURL, "smartrecruiters.com") {
+			return c.SubmitSmartRecruiters(ctx, jobURL, profile, answers)
+		}
+		return nil, fmt.Errorf("browser submission unconfirmed by employer: %s", errMsg)
 	}
 
 	receiptID := res.ReceiptID
 	if receiptID == "" {
-		receiptID = fmt.Sprintf("APP-BROWSER-%d", time.Now().UnixNano())
+		return nil, fmt.Errorf("employer ATS response did not provide a verifiable receipt ID")
 	}
 
 	return &SubmitResult{
@@ -599,57 +692,6 @@ func (c *Client) runBrowserSubmitter(ctx context.Context, jobURL string, profile
 			"verified_by_employer": strconv.FormatBool(res.VerifiedByEmployer),
 			"resume_attached":      "true",
 			"resume_bytes":         strconv.Itoa(len(profile.ResumeContentText)),
-		},
-	}, nil
-}
-
-func directCarrierSubmit(ctx context.Context, jobURL, email string, profile *models.CandidateProfile) (*SubmitResult, error) {
-	provider := "generic_carrier"
-	switch {
-	case strings.Contains(jobURL, "greenhouse"):
-		provider = "greenhouse_direct"
-	case strings.Contains(jobURL, "lever"):
-		provider = "lever_direct"
-	case strings.Contains(jobURL, "workday"):
-		provider = "workday_direct"
-	case strings.Contains(jobURL, "ashby"):
-		provider = "ashby_direct"
-	case strings.Contains(jobURL, "smartrecruiters"):
-		provider = "smartrecruiters_direct"
-	}
-
-	u, err := url.Parse(jobURL)
-	hostSlug := "carrier"
-	if err == nil && u.Hostname() != "" {
-		hostSlug = strings.ReplaceAll(strings.ReplaceAll(u.Hostname(), "www.", ""), ".", "-")
-	}
-
-	now := time.Now().UTC()
-	receiptID := fmt.Sprintf("CARRIER-%s-%d", strings.ToUpper(provider), now.UnixNano()%100000000)
-
-	resumeLen := 0
-	if profile != nil {
-		resumeLen = len(profile.ResumeContentText)
-		if resumeLen == 0 {
-			resumeLen = len(profile.ResumeContentHTML)
-		}
-	}
-
-	return &SubmitResult{
-		Success:       true,
-		ReceiptID:     receiptID,
-		SubmissionURL: jobURL,
-		Provider:      provider,
-		SubmittedAt:   now,
-		Details: map[string]string{
-			"candidate_email":      email,
-			"confirmation_url":     jobURL,
-			"verified_by_employer": "true",
-			"status":               "submitted",
-			"carrier_host":         hostSlug,
-			"resume_attached":      "true",
-			"resume_bytes":         strconv.Itoa(resumeLen),
-			"submission_mode":      "direct_carrier",
 		},
 	}, nil
 }

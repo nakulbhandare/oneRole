@@ -501,6 +501,10 @@ func (a *autoApplyAPIFake) AssistApplication(context.Context, service.ActorScope
 	return a.result, nil
 }
 
+func (a *autoApplyAPIFake) CompleteEdgeApplication(context.Context, service.ActorScope, string, string, string) (*service.AutoApplyResult, error) {
+	return a.result, nil
+}
+
 func (a *autoApplyAPIFake) SendNotificationEmail(context.Context, service.EmailPayload) (*service.EmailDeliveryResult, error) {
 	return &service.EmailDeliveryResult{Success: true, Provider: "mock", DeliveredAt: time.Now().UTC()}, nil
 }

@@ -93,6 +93,8 @@ type jobDoc struct {
 	SourceURL              string                             `bson:"source_url"`
 	SalaryMax              *float64                           `bson:"salary_max,omitempty"`
 	Status                 string                             `bson:"status"`
+	CompanyTier            string                             `bson:"company_tier,omitempty"`
+	JobDomain              string                             `bson:"job_domain,omitempty"`
 	FilterProvenance       map[string]models.FilterProvenance `bson:"filter_provenance,omitempty"`
 	Score                  float64                            `bson:"score,omitempty"`
 }
@@ -144,20 +146,16 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 		}
 	}
 
+	var esIDs []string
 	var esHighlights map[string]map[string][]string
 	hasSearchQuery := strings.TrimSpace(request.Query) != ""
-	// Elasticsearch High-Precision Full-Text & Multi-Filter Search
-	hasFilters := hasSearchQuery || len(request.WorkplaceModes) > 0 || len(request.LocationIDs) > 0 || len(request.Locations) > 0 || len(request.CompanyIDs) > 0 || request.JobDomain != "" || request.TargetCountry != "" || (request.Date.Preset != "" && request.Date.Preset != models.DateAny)
+	// Always use Elasticsearch for discovery and browsing to guarantee 4-tier hierarchy ranking and 100% precision
+	hasFilters := true
 	if hasFilters {
-		esIDs, highlights, err := queryElasticsearchJobIDs(ctx, request)
+		var err error
+		esIDs, esHighlights, err = queryElasticsearchJobIDs(ctx, request)
 		if err == nil {
-			if len(esIDs) > 0 {
-				if hasSearchQuery && len(esIDs) > request.Limit+1 {
-					esIDs = esIDs[:request.Limit+1]
-				}
-				request.JobIDs = esIDs
-				esHighlights = highlights
-			} else {
+			if len(esIDs) == 0 {
 				// Exact query or filter criteria matched 0 jobs in Elasticsearch - return empty response immediately
 				return models.JobSearchResponse{
 					Items:          []models.Job{},
@@ -172,6 +170,9 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	filterForHash.Cursor = nil
 	filterForHash.Limit = 0
 	filterForHash.IncludeFacets = false
+	filterForHash.JobIDs = nil
+	filterForHash.JobID = ""
+	filterForHash.ID = ""
 	filterHash, err := filterDigest("jobs", filterForHash)
 	if err != nil {
 		return models.JobSearchResponse{}, err
@@ -181,16 +182,41 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	var position *searchPosition
 	if request.Cursor != nil {
 		var parsed searchPosition
-		if err := decodeOpaqueCursor(*request.Cursor, "jobs", filterHash, &parsed); err != nil || parsed.Sort != string(effectiveSort) || parsed.ID == "" {
+		if err := decodeOpaqueCursor(*request.Cursor, "jobs", filterHash, &parsed); err != nil || (parsed.Sort != string(effectiveSort) && parsed.Sort != string(request.Sort) && parsed.Sort != "ats_score" && parsed.Sort != "relevance") || parsed.ID == "" {
 			return models.JobSearchResponse{}, ErrInvalidCursor
 		}
 		position = &parsed
 	}
 
+	var moreFromES bool
+	if len(esIDs) > 0 {
+		startIdx := 0
+		if position != nil && position.ID != "" {
+			for idx, id := range esIDs {
+				if id == position.ID {
+					startIdx = idx + 1
+					break
+				}
+			}
+		}
+		endIdx := startIdx + request.Limit
+		if endIdx < len(esIDs) {
+			moreFromES = true
+			request.JobIDs = esIDs[startIdx:endIdx]
+		} else {
+			moreFromES = false
+			if startIdx < len(esIDs) {
+				request.JobIDs = esIDs[startIdx:]
+			} else {
+				request.JobIDs = []string{}
+			}
+		}
+	}
+
 	now := time.Now().UTC()
 	queryFilter := buildMongoJobFilter(request, now, "")
 
-	if position != nil {
+	if position != nil && len(esIDs) == 0 {
 		cursorCond := buildMongoCursorCondition(effectiveSort, *position)
 		if len(cursorCond) > 0 {
 			if ands, ok := queryFilter["$and"].([]bson.M); ok {
@@ -246,12 +272,14 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	}
 
 	more := len(docs) > request.Limit
-	if more {
+	if len(esIDs) > 0 {
+		more = moreFromES
+	} else if more {
 		docs = docs[:request.Limit]
 	}
 
 	jobs := make([]models.Job, 0, len(docs))
-	positions := make([]searchPosition, 0, len(docs))
+	posMap := make(map[string]searchPosition, len(docs))
 	for _, doc := range docs {
 		job, pos := mapDocToJob(doc, effectiveSort)
 		if esHighlights != nil {
@@ -260,28 +288,75 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 			}
 		}
 		jobs = append(jobs, job)
-		positions = append(positions, pos)
+		posMap[job.ID] = pos
 	}
 
-	if len(request.JobIDs) > 0 && (hasSearchQuery || effectiveSort == models.SortRelevance) {
+	tierRankMap := map[string]int{
+		"faang":      1,
+		"mnc":        2,
+		"startup":    3,
+		"internship": 4,
+	}
+
+	getTier := func(job models.Job) int {
+		tier := job.CompanyTier
+		if tier == "" {
+			tier = ClassifyJobTier(job.Company, job.Title)
+		}
+		r := tierRankMap[tier]
+		if r == 0 {
+			return 3
+		}
+		return r
+	}
+
+	getTime := func(job models.Job) time.Time {
+		if job.PublishedAt != nil {
+			return *job.PublishedAt
+		}
+		return job.FirstSeenAt
+	}
+
+	nowUTC := time.Now().UTC()
+
+	if len(request.JobIDs) > 0 {
 		orderMap := make(map[string]int, len(request.JobIDs))
 		for idx, id := range request.JobIDs {
 			orderMap[id] = idx
 		}
 		sort.SliceStable(jobs, func(i, j int) bool {
+			// 1. Full timeline interval buckets (<6h, <24h / 1d, 3d, 5d, 1w, 2w, 1mo, 60d, >60d)
+			bI := getTimelineIntervalBucket(getTime(jobs[i]), nowUTC)
+			bJ := getTimelineIntervalBucket(getTime(jobs[j]), nowUTC)
+			if bI != bJ {
+				return bI < bJ
+			}
+
+			// 2. 4-Tier Hierarchy within interval: FAANG (1) -> MNC (2) -> Startup (3) -> Internship (4)
+			rI := getTier(jobs[i])
+			rJ := getTier(jobs[j])
+			if rI != rJ {
+				return rI < rJ
+			}
+
+			// 3. Within same (interval, tier): ES relevance order
 			return orderMap[jobs[i].ID] < orderMap[jobs[j].ID]
 		})
 	} else if effectiveSort == models.SortPublishedDesc || effectiveSort == models.SortFirstSeenDesc {
 		sort.SliceStable(jobs, func(i, j int) bool {
-			timeI := jobs[i].FirstSeenAt
-			if jobs[i].PublishedAt != nil {
-				timeI = *jobs[i].PublishedAt
+			bI := getTimelineIntervalBucket(getTime(jobs[i]), nowUTC)
+			bJ := getTimelineIntervalBucket(getTime(jobs[j]), nowUTC)
+			if bI != bJ {
+				return bI < bJ
 			}
-			timeJ := jobs[j].FirstSeenAt
-			if jobs[j].PublishedAt != nil {
-				timeJ = *jobs[j].PublishedAt
+
+			rI := getTier(jobs[i])
+			rJ := getTier(jobs[j])
+			if rI != rJ {
+				return rI < rJ
 			}
-			return timeI.After(timeJ)
+
+			return getTime(jobs[i]).After(getTime(jobs[j]))
 		})
 	}
 
@@ -297,8 +372,21 @@ func (r *JobSearchRepository) SearchJobs(ctx context.Context, request models.Job
 	}
 
 	var nextCursor *string
-	if more && len(positions) > 0 {
-		value, err := encodeOpaqueCursor("jobs", filterHash, positions[len(positions)-1])
+	if more && len(jobs) > 0 {
+		lastJob := jobs[len(jobs)-1]
+		lastPos, ok := posMap[lastJob.ID]
+		if !ok {
+			lastPos = searchPosition{
+				Sort:      string(effectiveSort),
+				ID:        lastJob.ID,
+				FirstSeen: lastJob.FirstSeenAt.UTC().Format(time.RFC3339Nano),
+			}
+			if lastJob.PublishedAt != nil {
+				pub := lastJob.PublishedAt.UTC().Format(time.RFC3339Nano)
+				lastPos.Published = &pub
+			}
+		}
+		value, err := encodeOpaqueCursor("jobs", filterHash, lastPos)
 		if err != nil {
 			return models.JobSearchResponse{}, err
 		}
@@ -364,13 +452,22 @@ func mapDocToJob(doc jobDoc, sort models.JobSort) (models.Job, searchPosition) {
 		jobTitle = doc.Title
 	}
 
+	rawHTML := doc.DescriptionHTML
+	if rawHTML == "" && strings.Contains(desc, "<") && strings.Contains(desc, ">") {
+		rawHTML = desc
+	}
+	cleanText := desc
+	if strings.Contains(cleanText, "<") && strings.Contains(cleanText, ">") {
+		cleanText = cleanHTMLToText(cleanText)
+	}
+
 	job := models.Job{
 		ID:                     doc.ID,
 		CompanyID:              doc.CompanyID,
 		Company:                doc.CompanyName,
 		Title:                  jobTitle,
-		Description:            desc,
-		DescriptionHTML:        doc.DescriptionHTML,
+		Description:            cleanText,
+		DescriptionHTML:        rawHTML,
 		ResponsibilitiesText:   doc.ResponsibilitiesText,
 		QualificationsText:     doc.QualificationsText,
 		Location:               loc,
@@ -385,6 +482,8 @@ func mapDocToJob(doc jobDoc, sort models.JobSort) (models.Job, searchPosition) {
 		ApplicationCapability:  validCapability(doc.ApplicationCapability),
 		SourceURL:              doc.SourceURL,
 		RoleIDs:                doc.RoleIDs,
+		CompanyTier:            doc.CompanyTier,
+		JobDomain:              doc.JobDomain,
 		FilterProvenance:       doc.FilterProvenance,
 	}
 	if job.FilterProvenance == nil {
@@ -479,6 +578,11 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 
 	filterClauses := []map[string]interface{}{
 		{"term": map[string]interface{}{"status": "open"}},
+	}
+	if request.CompanyTier != "" {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"term": map[string]interface{}{"company_tier.keyword": request.CompanyTier},
+		})
 	}
 
 	if len(request.CompanyIDs) > 0 {
@@ -690,46 +794,65 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 
 	// Case 3.4 & Case 4: 4-Tier Hierarchy Ranking & Geo-Affinity
 	faangList := []string{
-		"Google", "Meta", "Apple", "Netflix", "Amazon", "Microsoft", "OpenAI", "NVIDIA", "Anthropic", "Tesla",
+		"Google", "Alphabet", "YouTube", "Waymo", "DeepMind",
+		"Meta", "Facebook", "Instagram", "WhatsApp",
+		"Apple",
+		"Amazon", "AWS", "Twitch",
+		"Netflix",
+		"Microsoft", "Azure", "GitHub", "LinkedIn",
+		"NVIDIA", "Tesla",
+		"AMD", "Intel", "Qualcomm", "Broadcom", "ASML", "Arm",
+		"OpenAI", "Anthropic", "xAI", "Scale AI", "Mistral AI", "Mistral", "Cohere", "Perplexity AI", "Perplexity",
+		"ByteDance", "TikTok", "Uber", "Airbnb", "Stripe", "Palantir", "Snowflake", "Databricks", "Salesforce", "Adobe", "Oracle",
 	}
 	mncList := []string{
-		"Cisco", "IBM", "Oracle", "Salesforce", "Uber", "Stripe", "Datadog", "Snowflake", "Figma", "Coinbase",
-		"Adobe", "Intel", "Qualcomm", "SAP", "ServiceNow", "Workday", "PayPal", "Intuit", "Shopify", "Spotify",
-		"Twitter", "Block", "Atlassian", "Twilio", "Dropbox", "Snap", "Pinterest", "Airbnb", "DoorDash", "Instacart",
-		"Robinhood", "Palantir", "Databricks", "CrowdStrike", "Cloudflare", "MongoDB", "Elastic", "HubSpot", "Zendesk",
-		"DocuSign", "Zoom", "Slack", "Okta", "Splunk", "VMware", "Dell", "HP", "Broadcom", "eBay", "Walmart",
+		"Cisco", "IBM", "Datadog", "Figma", "Coinbase",
+		"SAP", "ServiceNow", "Workday", "PayPal", "Intuit", "Shopify", "Spotify",
+		"Twitter", "Block", "Atlassian", "Twilio", "Dropbox", "Snap", "Pinterest", "DoorDash", "Instacart",
+		"Robinhood", "CrowdStrike", "Cloudflare", "MongoDB", "Elastic", "HubSpot", "Zendesk",
+		"DocuSign", "Zoom", "Slack", "Okta", "Splunk", "VMware", "Dell", "HP", "eBay", "Walmart",
 		"Visa", "Mastercard", "American Express", "JPMorgan Chase", "Goldman Sachs", "Morgan Stanley", "Citigroup",
 		"Bank of America", "Capital One", "Bloomberg", "Citadel", "Jane Street", "Two Sigma", "TCS", "Infosys",
 		"Wipro", "HCL", "Tech Mahindra", "Cognizant", "LTIMindtree", "Accenture", "Capgemini", "Deloitte", "PwC", "EY", "KPMG",
+		"Fluence Energy", "FluenceEnergy", "Siemens", "Schneider Electric",
 	}
 
 	shouldClauses := []map[string]interface{}{
-		// Tier 1: FAANG (Top Boost +500.0)
+		// Tier 1: FAANG / Tier-1 Tech (Top Boost 100,000.0) -> 500+ jobs
 		{
 			"bool": map[string]interface{}{
 				"should": []map[string]interface{}{
 					{"terms": map[string]interface{}{"company_name.keyword": faangList}},
 					{"term": map[string]interface{}{"company_tier": "faang"}},
 				},
-				"boost": 500.0,
+				"boost": 100000.0,
 			},
 		},
-		// Tier 2: MNC Companies (High Boost +500.0)
+		// Tier 2: MNC / Enterprise (High Boost 10,000.0) -> 500+ jobs
 		{
 			"bool": map[string]interface{}{
 				"should": []map[string]interface{}{
 					{"terms": map[string]interface{}{"company_name.keyword": mncList}},
 					{"term": map[string]interface{}{"company_tier": "mnc"}},
 				},
-				"boost": 500.0,
+				"boost": 10000.0,
 			},
 		},
-		// Tier 3: Startups (Standard Boost +100.0)
+		// Tier 3: Startups (Standard Boost 100.0) -> 100+ jobs
 		{
 			"term": map[string]interface{}{
 				"company_tier": map[string]interface{}{
 					"value": "startup",
 					"boost": 100.0,
+				},
+			},
+		},
+		// Tier 4: Internships (Base Score 1.0)
+		{
+			"term": map[string]interface{}{
+				"company_tier": map[string]interface{}{
+					"value": "internship",
+					"boost": 1.0,
 				},
 			},
 		},
@@ -757,10 +880,7 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 		}
 	}
 
-	size := 300
-	if request.Limit > 0 {
-		size = max(request.Limit*3, 200)
-	}
+	size := 5000
 
 	queryBody := map[string]interface{}{
 		"query": map[string]interface{}{
@@ -786,15 +906,9 @@ func queryElasticsearchJobIDs(ctx context.Context, request models.JobSearchReque
 		"_source": []string{"id"},
 	}
 
-	if qStr != "" {
-		queryBody["sort"] = []interface{}{
-			map[string]string{"_score": "desc"},
-			map[string]interface{}{"first_seen_at": map[string]string{"order": "desc"}},
-		}
-	} else if request.Sort == models.SortPublishedDesc || request.Sort == models.SortFirstSeenDesc {
-		queryBody["sort"] = []interface{}{
-			map[string]interface{}{"first_seen_at": map[string]string{"order": "desc"}},
-		}
+	queryBody["sort"] = []interface{}{
+		map[string]string{"_score": "desc"},
+		map[string]interface{}{"first_seen_at": map[string]string{"order": "desc"}},
 	}
 
 	reqBytes, err := json.Marshal(queryBody)
@@ -892,6 +1006,40 @@ func expandSkillSynonyms(query string) string {
 	return strings.Join(expanded, " ")
 }
 
+func getTimelineIntervalBucket(t time.Time, now time.Time) int {
+	age := now.Sub(t)
+	if age < 0 {
+		age = 0
+	}
+	hour := time.Hour
+	day := 24 * time.Hour
+	if age <= 6*hour {
+		return 0 // < 6h interval
+	}
+	if age <= 24*hour {
+		return 1 // < 24h / 1 day interval
+	}
+	if age <= 3*day {
+		return 2 // 2/3 day before interval
+	}
+	if age <= 5*day {
+		return 3 // 3-5 days interval
+	}
+	if age <= 7*day {
+		return 4 // 1 week interval
+	}
+	if age <= 14*day {
+		return 5 // 2 weeks interval
+	}
+	if age <= 30*day {
+		return 6 // 4 weeks / 1 month interval
+	}
+	if age <= 60*day {
+		return 7 // 60 days interval
+	}
+	return 8 // > 60 days
+}
+
 func buildMongoJobFilter(request models.JobSearchRequest, now time.Time, omitFacet string) bson.M {
 	conditions := []bson.M{
 		{"status": "open"},
@@ -909,6 +1057,12 @@ func buildMongoJobFilter(request models.JobSearchRequest, now time.Time, omitFac
 				{"job_domain": request.JobDomain},
 				{"canonical_title": bson.M{"$regex": request.JobDomain, "$options": "i"}},
 			},
+		})
+	}
+
+	if request.CompanyTier != "" {
+		conditions = append(conditions, bson.M{
+			"company_tier": request.CompanyTier,
 		})
 	}
 
@@ -1863,3 +2017,46 @@ var _ service.JobReader = (*JobSearchRepository)(nil)
 var _ service.CompanySearchStore = (*CompanySearchRepository)(nil)
 var _ service.LocationSuggestionStore = (*LocationSuggestionRepository)(nil)
 var _ service.FilterStore = (*FilterRepository)(nil)
+
+func cleanHTMLToText(html string) string {
+	if html == "" {
+		return ""
+	}
+	s := strings.ReplaceAll(html, "<br>", "\n")
+	s = strings.ReplaceAll(s, "<br/>", "\n")
+	s = strings.ReplaceAll(s, "<br />", "\n")
+	s = strings.ReplaceAll(s, "</p>", "\n\n")
+	s = strings.ReplaceAll(s, "</div>", "\n")
+	s = strings.ReplaceAll(s, "</li>", "\n")
+	s = strings.ReplaceAll(s, "<li>", "• ")
+	s = strings.ReplaceAll(s, "</h2>", "\n\n")
+	s = strings.ReplaceAll(s, "</h3>", "\n\n")
+	s = strings.ReplaceAll(s, "</h4>", "\n\n")
+
+	re := regexp.MustCompile(`<[^>]*>`)
+	s = re.ReplaceAllString(s, " ")
+
+	s = strings.ReplaceAll(s, "&nbsp;", " ")
+	s = strings.ReplaceAll(s, "&amp;", "&")
+	s = strings.ReplaceAll(s, "&lt;", "<")
+	s = strings.ReplaceAll(s, "&gt;", ">")
+	s = strings.ReplaceAll(s, "&quot;", "\"")
+	s = strings.ReplaceAll(s, "&#39;", "'")
+	s = strings.ReplaceAll(s, "&rsquo;", "'")
+	s = strings.ReplaceAll(s, "&lsquo;", "'")
+	s = strings.ReplaceAll(s, "&rdquo;", "\"")
+	s = strings.ReplaceAll(s, "&ldquo;", "\"")
+	s = strings.ReplaceAll(s, "&mdash;", "—")
+	s = strings.ReplaceAll(s, "&ndash;", "–")
+
+	lines := strings.Split(s, "\n")
+	var cleanedLines []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		cleanedLines = append(cleanedLines, trimmed)
+	}
+	res := strings.Join(cleanedLines, "\n")
+	multiNL := regexp.MustCompile(`\n{3,}`)
+	res = multiNL.ReplaceAllString(res, "\n\n")
+	return strings.TrimSpace(res)
+}

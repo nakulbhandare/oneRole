@@ -1,0 +1,62 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-onerole-worker-api
+  namespace: onerole
+spec:
+  scaleTargetRef:
+    name: onerole-worker-api
+  minReplicaCount: 3
+  maxReplicaCount: 30
+  cooldownPeriod: 30
+  pollingInterval: 5
+  triggers:
+  - type: nats-jetstream
+    metadata:
+      natsServerMonitoringEndpoint: "nats.onerole.svc.cluster.local:8222"
+      account: "$G"
+      stream: "APPLICATIONS"
+      consumer: "application-submit-api-v1"
+      lagThreshold: "25"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-onerole-worker-browser
+  namespace: onerole
+spec:
+  scaleTargetRef:
+    name: onerole-worker-browser
+  minReplicaCount: 3
+  maxReplicaCount: 20
+  cooldownPeriod: 60
+  pollingInterval: 5
+  triggers:
+  - type: nats-jetstream
+    metadata:
+      natsServerMonitoringEndpoint: "nats.onerole.svc.cluster.local:8222"
+      account: "$G"
+      stream: "APPLICATIONS"
+      consumer: "application-submit-browser-v1"
+      lagThreshold: "5"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-onerole-worker-reconcile
+  namespace: onerole
+spec:
+  scaleTargetRef:
+    name: onerole-worker-reconcile
+  minReplicaCount: 2
+  maxReplicaCount: 10
+  cooldownPeriod: 30
+  pollingInterval: 10
+  triggers:
+  - type: nats-jetstream
+    metadata:
+      natsServerMonitoringEndpoint: "nats.onerole.svc.cluster.local:8222"
+      account: "$G"
+      stream: "APPLICATIONS"
+      consumer: "application-reconcile-v1"
+      lagThreshold: "20"

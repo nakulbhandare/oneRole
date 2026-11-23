@@ -1,0 +1,4571 @@
+[
+  {
+    "index": 1,
+    "name": "1801 Haleon Argentina S.A.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/ar/job/remote-fullstack-net-engineer-ai-driven-mvps--quilmes--ea104ff3516368f13899d25b468f2b269",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 2,
+    "name": "ABB",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.abb/dach/de/job/JR00033663/800xA-System-Specialist-to-Life-Science-Automation",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 3,
+    "name": "Abbott",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/professional-sales-manager-gennext-katihar/abbott/20055085",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 4,
+    "name": "AbbVie",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://powertofly.com/jobs/detail/2651610",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 5,
+    "name": "abercrombie",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://abercrombie.wd108.myworkdayjobs.com/anf/job/North-York-Canada/Brand-Representative---CF-Fairview-Mall--Abercrombie---Fitch_JR101007",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 6,
+    "name": "Accenture",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://my.jobstreet.com/job/96005940",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 7,
+    "name": "AccorHotel",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Customer Service",
+      "Other",
+      "Human Resources",
+      "Management",
+      "Production",
+      "Quality Assurance",
+      "Marketing",
+      "Business Development",
+      "Distribution",
+      "Sales",
+      "Administrative",
+      "Engineering",
+      "Supply Chain",
+      "Public Relations"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/AccorHotel/744000162964599",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 8,
+    "name": "Adecco",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4491817909/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 9,
+    "name": "Adecco Argentina S.A.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-coordinador-controlador-administrativo-de-playa-eventual-licencia-medica-villa-celina-en-villa-celina-D7A3C687312A0BB861373E686DCF3405",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 10,
+    "name": "Adecco Peru S.A.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/pe/job/ingeniero-electrico-supervisor-planta-puente-piedra--lima-metropolitana--ee0b174891b3abc5bc45423e3db5bc40b",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 11,
+    "name": "Adecco Recursos Humanos",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://emprego.sapo.pt/offers/comercial-lisboa",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 12,
+    "name": "Adeeba E Services Pvt. Ltd.",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Customer Service"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/AdeebaEServicesPvtLtd/743999658854819",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 13,
+    "name": "Advance Auto Parts",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.advanceautoparts.com/us/en/job/ADVAAPUSR0618131EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 14,
+    "name": "adventhealth",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://adventhealth.wd12.myworkdayjobs.com/AH_External_Career_Site/job/ADVENTHEALTH-SEBRING/Senior-Employee-Experience-Partner_R-0403375-1",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 15,
+    "name": "AECOM",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://sg.jobstreet.com/job/96005337",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 16,
+    "name": "Affirm",
+    "provider": "greenhouse",
+    "jobs_fetched": 222,
+    "departments": [
+      "Point of Sale Analytics",
+      "Product Marketing",
+      "Infrastructure Platform Eng",
+      "Strategic Partnerships",
+      "Accounting",
+      "Core Analytics",
+      "User Experience",
+      "US Sales",
+      "Merchant Ops",
+      "Consumer Analytics",
+      "IT",
+      "People \u0026 Organizational Success",
+      "Product Management",
+      "Bank Strategy",
+      "Legal Platform Services",
+      "Consumer Engineering",
+      "Capital",
+      "ISV Partnerships",
+      "Internal Audit",
+      "Financial Platforms - Engineering",
+      "Total Rewards \u0026 Employee Experience",
+      "ZT1",
+      "Ops Excellence - Consumer",
+      "Compliance",
+      "Checkout",
+      "Fraud Ops",
+      "Financial Platforms Product",
+      "Leadership",
+      "Information Security",
+      "US Marketing",
+      "Brand \u0026 Communications",
+      "Customer Ops Servicing",
+      "Engineering"
+    ],
+    "sample_url": "https://job-boards.greenhouse.io/affirm/jobs/8161169003",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 17,
+    "name": "Airbnb",
+    "provider": "greenhouse",
+    "jobs_fetched": 202,
+    "departments": [
+      "Sales",
+      "Community Support",
+      "Public Policy",
+      "Community",
+      "Legal",
+      "Software Engineering",
+      "Analytics",
+      "People",
+      "Finance",
+      "Accounting",
+      "Business Operations/Analysis",
+      "Marketing \u0026 Creative",
+      "Product Management",
+      "Recruiting",
+      "Employee Experience",
+      "Trust and Safety",
+      "Non-Software Engineering",
+      "Partnerships",
+      "Operations",
+      "Design",
+      "Sales \u0026 Partnerships",
+      "Financial Planning and Analysis",
+      "Security",
+      "Engineering \u0026 Technology",
+      "Technical Program Management",
+      "Strategy \u0026 Planning",
+      "Intern",
+      "Business Development",
+      "Communications",
+      "Data Science"
+    ],
+    "sample_url": "https://careers.airbnb.com/positions/8365363?gh_jid=8365363",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 18,
+    "name": "Airbus",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.xing.com/jobs/donauwoerth-praktikant-bereich-vehicle-test-komponententest-159245456",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 19,
+    "name": "ALDI SÜD",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.aldi-sued.de/Karriere/job/W%C3%BCrzburg-D%C3%BCrrbachau-Mitarbeiter-Warenverr%C3%A4umung-Backwaren-%28mwd%29-BY-97080/1458854033/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 20,
+    "name": "Alfa-Bank",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://job.alfabank.ru/moskva/central-office/senior-quantitative-strategist-_-quant-researcher_39851",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 21,
+    "name": "Allianz",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.allianz.com/global/en/job/AISAIPGB106275EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 22,
+    "name": "Allis",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://allis1.pandape.infojobs.com.br/Detail/3947804",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 23,
+    "name": "Alstom",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobsearch.alstom.com/job/Barcelona-T%C3%A9cnicoa-Mantenimiento-Ferroviario-Santa-Perp%C3%A8tua-Aeroport-BCN-1/1437886333/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 24,
+    "name": "ALTEN",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4491622601/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 25,
+    "name": "Amazon",
+    "provider": "greenhouse",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://boards.greenhouse.io/amazon",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 26,
+    "name": "Amazon Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://au.whatjobs.com/pub_api__cpl__135022630__7084",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 27,
+    "name": "Amentum",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/om/job/senior-f-16-electrical-environmental-systems-specialist--maskat--e20e2ab435720d1bf112031917d2b09b9",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 28,
+    "name": "Amgen Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://arc.dev/remote-jobs/j/amgen-senior-manager-portfolio-marketing-uplizna-pthw4r99ec",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 29,
+    "name": "Anduril Industries",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4492163526/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 30,
+    "name": "Apple",
+    "provider": "greenhouse",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://boards.greenhouse.io/apple",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 31,
+    "name": "Applied Materials, Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/pl/job/field-it-engineer-semiconductor-equipment--sobienie-szlacheckie--ef2dfbd34d8fd1a2ab1d90fb743d0aa39",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 32,
+    "name": "Aramark",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "General Business",
+      "Other"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/Aramark/3743990017016426",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 33,
+    "name": "Ascension",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ascensionhealth.phenompro.com/us/en/job/AHEAHUUS32621EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 34,
+    "name": "Asiapower",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://asiapower.oorwin.com/careers/index.html",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 35,
+    "name": "AtkinsRéalis",
+    "provider": "workday",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://slihrms.wd3.myworkdayjobs.com/en-US",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 36,
+    "name": "Atrium Health",
+    "provider": "workday",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://aah.wd5.myworkdayjobs.com/External",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 37,
+    "name": "AvanJobs",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ofertasdeempleo.avanselseleccion.es/jobs/tecnico-laboral-asociacion-catolica-chamberi-884ce797-2ad4-432e-93bb-97c82b5768ef",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 38,
+    "name": "Axians",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.vinci.com/en/job/middelbeers/hardware-engineer-machinebesturingen/1441/47052795392",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 39,
+    "name": "babilou",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://babilou.wd3.myworkdayjobs.com/Babilou/job/Fentange/Charg---Charge-de-Direction--M-F----Crche-de-Fentange_R0067302",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 40,
+    "name": "BAE Systems",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://bae.phenompro.com/global/en/job/BAE1US132994BREXTERNAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 41,
+    "name": "BairesDev",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://co.whatjobs.com/pub_api__cpl__46752929__7093",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 42,
+    "name": "Bank of America",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/senior-team-member-global-investigations/bank-of-america/20056196",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 43,
+    "name": "Bealls Inc",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://beallsinc.taleo.net/careersection/bealls+inc+external/jobdetail.ftl",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 44,
+    "name": "Bealls Outlet",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://beallsinc.taleo.net/careersection/chattr+career+portal/jobdetail.ftl",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 45,
+    "name": "Beth Israel Lahey Health",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://bilh.wd1.myworkdayjobs.com/External/job/Beth-Israel-Deaconess-Medical-Center/Care-Transitions-RN-Case-Manager--32-Hours-Days_JR107562",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 46,
+    "name": "Bgr S.A.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/cl/job/mercaderista-fijo-horario-pm--santiago--e376df48124c663d18e67bf70c46cf4f8",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 47,
+    "name": "bkbehavior",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://apply.clearcompany.com/bkbehavior",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 48,
+    "name": "Blue Origin",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://blueorigin.wd5.myworkdayjobs.com/BlueOrigin/job/Greater-Seattle-Area/Reflector-Feed-Antenna-Engineer---TeraWave_R75707",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 49,
+    "name": "Boardroom Appointments",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/za/job/mid-senior-javascript-developer-react--cape-town--e29d3fcb186a43afffc511e67cd3189f9",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 50,
+    "name": "Booz Allen",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/it/job/remote-firmware-security-engineer-fpga-dod--lazio--eb86706e64612caefdb6c1825ec90565a",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 51,
+    "name": "Bosch Group",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Quality Assurance",
+      "Human Resources",
+      "Supply Chain",
+      "Consulting",
+      "Analyst",
+      "Production",
+      "Research",
+      "Business Development",
+      "Information Technology",
+      "Engineering",
+      "Marketing",
+      "General Business",
+      "Training",
+      "Project Management",
+      "Sales",
+      "Education",
+      "Health Care Provider",
+      "Manufacturing",
+      "Administrative",
+      "Product Management",
+      "Finance",
+      "Customer Service",
+      "Design",
+      "Other",
+      "Management"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/BoschGroup/744000162835320",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 52,
+    "name": "Bouygues Construction",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://joining.bouygues.com/global/en/job/BOBBOUGLOBAL37431EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 53,
+    "name": "Brinker International",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fa-etjg-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/Chilis/job/21476",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 54,
+    "name": "Bureau Veritas",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.bureauveritas.com/gb/en/job/BVYBVZGB219533EXTERNALENGB",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 55,
+    "name": "ByteDance",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4483617388/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 56,
+    "name": "CACI",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://clearedjobs.net/job/satellite-operations-engineer-danbury-connecticut-1952505",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 57,
+    "name": "Capgemini",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://apply.workable.com/j/3F3053EF6A",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 58,
+    "name": "careers.essilorluxottica.com",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.essilorluxottica.com/job/Calgary-Sales-Associate-AB-T1Y-5T4/1458522233/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 59,
+    "name": "careers.hcltech.com",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.hcltech.com/job/Senior-Technical-Lead/1375136755/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 60,
+    "name": "careers.wipro.com",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.wipro.com/job/Sheffield%2C-Sheffield-Bus-PROJECT-OPERATIONS-LEAD-L1%28CONTRACT%29-GBR/1377648255/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 61,
+    "name": "CARREFOUR \u0026 SAM'S",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://carrefour.pandape.infojobs.com.br/Detail/3945171",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 62,
+    "name": "carriernoam.workgr8.com",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://carriernoam.workgr8.com/jobs/12178",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 63,
+    "name": "Checkers Rallys",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://apply.checkers.com/job/Tampa-Restaurant-Technology-Specialist-FL-33607/1432983800/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 64,
+    "name": "Chick-fil-A",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.workstream.us/j/3de04594/chick-fil-a/dayton-91592/part-time-breakfast-front-of-house-team-member-0fdfc069",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 65,
+    "name": "Chico's FAS",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.dayforcehcm.com/en-US/chicosfas/storecareers/jobs/245546",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 66,
+    "name": "CHS Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.chsinc.com/job/inver-grove-heights/track-and-land-contracts-specialist-rail/34006/103520284672",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 67,
+    "name": "Circle K",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://circlek.phenompro.com/global/en/job/CIKCGLOBALR637199EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 68,
+    "name": "Citi",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://citi.eightfold.ai/careers/job/859038901602",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 69,
+    "name": "Civils de la Défense - Ministère des Armées et des Anciens combattants",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://choisirleservicepublic.gouv.fr/offre-emploi/chef-de-section-technique-sante-et-securite-au-travail-et-conseiller-de-prevention-reference-DEF_16-00071326/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 70,
+    "name": "Cleveland Clinic",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://arc.dev/remote-jobs/j/cleveland-clinic-senior-data-scientist-data-scientist-iii-pthn6fzj2s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 71,
+    "name": "Cockroach Labs",
+    "provider": "greenhouse",
+    "jobs_fetched": 12,
+    "departments": [
+      "Engineering",
+      "Applications (General)",
+      "Product",
+      "Sales",
+      "Finance"
+    ],
+    "sample_url": "https://www.cockroachlabs.com/careers/job/?gh_jid=8332010",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 72,
+    "name": "Coinbase",
+    "provider": "greenhouse",
+    "jobs_fetched": 252,
+    "departments": [
+      "Engineering - Infrastructure",
+      "Institutional Sales, Trading, and Prime Services",
+      "Marketing \u0026 Communications",
+      "Compliance \u0026 AML Operations",
+      "IT",
+      "Data Science",
+      "Engineering - Frontend",
+      "Policy",
+      "Business Operations \u0026 Strategy",
+      "Business Development \u0026 Partnerships",
+      "Product",
+      "International Expansion",
+      "Engineering - Security",
+      "Risk \u0026 Fraud",
+      "Enterprise Applications",
+      "HR \u0026 Recruiting",
+      "Engineering",
+      "Finance \u0026 Accounting",
+      "Machine Learning",
+      "Engineering - Mobile",
+      "Internships \u0026 Emerging Talent Positions",
+      "Engineering - Backend",
+      "Legal \u0026 Compliance",
+      "Engineering - Data",
+      "Program Management",
+      "International Operations",
+      "Engineering - Managers",
+      "Design",
+      "Security \u0026 Privacy",
+      "Customer Experience"
+    ],
+    "sample_url": "https://www.coinbase.com/careers/positions/8175363?gh_jid=8175363",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 73,
+    "name": "Communes",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://choisirleservicepublic.gouv.fr/offre-emploi/secretaire-du-maire-de-la-dg-et-des-elus---commune-d-etoile-sur-rhone-reference-O026261026001226/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 74,
+    "name": "Community Health Systems",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fa-evxo-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/169100",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 75,
+    "name": "Conseils départementaux",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://choisirleservicepublic.gouv.fr/offre-emploi/cheffe-de-projet-informatique---social-sante-culture---conseil-departemental-de-la-nievre-reference-O058261118000573/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 76,
+    "name": "Consultores de Empresas",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://consultoresdeempresasar.pandape.computrabajo.com/Detail/14223154",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 77,
+    "name": "Cross Border Talents",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4488935761/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 78,
+    "name": "CSB Bank",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/cloud-compliance-finops-engineer-thane-maharashtra/csb-bank/20052582",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 79,
+    "name": "Cummins Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://powertofly.com/jobs/detail/2651787",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 80,
+    "name": "CVS Health",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/ar/job/remote-full-stack-bi-workflow-specialist-azure--la-pampa--e1ee36d924ad54841ff668f0e15026862",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 81,
+    "name": "dasteam ag",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobup.ch/fr/emplois/detail/49be3099-2379-45a7-a3cd-890122c55e05/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 82,
+    "name": "Datadog",
+    "provider": "greenhouse",
+    "jobs_fetched": 382,
+    "departments": [
+      "Community",
+      "Enterprise Sales Engineering",
+      "Product Management",
+      "Field Marketing",
+      "People",
+      "Enterprise Customer Success",
+      "Event Marketing",
+      "GTM Enablement",
+      "Dev Eng",
+      "Technical Solutions Operations",
+      "Sales Development",
+      "Product Marketing",
+      "Finance",
+      "Creative Marketing",
+      "Security",
+      "Technical Post Sales",
+      "Legal Operations",
+      "Commercial \u0026 Mid-Market Sales Engineering",
+      "Mid-Market Sales",
+      "Commercial Sales",
+      "Enterprise Sales",
+      "Product Solutions Architecture",
+      "Business Recruiting",
+      "Demand Generation",
+      "Partner Marketing",
+      "Leadership",
+      "Support Engineering",
+      "Sales Strategy",
+      "Channels \u0026 Alliances",
+      "Product Design",
+      "Engineering Interns",
+      "Commercial Customer Success",
+      "Deal Desk",
+      "Enterprise Technology",
+      "Corporate Development"
+    ],
+    "sample_url": "https://careers.datadoghq.com/detail/8257324/?gh_jid=8257324",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 83,
+    "name": "DaVita",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://davitamigration.phenompeople.net/us/en/job/DAVIUSR0484970WORKDAY",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 84,
+    "name": "Deloitte LLP",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://powertofly.com/jobs/detail/2651825",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 85,
+    "name": "Dev2",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Information Technology",
+      "Other",
+      "Sales",
+      "Customer Service"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/Dev2/743999950937894",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 86,
+    "name": "DHL",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.dhl.com/global/en/job/DPDHGLOBALAV392993ENGLOBALEXTERNAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 87,
+    "name": "DIS AG Germany",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.xing.com/jobs/karlsruhe-vertriebsmitarbeiter-158934043",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 88,
+    "name": "Discord",
+    "provider": "greenhouse",
+    "jobs_fetched": 29,
+    "departments": [
+      "Developers",
+      "Operations Support",
+      "Policy",
+      "Security Engineering",
+      "Product Management",
+      "Data Science \u0026 Engineering",
+      "Office of the CTO",
+      "Recruiting",
+      "Advertising Solutions",
+      "Legal",
+      "Product Engineering",
+      "Product Design",
+      "Trust \u0026 Safety",
+      "Business Systems",
+      "Developer Solutions",
+      "Accounting",
+      "IT \u0026 Corporate Security"
+    ],
+    "sample_url": "https://job-boards.greenhouse.io/discord/jobs/8945798002",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 89,
+    "name": "Docker",
+    "provider": "ashby",
+    "jobs_fetched": 50,
+    "departments": [
+      "Customer Success",
+      "Engineering",
+      "Products",
+      "Sales",
+      "Marketing",
+      "General \u0026 Administrative",
+      "Security"
+    ],
+    "sample_url": "https://jobs.ashbyhq.com/docker/33b629b4-fc3a-437e-b13b-16fef283af68",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 90,
+    "name": "Dollar General",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ibxwjb.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/job/3638",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 91,
+    "name": "Dollar Tree",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.dollartree.com/us/en/job/DTYDTJUSR015401EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 92,
+    "name": "Dominos",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Customer Service",
+      "General Business",
+      "Management"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/Dominos/744000162962899",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 93,
+    "name": "drivenbrands",
+    "provider": "workday",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://wd1.myworkdaysite.com/recruiting",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 94,
+    "name": "Dropbox",
+    "provider": "greenhouse",
+    "jobs_fetched": 47,
+    "departments": [
+      "Security (Sub Team)",
+      "EPD",
+      "Partnership Management (Sub Team)",
+      "GTM Technology Operations (Sub Team)",
+      "Direct \u0026 Channel Sales - APAC (Sub Team)",
+      "CorpEng (Sub Team)",
+      "Engineering Productivity \u0026 Efficiency (Sub Team)",
+      "Product Led Growth (Sub Team)",
+      "Communications (Sub Team)",
+      "Financial Planning and Analysis (Sub Team)",
+      "Confidential - Exec Recruiting",
+      "Cloud Platform (Sub Team)",
+      "Commercial (Sub Team)",
+      "GTM Office (Sub Team)",
+      "Direct Sales - AMER (Sub Team)",
+      "Global Solutions - APJ (Sub Team)",
+      "CXS - Success - AMER (Sub Team)",
+      "Sales Led Growth (Sub Team)",
+      "Eng - PE (Sub Team)",
+      "Internal Business Applications (Sub Team)",
+      "Corporate (Sub Team)",
+      "CXS - Success - EMEA (Sub Team)"
+    ],
+    "sample_url": "https://jobs.dropbox.com/listing/8393442?gh_jid=8393442",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 95,
+    "name": "easyservice",
+    "provider": "workday",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://wd5.myworkdaysite.com/recruiting",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 96,
+    "name": "Eaton",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/tr/job/senior-software-connectivity-support-engineer-german-speaker--fatih--eda63edb403f079da41a3293fae63a331",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 97,
+    "name": "Ecolab",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ecolab.phenompro.com/global/en/job/EIYEIEUSR00311101EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 98,
+    "name": "EDUVIA Bildungsakademie GmbH",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://k62355.coveto.de/job-bahnsicherheit-sicherheitsmitarbeiter-m-w-d-quereinsteiger-willkommen-geldern-42981.html",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 99,
+    "name": "eiffage",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://eiffage.wd3.myworkdayjobs.com/Eiffage_Careers/job/Nice/CONDUCTEUR-DE-TRAVAUX-F-H_JR2026-2907-1",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 100,
+    "name": "Elastic",
+    "provider": "greenhouse",
+    "jobs_fetched": 382,
+    "departments": [
+      "Sales - USPS CIV",
+      "Sales - EMEA - North",
+      "Consulting - AMER",
+      "Sales - APJ - Korea",
+      "Engineering Productivity",
+      "SA - APJ - Korea",
+      "Sales - AMER Strat",
+      "Sales Enablement",
+      "Sales - EMEA - UKI",
+      "Platform - Management Experience",
+      "SDR - APJ",
+      "InfoSec",
+      "Sales - APJ - India",
+      "Sales - AMER MidMarket",
+      "Accounting",
+      "Product Marketing",
+      "Sales - APJ - Japan",
+      "Security - Cross Team",
+      "Sales - AMER - Security Specialists",
+      "SA - APJ - India",
+      "SA - AMER - Strategic",
+      "Strategic Enterprise Growth",
+      "Regional Marketing - EMEA",
+      "SA - APJ - ASEAN",
+      "SDR - AMER",
+      "SA - APJ - Japan",
+      " Brand and Creative",
+      "Consulting - Global - COE",
+      "Obs - Application Observability",
+      "Sales - APJ - ANZ",
+      "Platform - Control Plane",
+      "SA - EMEA - North",
+      "Support",
+      "SA - AMER - Enterprise East",
+      "Customer Architects - EMEA",
+      "Sales - EMEA - Central",
+      "SA - APJ - ANZ",
+      "Web and Localization",
+      "SSC",
+      "Sales - APJ - ASEAN",
+      "Platform - Application Experience",
+      "Regional Marketing - USPS",
+      "Platform - Data and Compute",
+      "SA - EMEA - SIEM",
+      "Security - Integrations",
+      "SA - EMEA - Central",
+      "Partners - EMEA",
+      "Sales - AMER General Business",
+      "Developer Relations",
+      "0000: Pipeline",
+      "Regional Marketing - AMER",
+      "Security - Protections",
+      "SA - APJ - Management and Support",
+      "Platform - Cross Team",
+      "SA - Public Sector - International",
+      "IT",
+      "SDR - USPS",
+      "SDR - EMEA",
+      "Consulting - APJ",
+      "Consulting - EMEA",
+      "Consulting - Global",
+      "SA - AMER - SIEM",
+      "Sales - Public Sector - UKI",
+      "Marketing Operations",
+      "Deal Desk",
+      "Sales - AMER West",
+      "Sales - EMEA - South",
+      "SA - Partner SA - AMER",
+      "Community",
+      "SA - AMER - LATAM",
+      "Regional Marketing - APJ",
+      "Corporate",
+      "Sales - EMEA - Emerging",
+      "Global Events",
+      "Enterprise Search - Engineering",
+      "Enterprise Search - Product Management",
+      "SA - AMER - Value Engineer",
+      "Renewals - EMEA",
+      "Finance Team",
+      "HR Systems \u0026 Analytics",
+      "Partners - APJ",
+      "Data Mgmt \u0026 Finance Operations",
+      "Platform - Elasticsearch",
+      "Customer Architects - AMER"
+    ],
+    "sample_url": "https://jobs.elastic.co/jobs?gh_jid=8148720\u0026gh_jid=8148720",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 101,
+    "name": "Endeavor IT Solution",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/front-end-web-designer-indore/endeavor-it-solution/20086688",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 102,
+    "name": "Energy Jobline ATTB",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.energyjobline.com/job/solar-utility-services-consultant-london-united-kingdom-32049049",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 103,
+    "name": "Energy Jobline CVL",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.energyjobline.com/job/bms-project-manager-london-32052276",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 104,
+    "name": "Energy Jobline ZR",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.energyjobline.com/job/mechanical-technician-knoxville-32053641",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 105,
+    "name": "EPAM Systems",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://en-my.whatjobs.com/pub_api__cpl__27133406__7112",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 106,
+    "name": "esallia",
+    "provider": "recruitee",
+    "jobs_fetched": 2116,
+    "departments": [
+      "Ventes",
+      "Ressources humaines"
+    ],
+    "sample_url": "https://esallia.recruitee.com/o/job-etudiant-cdi-7-a-14h-semaine-vendeur-produits-engages-hf-1131",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 107,
+    "name": "Etablissements publics de coopération intercommunale",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://choisirleservicepublic.gouv.fr/offre-emploi/technicien-de-bassin-versant---communaute-urbaine-caen-la-mer-reference-O014261118000028/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 108,
+    "name": "Eurofins",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Testing \u0026 Laboratory",
+      "Administrative Support",
+      "Consulting \u0026 Operational Excellence",
+      "Logistics",
+      "Quality Assurance",
+      "IT",
+      "Finance",
+      "HR",
+      "Commercial \u0026 Customer Care",
+      "General Management"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/Eurofins/744000162961370",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 109,
+    "name": "EXL",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/senior-executive-ap-kerala/exl/20052624",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 110,
+    "name": "EY",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://en-my.whatjobs.com/pub_api__cpl__27131401__7112",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 111,
+    "name": "FAR Inspections",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://farinspections.applytojob.com/apply/XYKkeASfdM/Vacancy-Verification-Technician",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 112,
+    "name": "Figma",
+    "provider": "greenhouse",
+    "jobs_fetched": 147,
+    "departments": [
+      "Figma Weave",
+      "Business Operations",
+      "People",
+      "Design",
+      "Talent",
+      "Engineering",
+      "Marketing",
+      "Customer Operations and Support",
+      "Early Career",
+      "Business Development",
+      "Product",
+      "Legal",
+      "Sales"
+    ],
+    "sample_url": "https://boards.greenhouse.io/figma/jobs/5426468004?gh_jid=5426468004",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 113,
+    "name": "Five Below",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fivebelow.phenompro.com/us/en/job/FBNFBJUSJR103216EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 114,
+    "name": "Four Seasons",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fourseasons.phenompro.com/us/en/job/FSHFSHUSREQ10360057EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 115,
+    "name": "fr/walter-learning",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.werecruit.io/fr/walter-learning/offres/assistant-de-vie-aux-familles-en-alternance-hf-8d5d7f",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 116,
+    "name": "GameStop",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4409023248/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 117,
+    "name": "GE Vernova, Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/it/job/aerospace-process-quality-engineer-on-site-testing-lead--carrara--e36657ef5370410faaf3bce074170f509",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 118,
+    "name": "GitLab",
+    "provider": "greenhouse",
+    "jobs_fetched": 246,
+    "departments": [
+      "Customer Success Architecture",
+      "Engineering",
+      "Digital Experience",
+      "Solutions Architecture - PubSec",
+      "Sales Development",
+      "Architecture Engineering",
+      "Engagement",
+      "Core DevOps",
+      "AMER - Enterprise",
+      "Product Security",
+      "SA",
+      "Customer Support",
+      "EMEA - Enterprise",
+      "ASE",
+      "Customer Success - PubSec",
+      "Practice Management",
+      "PubSec Customer Support",
+      "EMEA - Commercial",
+      "FP\u0026A",
+      "Platforms",
+      "Sec Engineering",
+      "Monetization Engineering",
+      "Security Assurance",
+      "Communications",
+      "Office of the CTO",
+      "Customer Experience",
+      "Talent Acquisition",
+      "APAC - Commercial",
+      "Customer Success",
+      "Office of CPMO",
+      "New Business - EMEA",
+      "Renewals",
+      "DevOps Engineering",
+      "Field Operations",
+      "Accounting",
+      "Enterprise Applications",
+      "Developer Relations",
+      "AMER - Commercial",
+      "Corporate Affairs",
+      "Product Marketing",
+      "Renewals - PubSec",
+      "Total Rewards",
+      "Regional Marketing",
+      "APAC - Enterprise",
+      "Dedicated Migrations",
+      "PubSec - FED",
+      "Enablement",
+      "Data Engineering",
+      "AI Engineering",
+      "Platforms Engineering",
+      "JAPAN - Enterprise",
+      "People Business Partners",
+      "Alliances and Channel",
+      "Digital Marketing",
+      "Corporate Security",
+      "People Technology",
+      "Procurement",
+      "Data",
+      "Consulting Delivery",
+      "Legal"
+    ],
+    "sample_url": "https://job-boards.greenhouse.io/gitlab/jobs/8638232002",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 119,
+    "name": "Globalchannelmanagement",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.careers-page.com/globalchannelmanagement/job/5W786W63",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 120,
+    "name": "Google",
+    "provider": "greenhouse",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://boards.greenhouse.io/google",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 121,
+    "name": "Google LLC",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.cake.me/companies/Google/jobs/99480363545305798-strategic-partner-development-manager-product-part-1ec0ffac69a9bb2ea831ffa3e44161",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 122,
+    "name": "Grafana Labs",
+    "provider": "greenhouse",
+    "jobs_fetched": 140,
+    "departments": [
+      "Customer Experience",
+      "R\u0026D: Platform",
+      "Finance",
+      "Product",
+      "R\u0026D : Databases",
+      "R\u0026D: Second Horizon",
+      "R\u0026D: Security",
+      "Channel",
+      "Sales (APAC)",
+      "Sales Operations",
+      "R\u0026D: Grafana",
+      "Solutions Engineering (APAC)",
+      "Self-Serve",
+      "Marketing",
+      "Sales (North \u0026 South America)",
+      "Solutions Engineering (EMEA)",
+      "Sales Development",
+      "Corporate Development",
+      "Sales (EMEA)",
+      "People",
+      "Solutions Engineering (North \u0026 South America)",
+      "R\u0026D: Observability ",
+      "Product Management",
+      "R\u0026D: Performance testing (k6)"
+    ],
+    "sample_url": "https://job-boards.greenhouse.io/grafanalabs/jobs/6115634004",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 123,
+    "name": "GRAFTON LATAM",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/cl/job/analista-qa--santiago--efa91c1aebc6ae48284f85513ba1433ee",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 124,
+    "name": "groupementmousquetaires",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Manufacturing",
+      "Métiers de bouche",
+      "Vente et Conseil client",
+      "Other",
+      "Customer Service",
+      "Manutention, logistique et transport",
+      "Administrative",
+      "Accounting/Auditing",
+      "Distribution",
+      "Sales"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/GroupementMousquetaires/744000162963759",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 125,
+    "name": "GRUPO FINANCIERO INBURSA S.A",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://inbursa.pandape.computrabajo.com/Detail/6626957",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 126,
+    "name": "Grupo GPS",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://grupogps.pandape.infojobs.com.br/Detail/1777276",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 127,
+    "name": "Grupo Intercorp",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://intercorp.pandape.computrabajo.com/Detail/14203829",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 128,
+    "name": "Grupo Nach",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://grupo-nach.pandape.computrabajo.com/Detail/14207995",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 129,
+    "name": "Grupo Souza Lima",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.empregos.com.br/vaga/11851185",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 130,
+    "name": "Gusto",
+    "provider": "greenhouse",
+    "jobs_fetched": 82,
+    "departments": [
+      "People",
+      "Insights \u0026 Operations",
+      "Design",
+      "Channel Partnerships",
+      "Security",
+      "Product Management",
+      "Data",
+      "Legal \u0026 Compliance",
+      "Customer Experience",
+      "Finance \u0026 BizOps",
+      "Symmetry",
+      "Engineering",
+      "Sales",
+      "Marketing",
+      "Revenue Operations"
+    ],
+    "sample_url": "https://job-boards.greenhouse.io/gusto/jobs/8353774",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 131,
+    "name": "HDR, Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://hdr.taleo.net/careersection/ex/jobdetail.ftl",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 132,
+    "name": "Health Careers in Saskatchewan",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://emqk.fa.ca3.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/144987",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 133,
+    "name": "heartlandbehavior",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://apply.clearcompany.com/heartlandbehavior",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 134,
+    "name": "Hewlett Packard Enterprise",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://hpe.phenompro.com/us/en/job/HPE1US1197198EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 135,
+    "name": "Hilton",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://efet.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/232123",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 136,
+    "name": "Hitachi Energy Ltd.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4486363974/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 137,
+    "name": "Home Instead UK",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Health Care Provider",
+      "Other",
+      "Business Development",
+      "Administrative"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/HomeInsteadCare/744000162792041",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 138,
+    "name": "Honeywell International Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ibqbjb.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/cx/job/162636",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 139,
+    "name": "HRTX",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/ph/job/junior-full-stack-developer-python-react-hybrid--mandaluyong--ebaf387ddb43e76fe4a5dbf8ddee2deee",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 140,
+    "name": "Hyatt Corporation",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://hyatt.taleo.net/careersection/fast+pass+application+flow/jobdetail.ftl",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 141,
+    "name": "IEL",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://iel.pandape.infojobs.com.br/Detail/3949194",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 142,
+    "name": "IHG",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fa-evax-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/171767",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 143,
+    "name": "IHG Hotels \u0026 Resorts",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4491309405/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 144,
+    "name": "Inetum",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4491620639/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 145,
+    "name": "Integrated Resources Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/us/job/senior-net-azure-developer-client-facing--houston--e082c89dc728bace36461854ecc143f66",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 146,
+    "name": "IntelyCare",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ibpcjb.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/job/33836",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 147,
+    "name": "Interpublic Group",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://interpublic.wd5.myworkdayjobs.com/OMC/job/New-York-New-York-United-States-of-America/Associate--Investment-Operations_R18302-1",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 148,
+    "name": "IQVIA",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://iqvia.wd1.myworkdayjobs.com/IQVIA/job/Wayne-PA-Unites-States-of-America/Associate-Consultant--Competitive-Intelligence_R1575466",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 149,
+    "name": "Jabil Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://himalayas.app/companies/jabil/jobs/qa-automation-lead-android-kotlin",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 150,
+    "name": "jdgroupnam",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://jdgroupnam.wd1.myworkdayjobs.com/HSPRETAIL/job/HB-01138-Norfolk-Nebraska-Sunset-Plaza-Mall/Manager-in-Training--Part-Time-_JR140329",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 151,
+    "name": "Jobgether",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4492150849/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 152,
+    "name": "Jobs for Humanity",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Marketing",
+      "Supply Chain",
+      "Research",
+      "Manufacturing",
+      "Purchasing",
+      "Other",
+      "Education",
+      "Training",
+      "Project Management",
+      "Accounting/Auditing",
+      "Management",
+      "Health Care Provider",
+      "Business Development",
+      "Administrative",
+      "Sales",
+      "Customer Service",
+      "Production",
+      "Engineering",
+      "Information Technology",
+      "General Business",
+      "Consulting",
+      "Human Resources"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/JobsForHumanity/744000162958285",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 153,
+    "name": "jobs.compassgroupcareers.com",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.compassgroupcareers.com/United_States/job/Wichita-HOUSEKEEPER-%28OVERNIGHTS%29-%28FULL-TIME%29-KS-67214/1431971000/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 154,
+    "name": "jobs.lidl",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.lidl/hr/job/Novi-Marof-Prodava%C4%8D-%28-m%C5%BE%29-Novi-Marof/1458727033/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 155,
+    "name": "Johnson \u0026 Johnson Co.",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://jj.wd5.myworkdayjobs.com/JJ/job/Bogot-Distrito-Capital-Colombia/NAM-Payroll-Contact-Center-Jr-Analyst_R-108165",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 156,
+    "name": "Johnson Controls, Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/mx/job/test-engineer--apodaca--ecec8e6ec5595ce30f1d9906eb268ec3f",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 157,
+    "name": "Jones Lang LaSalle (JLL)",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://jll.wd1.myworkdayjobs.com/jllcareers/job/Hyderabad-TS/EHS-Executive_REQ544306",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 158,
+    "name": "JP Euro",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jpeuro.hireclick.com/jb/nacogdoches-city-audi-master-guild-technician-50-65-an-hr-relocation-assistance/view/245495",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 159,
+    "name": "JP Morgan Chase",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/software-engineer-ii-big-data-hyderabad/jpmorganchase/20052081",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 160,
+    "name": "JPMC",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/210810225",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 161,
+    "name": "jpmc-dev9.fa.oraclecloud.com/CX",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jpmc-dev9.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/210628952",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 162,
+    "name": "Kaiser Permanente",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.kaiserpermanentejobs.org/job/fontana/data-reporting-and-analytics-consultant-ii-san-diego/641/103525459440",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 163,
+    "name": "KBR",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://kbr.phenompro.com/us/en/job/KIVKBRUSR3001641EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 164,
+    "name": "Kimpton Hotels \u0026 Restaurants",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fa-evax-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/cx/job/171733",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 165,
+    "name": "kindercare",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://kindercare.wd5.myworkdayjobs.com/ExternalCareerSite/job/301951-Dexter-KinderCare/Facilities-Maintenance-Tech-II_JR55424-1",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 166,
+    "name": "KinderCare Learning Companies",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://kindercareeducation.phenompro.com/us/en/job/KNOWA0054JR59320EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 167,
+    "name": "knitwellgroup",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://knitwellgroup.wd1.myworkdayjobs.com/US_Retail_Jobs/job/Store-0506-Main-Street-Chicos-Los-Altos-CA-94022/Sales-Lead_R-2043632-1",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 168,
+    "name": "Kollabo AG",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobup.ch/fr/emplois/detail/50fa3470-0224-4c89-8b77-cc5d2a7ef87b/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 169,
+    "name": "Kotak",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://hcbt.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/cx/job/275901",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 170,
+    "name": "Kotak Mahindra Bank",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4491152928/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 171,
+    "name": "L3Harris Technologies",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.l3harris.com/en/job/colorado-springs/associate-systems-engineering-colorado-springs-co/4832/93692588976",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 172,
+    "name": "Leidos",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://clearedjobs.net/job/piping-designer-newport-news-virginia-1952336",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 173,
+    "name": "Levtech Freelance",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://freelance.levtech.jp/project/detail/54556/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 174,
+    "name": "LextorahLDS",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Management",
+      "Business Development",
+      "Marketing",
+      "Other",
+      "Strategy/Planning",
+      "Analyst",
+      "Education",
+      "Human Resources",
+      "Accounting/Auditing",
+      "Administrative",
+      "Distribution",
+      "Health Care Provider",
+      "Design",
+      "Engineering",
+      "Quality Assurance",
+      "Consulting",
+      "Art/Creative",
+      "Training",
+      "Sales",
+      "Public Relations"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/LextorahLDS/743999652718263",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 175,
+    "name": "Lids",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://secure5.saashr.com/ta/lids.careers",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 176,
+    "name": "Lifepoint Health",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ibnjjb.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/363693",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 177,
+    "name": "Linear",
+    "provider": "ashby",
+    "jobs_fetched": 32,
+    "departments": [
+      "Product",
+      "GTM",
+      "Operations"
+    ],
+    "sample_url": "https://jobs.ashbyhq.com/linear/d3bc1ced-3ce4-4086-a050-555055dbb1ff",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 178,
+    "name": "Loblaw Companies",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://myview.wd3.myworkdayjobs.com/paradox_careers/job/8195---120-St-Delta-BC/Deli-Clerk-Part-Time-Day-Greenlight-Requisition_R2000736219",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 179,
+    "name": "Lockheed Martin Corporation",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://lockheedmartin.eightfold.ai/careers/job/996476199515",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 180,
+    "name": "LUANDRE SERVICOS TEMPORARIOS LTDA. (C-I)",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://luandreservicostemporariosltdac-i.pandape.infojobs.com.br/Detail/2063926",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 181,
+    "name": "Lyft",
+    "provider": "greenhouse",
+    "jobs_fetched": 148,
+    "departments": [
+      "Infrastructure",
+      "People",
+      "Accounting, Tax, \u0026 Governance",
+      "SCC Analytics",
+      "Executive",
+      "Western and Southern US Policy",
+      "Core Rider",
+      "Applied AI",
+      "Early Talent",
+      "Corporate Engineering \u0026 IT",
+      "Mapping",
+      "LUS Enterprise Delivery",
+      "Team Member Experience",
+      "Foundations \u0026 AI Transformation",
+      "Forecasting \u0026 Real-Time Optimization Platform",
+      "All Talent Team Access",
+      "Security",
+      "Rider Leadership",
+      "Core Support Ops",
+      "Central TPM",
+      "Safety Policy",
+      "LUS Supply Chain",
+      "Legal",
+      "Growth",
+      "AV \u0026 Fleet Operations",
+      "LUS Commercial",
+      "IP",
+      "SCC Tech",
+      "Global Growth Tech",
+      "LUS Rider",
+      "Payments, Loyalty \u0026 Partnerships",
+      "Driver, Supply \u0026 PII",
+      "Central People",
+      "Driver Experience",
+      "Security \u0026 Privacy",
+      "Finance",
+      "Lyft Ads",
+      "Risk Solutions",
+      "Rider",
+      "Specialized Support Ops",
+      "Rider Loyalty \u0026 Partnerships",
+      "Central Market Management \u0026 AI",
+      "Marketplace",
+      "Pricing",
+      "Lyft Business",
+      "Rider App"
+    ],
+    "sample_url": "https://app.careerpuck.com/job-board/lyft/job/8927798002?gh_jid=8927798002",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 182,
+    "name": "Macy's",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://ebwh.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/REQ_826287",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 183,
+    "name": "Maggiano's",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fa-etjg-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/Maggianos/job/21476",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 184,
+    "name": "Manpower",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://emprego.sapo.pt/offers/tecnico-de-manutencao-industrial",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 185,
+    "name": "ManpowerGroup",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.pracuj.pl/praca/it-perm-recruitment-partner-warszawa,oferta,1005230547",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 186,
+    "name": "Marks \u0026 Spencer",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://uk.whatjobs.com/pub_api__cpl__635272581__7082",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 187,
+    "name": "Marks and Spencer",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fa-eqid-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/142893",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 188,
+    "name": "Marriott",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/store-associate/marriott/20052194",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 189,
+    "name": "Marriott International",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.marriott.com/guest-services-supervisor-hotel-arts-barcelona/job/P1-7735823-0",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 190,
+    "name": "Marsh LLC",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.marsh.com/global/en/job/MAMCGLOBALR373460EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 191,
+    "name": "Marsh McLennan",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://marshmclennanmigration.phenompeople.net/global/en/job/MAMCGLOBALR373460EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 192,
+    "name": "massgeneralbrigham",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://massgeneralbrigham.wd1.myworkdayjobs.com/PhysicianOrganization/job/Charlestown-MA/ARNA-Research-Fellow-12-7_RQ4087160",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 193,
+    "name": "Maurices",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/ar/job/senior-electrical-design-project-engineer--santa-fe-capital--e32d0b0551395aa2078475dcbba9617db",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 194,
+    "name": "Mavis Tires \u0026 Brakes",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://mavistire.applicantpro.com/jobs/4282738",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 195,
+    "name": "mcdonalds",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://mcdonalds.csod.com/ux/ats/careersite/1/home/requisition/80446",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 196,
+    "name": "Medical University of South Carolina",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://musc.wd1.myworkdayjobs.com/MUSC/job/Charleston/Registered-Nurse-II---Adult-EmPATH_R-0000071586",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 197,
+    "name": "Meet Recrutamento e Seleção",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://meetrecrutamentoeselecao.pandape.infojobs.com.br/Detail/3950397",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 198,
+    "name": "Mekdam Technical Services",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/qa/job/ops-360-sap-bw-bi-consultant-analytics-excellence--doha--ecbfcad44e97bd78d82c90df0cf0669a8",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 199,
+    "name": "Merck",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.merck.com/us/en/job/MERCUSR427367ENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 200,
+    "name": "Mercy",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://mercy.wd1.myworkdayjobs.com/mercycareers/job/Mercy-Hospital-Ada/JR276560-Registered-Nurse--RN----PreOp---Full-Time-Days_JR276540",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 201,
+    "name": "Meta",
+    "provider": "greenhouse",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://boards.greenhouse.io/facebook",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 202,
+    "name": "Michael Page",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.net-empregos.com/16279170/tecnico-de-vendas-material-eletrico-lisboa/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 203,
+    "name": "Michaels",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://michaelsstores.phenompro.com/us/en/job/MSXMSIUSR00329341EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 204,
+    "name": "Michaels Stores",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://michaels.wd5.myworkdayjobs.com/External/job/Stittsville-5617-Hazeldean-Rd/Service-Team-Member_R00329491",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 205,
+    "name": "Micron",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/my/job/quality-reliability-engineer-ssd-lab-ort-ai--penang--ec1dae7bce12387f688df7b7273ab47fa",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 206,
+    "name": "Micron Technology",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.cake.me/companies/micron-technology/jobs/9ef21790-5bff-4bc0-b19d-e164b7d987c5-japan-internal-communications-sp-c183ee92390e53f32f3bf6658e6927",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 207,
+    "name": "Microsoft",
+    "provider": "greenhouse",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://boards.greenhouse.io/microsoft",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 208,
+    "name": "Ministerie van Defensie",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://nl.whatjobs.com/pub_api__cpl__182181057__7137",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 209,
+    "name": "MongoDB",
+    "provider": "greenhouse",
+    "jobs_fetched": 417,
+    "departments": [
+      "Customer Success",
+      "Database Interfaces and Architecture",
+      "Technical Services Operations",
+      "Sales Greater China",
+      "International Marketing - EMEA",
+      "Security Operations",
+      "Billing",
+      "Customer Success EMEA",
+      "Solutions Architecture, Partners",
+      "Sales Growth NAMER",
+      "Partner Enablement",
+      "Cloud Partners",
+      "Intern",
+      "Technical Support AMER",
+      "Marketing Management",
+      "Legal \u0026 Risk Mgmt",
+      "Workplace",
+      "App Modernization PM",
+      "Technical Support Premium Services",
+      "Brand Creative",
+      "Solutions Architecture, APAC",
+      "Solutions Architecture",
+      "Tax \u0026 Treasury",
+      "Technical Support APAC",
+      "Sales US Public Sector",
+      "APAC Partner Specialists",
+      "Atlas Core Data Services",
+      "Ventures - Marketing",
+      "Engagement Manager AMER",
+      "FP\u0026A - GTM",
+      "Office of the CTO",
+      "Technical Support EMEA",
+      "Inside Sales NAMER",
+      "Sales APAC (Japan)",
+      "Identity and Access Management",
+      "FP\u0026A - P\u0026T",
+      "Engagement Managers APJ",
+      "Core Product Management",
+      "Website",
+      "AI Builder Experience",
+      "Controllership",
+      "Customer Success Americas",
+      "Analytics",
+      "Product Security",
+      "Employee Experience APAC \u0026 India",
+      "Enterprise Architecture",
+      "Procurement",
+      "PS Field Delivery",
+      "Voyage AI Research",
+      "Customer PMO",
+      "Solutions Architecture, Growth EMEA",
+      "HR Operations",
+      "Sales Growth EMEA",
+      "Assurance, Risk \u0026 Compliance",
+      "Real Estate",
+      "Atlas Search",
+      "Sales LatAm",
+      "Pricing and Packaging",
+      "Employee Experience AMER",
+      "Sales Development",
+      "Durability and Availability",
+      "FP\u0026A - G\u0026A \u0026 Corporate",
+      "Data \u0026 Platform",
+      "AMP, EMEA Delivery",
+      "Analytics-Product",
+      "Strategic Events",
+      "Commercial Growth",
+      "Technical Support Partners \u0026 Migrations",
+      "Technical Support Escalation Management",
+      "Chief info Security CISO",
+      "Global Enterprise Technology (GET)",
+      "Industry Solutions",
+      "International Marketing - APAC",
+      "PS Project Management",
+      "Internal AI",
+      "Observability \u0026 Adoption Engineering",
+      "Site Reliability Engineering",
+      "SI Partners",
+      "GTM Tech",
+      "Solutions Architecture, Growth NA",
+      "Recruiting ",
+      "Total Rewards",
+      "Customer Strategy \u0026 Planning",
+      "Documentation",
+      "Online Transaction Processing ",
+      "Product \u0026 Technology",
+      "Core Platforms",
+      "PTO Interns",
+      "Early Talent Recruiting",
+      "Cloud Operations",
+      "Sales APAC (ANZ)",
+      "Magenta",
+      "Renewals",
+      "Marketing Operations",
+      "People Team",
+      "Finance \u0026 Administration ",
+      "Learning \u0026 Development",
+      "Scaled Customer Success",
+      "AMP, APAC Delivery ",
+      "App Modernization ENG",
+      "FIN Tech",
+      "Customer Tools",
+      "Solutions Architecture, LATAM",
+      "HR Tech",
+      "Scaled Solutions Architecture",
+      "Engagement Managers EMEA",
+      "Americas Marketing",
+      "GTM Operations",
+      "Solutions Architecture AMP",
+      "Customer Success APAC",
+      "Growth Marketing",
+      "Revenue, OTC \u0026 QTC",
+      "PS Migration Factory"
+    ],
+    "sample_url": "https://www.mongodb.com/careers/job/?gh_jid=8346138",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 210,
+    "name": "Neo Temp GmbH",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://k55805.coveto.de/job-loeter-mitarbeiter-elektronikfertigung-m-w-d-ab-17-00-h-oberhausen-128488.html",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 211,
+    "name": "Nestlé",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobdetails.nestle.com/job/Ribeir%C3%A3o-Preto-Analista-de-Contas-a-Pagar-JR-SP-14094-000/1459022133/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 212,
+    "name": "Netflix",
+    "provider": "lever",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.lever.co/netflix",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 213,
+    "name": "Nextmind Solutions Private Limited",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_2001/job/210810225",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 214,
+    "name": "Non renseigné",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://europa.eu/eures/portal/jv-se/jv-details/ODk4NTkzMiA5",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 215,
+    "name": "Northrop Grumman",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.adzuna.com.au/details/5971868467",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 216,
+    "name": "Notion",
+    "provider": "ashby",
+    "jobs_fetched": 170,
+    "departments": [
+      "Customer Experience",
+      "Finance",
+      "Engineering",
+      "Early Career",
+      "Sales",
+      "Product Management",
+      "Marketing",
+      "Revenue Operations \u0026 Strategy ",
+      "Legal",
+      "Business Technology",
+      "Outcomes Architect",
+      "People",
+      "Security",
+      "User Research and Product Operations"
+    ],
+    "sample_url": "https://jobs.ashbyhq.com/notion/1fc309c8-da20-4ff2-84c7-8b863ece2b0a",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 217,
+    "name": "NTT DATA, Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://en-ca.whatjobs.com/pub_api__cpl__163413582__7103",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 218,
+    "name": "Nvidia",
+    "provider": "greenhouse",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://boards.greenhouse.io/nvidia",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 219,
+    "name": "NVIDIA Corporation",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.adzuna.de/details/5971972792",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 220,
+    "name": "O2",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://emploi.o2recrute.fr/fr/annonce/4700457-babysitting-petite-enfance-a-larmor-plage-larmor-plage",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 221,
+    "name": "ochsner",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://ochsner.wd1.myworkdayjobs.com/Ochsner/job/Baton-Rouge---Baton-Rouge-Region---Louisiana/Certified-Medical-Assistant--Neurosurgery-Clinic--Baton-Rouge_REQ_00275751",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 222,
+    "name": "Okta",
+    "provider": "greenhouse",
+    "jobs_fetched": 372,
+    "departments": [
+      "Web Marketing-465",
+      "Customer Success Management-750",
+      "SE Leadership \u0026 Shared Services-323",
+      "SW Eng - Core Identity-670",
+      "Sec - GRC-775",
+      "Product Management-810",
+      "Digital Media-415",
+      "Employee Relations \u0026 Compliance-159",
+      "FP\u0026A-125",
+      "Security-783",
+      "Total Rewards-132",
+      "Tech Ops-610",
+      "Recruiting-180",
+      "Employee and Manager Experience-131",
+      "Product Design \u0026 UXR-650",
+      "Developer Relations-490",
+      "Product \u0026 Platform Data-693",
+      "Sec - Product Security-771",
+      "Customer Support-740",
+      "CAO Org-120",
+      "SE Field-321",
+      "Spera Eng-722",
+      "Partner Success-240",
+      "BT Engineering Services-779",
+      "BT Go To Market Technology-173",
+      "AI Acceleration-814",
+      "Sales Enablement-370",
+      "Regional Alliances \u0026 GSI-027",
+      "Leadership \u0026 Org Success-164",
+      "CIAM Customer Support-745",
+      "Demand Gen-420",
+      "Enterprise Sales-340",
+      "Product Marketing-530",
+      "Corporate Sales-330",
+      "Product Acceleration Team-394",
+      "Emerging Tech-694",
+      "Engineering Quality-630",
+      "BT Workplace Technology-140",
+      "Cloudmaker-698",
+      "Security Engineering-695",
+      "Digital Workers-816",
+      "Self Service-393",
+      "Internal Audit-135",
+      "Corporate Communication-410",
+      "Okta for AI Agents-764",
+      "Workplace Security Operations-178",
+      "Auth0 DevRel-494",
+      "HQ Engineering-625",
+      "SE Field CTO-322",
+      "CIAM Devex-680",
+      "SW Eng - Applications-674",
+      "Okta for Good-115",
+      "BT Operations-165",
+      "Legal-170",
+      "Sales Development-310",
+      "Key Accounts Program (KAP)-765",
+      "Business Operations-150",
+      "SW - Engineering Services-676",
+      "Accounting Operations-121",
+      "SW Eng - Infrastructure-672",
+      "BT People Legal and Finance Technology-155",
+      "Strategic Accounts-315",
+      "Emerging Sales-350",
+      "Public Sector-325",
+      "Deal Strategy, Ops \u0026 Subs Compliance-123",
+      "Partner Marketing-122",
+      "Tax \u0026 Treasury-157"
+    ],
+    "sample_url": "https://www.okta.com/company/careers/opportunity/8093704?gh_jid=8093704",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 223,
+    "name": "OpenAI",
+    "provider": "ashby",
+    "jobs_fetched": 851,
+    "departments": [
+      "Core Product \u0026 Platform",
+      "Business Operations",
+      "Product Operations",
+      "Partnerships",
+      "Product Design",
+      "People",
+      "Go To Market",
+      "IT",
+      "Product Partnerships",
+      "XYZ - Exec",
+      "Intelligence \u0026 Investigations",
+      "Life Sciences",
+      "Technical Program Management",
+      "Workplace",
+      "Finance",
+      "Consumer Devices",
+      "Communications",
+      "Research",
+      "Marketing",
+      "Product Management",
+      "Legal",
+      "Strategy \u0026 Operations",
+      "Security",
+      "Data Science",
+      "Robotics",
+      "Global Affairs",
+      "Strategic Finance",
+      "Scaling",
+      "OpenAI for Gov",
+      "Executive Operations",
+      "Product Policy",
+      "Applied AI",
+      "Forward Deployed Engineering",
+      "User Operations"
+    ],
+    "sample_url": "https://jobs.ashbyhq.com/openai/8fb1615c-34bf-47c4-a1d1-b7b2f836bbd3",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 224,
+    "name": "Oracle",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4486597228/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 225,
+    "name": "pacs",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://pacs.wd108.myworkdayjobs.com/pacs/job/Interlochen-Health-And-Rehabilitation-Center/Medication-Aide--Weekends-_JR190669",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 226,
+    "name": "Pacura doc GmbH",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://karriere.pacura-doc.de/job-facharzt-fuer-radiologie-m-w-d-bis-zu-16-000-monat-zuschlaege-berlin-hamburg-muenchen-koeln-frankfurt-am-main-duesseldorf-stuttgart-leipzig-dortmund-bremen-19941.html",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 227,
+    "name": "Panera Bread",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://panerabread.phenompro.com/global/en/job/PABRGLOBAL2867291204916EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 228,
+    "name": "Parsons Corporation",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://himalayas.app/companies/parsons-corporation/jobs/sr-project-control-specialist",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 229,
+    "name": "PepsiCo",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.pepsicojobs.com/jobs/480165",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 230,
+    "name": "Pinterest",
+    "provider": "greenhouse",
+    "jobs_fetched": 174,
+    "departments": [
+      "ATG",
+      "University",
+      "Trust and Safety Ops",
+      "Security",
+      "Legal",
+      "Ads Product \u0026 Innovation",
+      "Corporate Development",
+      "University Sales",
+      "Consumer Engineering",
+      "Infrastructure and SRE",
+      "Programmatic Sales",
+      "Total Rewards",
+      "tvScientific",
+      "SMB Sales",
+      "University Engineering",
+      "Product Marketing",
+      "Engineering, Product and Design (L2)",
+      "Communications",
+      "APAC Enterprise Sales",
+      "Strategy",
+      "GBO Strategy \u0026 Operations",
+      "Finance",
+      "Oversight Engineering",
+      "EPD Ads and Ads Product",
+      "Marketing",
+      "Global Content Organization",
+      "Talent Development",
+      "Design",
+      "Data Engineering",
+      "Europe Enterprise Sales",
+      "Accounting",
+      "North America Enterprise Sales"
+    ],
+    "sample_url": "https://www.pinterestcareers.com/jobs/?gh_jid=8396724",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 231,
+    "name": "Placements24",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://en-za.whatjobs.com/pub_api__cpl__64293573__7122",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 232,
+    "name": "PowerMatch ApS",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://job.jobnet.dk/CV/FindWork/Details/edd9c770-4941-4246-99af-b77edcd468d9",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 233,
+    "name": "PradeepIT Consulting Services Pvt Ltd",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.careers-page.com/pradeepit/job/L3R3X37W",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 234,
+    "name": "Prolific Academic Ltd",
+    "provider": "greenhouse",
+    "jobs_fetched": 4265,
+    "departments": [
+      "Human Data Recruitment ",
+      "Specialists",
+      "STEM",
+      "Languages",
+      "Country"
+    ],
+    "sample_url": "https://job-boards.eu.greenhouse.io/prolificacademicltd/jobs/4979452101",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 235,
+    "name": "ProSidian Consulting, LLC",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://himalayas.app/companies/prosidian-consulting-llc/jobs/program-manager-employer-sponsored-work-life-universal-benefits-account-uba-p",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 236,
+    "name": "Providence",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://evac.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/job/473794",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 237,
+    "name": "Publicis Groupe Holdings B.V",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.publicisgroupe.com/jobs/183624",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 238,
+    "name": "Pulse Healthcare",
+    "provider": "greenhouse",
+    "jobs_fetched": 2791,
+    "departments": [
+      "HSS",
+      "HSS/AHP",
+      "MAX AHP",
+      "Nursing",
+      "Acute Doctors",
+      "Allied Health",
+      "Psychological Therapies",
+      "Psychiatry",
+      "Nursing - Permanent Roles"
+    ],
+    "sample_url": "https://job-boards.greenhouse.io/pulse/jobs/7582224003",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 239,
+    "name": "Purple Drive",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://purpledrive.oorwin.com/careers/index.html",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 240,
+    "name": "PwC",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.pwc.ch/offene-stellen/praktikant-in-steuerberatung-6-monate/d01cc78e-ad7e-4a58-b79c-95f0c3b90e39",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 241,
+    "name": "Qualcomm",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.qualcomm.com/careers/job/446721736745",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 242,
+    "name": "Ramp",
+    "provider": "ashby",
+    "jobs_fetched": 187,
+    "departments": [
+      "Engineering",
+      "Data",
+      "Finance",
+      "IT",
+      "Security",
+      "Sales",
+      "Design",
+      "Product",
+      "People \u0026 Talent",
+      "Deal Desk",
+      "Customer Experience",
+      "Marketing",
+      "Compliance",
+      "Risk",
+      "Legal"
+    ],
+    "sample_url": "https://jobs.ashbyhq.com/ramp/34413f8d-26bf-4bbc-8ade-eb309a0e2245",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 243,
+    "name": "Randstad España",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4489771189/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 244,
+    "name": "Randstad Pty",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.cake.me/companies/randstad-pte-ltd/jobs/senior-staff-process-integration-engineer",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 245,
+    "name": "Reddit",
+    "provider": "greenhouse",
+    "jobs_fetched": 148,
+    "departments": [
+      "Platform Engineering",
+      "User Experience",
+      "Community",
+      "Marketing",
+      "Ads Product \u0026 Engineering",
+      "ML \u0026 Search",
+      "Safety - Tech \u0026 Ops",
+      "Data Science",
+      "Consumer Product",
+      "Engineering and Product",
+      "Dev Platform",
+      "ML Foundations",
+      "Consumer Engineering",
+      "Legal",
+      "Infrastructure",
+      "Finance \u0026 Accounting",
+      "Security, Privacy \u0026 Assurance",
+      "SRE \u0026 Program Mgmt",
+      "Sales",
+      "Tech Admin"
+    ],
+    "sample_url": "https://job-boards.greenhouse.io/reddit/jobs/8153017",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 246,
+    "name": "Rede D'Or",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://rededor.gupy.io/jobs/12920278",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 247,
+    "name": "remote quest jobs",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/experienced-data-entry-operator-telecaller-customer-service-and-data/remote-quest-jobs/20085857",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 248,
+    "name": "REWE Group",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://karriere.rewe-group.com/penny/job/Egelsbach-Verk%C3%A4ufer-Kassierer-%28mwd%29-HE-63329/1458968733/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 249,
+    "name": "RHF TALENTOS",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.catho.com.br/vagas/atendente-de-loja-acai-e-sorvetes-bairro-alto/39324846/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 250,
+    "name": "RHF Talentos Matriz",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.infojobs.com.br/vaga-de-advogado-1502-em-rondonia__12223803.aspx",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 251,
+    "name": "RIT - GRUPO CARREFOUR BRASIL",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://grupocarrefourbrasil.pandape.infojobs.com.br/Detail/1880496",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 252,
+    "name": "RM Staffing B.V.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/om/job/data-center-technician-om-muscat-on-site--muscat--e7268b1643d03ead8c6d3c5a09eaf7a41",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 253,
+    "name": "Rocken®",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.xing.com/jobs/zuerich-senior-software-entwickler-angular-typescript-159246023",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 254,
+    "name": "rocket match powered by notificAI GmbH",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.rocket-match.de/job-assistenzarzt-radiologie-facharztweiterbildung-in-einem-starken-team-m-w-d-castrop-rauxel-248190.html",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 255,
+    "name": "ROYAL ORG PTE. LTD.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.mycareersfuture.gov.sg/job/646582b3c86ba18be3e60d073b948c83",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 256,
+    "name": "RSC",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://fa-etjg-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/RSC/job/21476",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 257,
+    "name": "RTX",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://en-ca.whatjobs.com/pub_api__cpl__163543614__7103",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 258,
+    "name": "Safran",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.safran-group.com/fr/talents/Nos%20offres/offer/192693",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 259,
+    "name": "Salesforce, Inc.",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://de-ch.whatjobs.com/pub_api__cpl__50985970__7095",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 260,
+    "name": "Sally",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://eigx.fa.us6.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_13/job/56000",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 261,
+    "name": "Sally Beauty",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://eigx.fa.us6.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/56000",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 262,
+    "name": "sanford",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://sanford.wd5.myworkdayjobs.com/SanfordHealth/job/ND-Fargo/RN-Inpatient---Endoscopy---Full-Time--Days-_R-0274803",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 263,
+    "name": "Sanofi",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.sanofi.com/en/job/waterford/manufacturing-operations-team-member/2649/45055576256",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 264,
+    "name": "Saskatchewan Health Authority",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://emqk.fa.ca3.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/144721",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 265,
+    "name": "SBH",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://eigx.fa.us6.oraclecloud.com/hcmUI/CandidateExperience/en/sites/cx/job/55997",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 266,
+    "name": "Schneider Electric",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.se.com/jobs/140776",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 267,
+    "name": "Segula Technologies",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.segulatechnologies.com/en/annonce/4700169-tester-qa-engineer-manual-madrid",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 268,
+    "name": "Select Medical",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://selectmedicalcorp.jibeapply.com/jobs/391934",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 269,
+    "name": "Sentry",
+    "provider": "ashby",
+    "jobs_fetched": 42,
+    "departments": [
+      "Security",
+      "G\u0026A",
+      "Office of the CTO",
+      "Sales ",
+      "Product Design",
+      "Engineering ",
+      "Marketing ",
+      "Customer Success ",
+      "Support"
+    ],
+    "sample_url": "https://jobs.ashbyhq.com/sentry/81f09568-da7d-4ed1-8283-614f846c9b00",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 270,
+    "name": "Servtec",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://servtec.pandape.infojobs.com.br/Detail/3935623",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 271,
+    "name": "Sevita",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://thementornetwork.phenompro.com/us/en/job/TMNEUS795286EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 272,
+    "name": "signetjewelers",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://signetjewelers.wd1.myworkdayjobs.com/BlueNile/job/B14400---Blue-Nile-San-Jose-CA/Personal-Jeweler---Blue-Nile---Valley-Fair_REQ_84661-1",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 273,
+    "name": "Simplex Bemanning ",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobb.simplexbemanning.se/jobs/8768168-bilmekaniker-sollentuna-heltid",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 274,
+    "name": "Société Générale de Surveillance (SGS)",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Sales, Customer Support",
+      "Shared Services Center",
+      "Certification, Consulting, Training and Other Services",
+      "Inspection and Field Testing",
+      "Laboratory \u0026 Testing",
+      "Management, General Administration and Support Functions"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/SGS/744000162836839",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 275,
+    "name": "SOLVO S.A.S",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://solvoglobal.pandape.computrabajo.com/Detail/14219734",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 276,
+    "name": "SonsoftInc",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Information Technology"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/SonsoftInc/743999659849811",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 277,
+    "name": "SopraSteria1",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.get-in-it.de/jobsuche/p314085",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 278,
+    "name": "SpaceX",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.adzuna.com.au/details/5971355097",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 279,
+    "name": "Stantec",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://au.whatjobs.com/pub_api__cpl__127346475__7084",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 280,
+    "name": "Stripe",
+    "provider": "greenhouse",
+    "jobs_fetched": 778,
+    "departments": [
+      "6482 SOX",
+      "5112 General University",
+      "6441 Corporate F\u0026S",
+      "3510 CBO Admin",
+      "8514 Connect - Eng",
+      "1185 Account Executives (EMEA)",
+      "8589 Bridge - S\u0026M",
+      "8582 Optimized Checkout - Eng",
+      "2311 Marketing - AMER",
+      "8553 Radar - PM",
+      "6427 Procurement",
+      "8560 Bank Connections - Eng",
+      "1643 Product Sales - Billing",
+      "1645 Product Sales - Metronome",
+      "6420 Accounting",
+      "2317 Marketing - PMM",
+      "2312 Marketing - EMEA",
+      "8555 Payments Globalization - PM",
+      "1136 Product Sales Development Reps",
+      "1642 Product Sales - MaaS",
+      "4899 SDC - Bridge RiskOps",
+      "8712 Enterprise Engine",
+      "4134 SDC - Tax",
+      "6515 People Consultants",
+      "8259 Risk Tech Program Management \u0026 Other",
+      "4150 Technical Support",
+      "1342 Payment Performance",
+      "8416 Business Network",
+      "8511 PayIntel - Eng",
+      "1175 Enterprise - Account Executives (NA)",
+      "1644 Product Sales - Prime Billing",
+      "4890 Credit Operations",
+      "1143 EMEA Delivery",
+      "3515 Money Management Financial Partnerships",
+      "4193 Financial Crimes Operations",
+      "8813 Web Presence \u0026 Platform",
+      "6451 COE F\u0026S (SDC)",
+      "4135 SDC - Marketing",
+      "3313 SDC - Financial Crimes",
+      "4161 SDC - Internal Systems",
+      "8538 MM Platform \u0026 Risk - PM",
+      "4891 Partner Risk Operations",
+      "8217 Risk Engineering",
+      "4516 SDC - Bridge",
+      "1180 GEO Sales HQ (EMEA)",
+      "7112 Data Science",
+      "1510 Global Business Services",
+      "8417 Accounting Products",
+      "8278 MaaS APAC",
+      "6314 Public Policy",
+      "4199 Consumer Operations - SDC",
+      "8113 Brand Studio",
+      "8510 Agentic Commerce",
+      "6510 People Operations",
+      "8552 PayIntel - PM",
+      "8256 Issuing - PM",
+      "8574 Globalization Platform",
+      "4119 Product Support",
+      "8610 Security Engineers",
+      "4144 SDC - Managed Operations: Billing",
+      "8547 Cards Online - PM",
+      "8512 Terminal - Eng",
+      "4202 BFin - FinOps (SDC)",
+      "8525 Radar - Eng",
+      "1654 Account Executives (AI)",
+      "1640 Product Sales - Payments",
+      "6220 Executive Operations",
+      "6532 Benefits",
+      "1630 Alliances \u0026 Channels",
+      "2413 Communications",
+      "4203 BFin - Accounting (SDC)",
+      "1190 GEO Sales HQ (APAC)",
+      "8810 Design",
+      "7313 CorpTech Corporate Engineering",
+      "1170 GEO Sales HQ (NA)",
+      "4892 Risk Operations Enablement",
+      "6452 Sales Comp",
+      "8123 Core Infra Admin",
+      "8212 ML Foundations",
+      "8546 Treasury for Platforms - Eng",
+      "1195 Account Executives (APAC)",
+      "6426 Monetization Operations",
+      "1155 SA Transformation",
+      "8504 Bridge - R\u0026D",
+      "6444 Deal Pricing",
+      "8216 Risk Onboarding and Trusted Users",
+      "8571 Ecosystem Product",
+      "1651 Velocity - Account Executives (NA)",
+      "6340 Employment Legal",
+      "8414 MerchantXP - Eng",
+      "1160 Partner Solution Engineering",
+      "6480 Internal Audit",
+      "1341 Renewals",
+      "4138 SDC - Tech Ops",
+      "8803 Partner Products",
+      "6320 Commercial Legal",
+      "4712 SDC - Accelerate",
+      "3512 Strategic and Ecosystem Partnerships",
+      "8543 Treasury - PM",
+      "1140 Professional Services",
+      "4168 SDC - Credit Operations",
+      "1142 APAC Delivery",
+      "8250 Connect - PM",
+      "3710 Startup Product",
+      "4128 SDC - Product Support",
+      "3110 User Policy Operations",
+      "8124 Seller Systems",
+      "8812 UX Research",
+      "8548 Payins - Eng",
+      "1340 Customer Success Management",
+      "1520 Sales Operations (SS\u0026O)",
+      "8516 Payments Global",
+      "1141 AMER Delivery",
+      "3514 Global Expansion and LPM Partnerships",
+      "1133 EMEA Sales Development Reps",
+      "8569 MerchantXP - PM",
+      "6447 Product Pricing",
+      "1650 AI GTM Strategy \u0026 Solutions",
+      "1652 Platforms - Account Executives (NA)",
+      "1132 AMER Sales Development Reps",
+      "2226 Central Strategy \u0026 Operations",
+      "6526 University Recruiting",
+      "1653 Startups - Account Executives (NA)",
+      "1641 Product Sales - RFA ex Billing",
+      "8581 Global Payments Experiences",
+      "2414 Works in Progress",
+      "1151 Solutions Architecture (AMER)",
+      "1130 Global Sales Development Mgrs",
+      "2316 Marketing - Partner",
+      "8534 Identity - PM",
+      "8611 Security Analytics",
+      "8215 Identity - Eng",
+      "8122 Data Foundations",
+      "8614 Office of the CISO \u0026 Partnership",
+      "4137 SDC - Legal Operations",
+      "3513 Commerce and Data Partnerships",
+      "6523 Recruiting Enablement",
+      "4129 SDC - User Policy Operations",
+      "8121 Commerce Systems",
+      "8535 Risk Credit \u0026 Fraud",
+      "6610 Food",
+      "6630 Real Estate",
+      "8125 Core Compute",
+      "8566 Developer Platform - PM",
+      "8596 Tax Products",
+      "1144 Enterprise Services Managers",
+      "2318 Corp Events",
+      "4123 Consumer Operations",
+      "6483 Risk Partnerships",
+      "8915 Core Tech Product Management",
+      "4176 Support S\u0026A",
+      "9018 OpenRouter - R\u0026D",
+      "6425 Finance Operations",
+      "8531 Crypto Product",
+      "4147 Technical Account Management, Support \u0026 Services - EMEA",
+      "6309 Policy Development",
+      "8612 Security Infrastructure",
+      "1120 Training \u0026 Certification",
+      "6620 Workplace Services",
+      "1154 Specialized Solutions Architecture",
+      "1530 GTM Industries",
+      "8116 Developer Platform - Eng",
+      "2313 Marketing - APAC",
+      "8129 Global Networking",
+      "8412 Subscriptions",
+      "3311 FinCRO",
+      "7312 CorpTech Customer Success",
+      "8551 OAP - Eng",
+      "6390 Corporate Security",
+      "8186 Service Platform",
+      "6430 Tax",
+      "6514 People Operations SDC",
+      "9014 Metronome - R\u0026D",
+      "4141 SDC - Central Operations Enablement",
+      "1522 GTM Product StratOps",
+      "2325 Exec Marketing",
+      "Global Operations",
+      "8134 Operations Platform",
+      "4401 Merchant Acquiring Bank - Legal",
+      "3134 Fraud Risk Strategy",
+      "6550 People Partners",
+      "8260 Risk and Compliance Platform PM",
+      "2315 Marketing - Marketing Operations",
+      "6250 Office of the Vice Chair",
+      "4378 SDC - Fraud Operations",
+      "8916 Growth - Eng",
+      "1152 Solutions Architecture (EMEA)",
+      "1134 APAC Sales Development Reps",
+      "8421 RevSuite Foundations",
+      "8127 Core Infrastructure",
+      "1512 Global Sales Enablement",
+      "8112 Business Continuity \u0026 Reliability",
+      "1150 Solutions Architecture",
+      "8258 Terminal - PM",
+      "3130 Credit Risk Strategy",
+      "7420 Finance Systems",
+      "8811 Product Design",
+      "8126 Developer Infrastructure",
+      "4130 Technical Account Management, Support \u0026 Services - AMER",
+      "4896 Fraud Operations",
+      "6410 Treasury Finance",
+      "8262 APAC - PM",
+      "4900 Support Eng \u0026 PM",
+      "1153 Solutions Architecture (APAC)",
+      "8279 MaaS TPgM",
+      "8539 MMS Product - Eng",
+      "6520 Recruiting",
+      "4145 Support Products - Eng",
+      "9001 Privy - R\u0026D",
+      "8570 Consumer Network - Eng",
+      "6311 Data Protection \u0026 Privacy",
+      "8415 RevSuite Central"
+    ],
+    "sample_url": "https://stripe.com/jobs/search?gh_jid=8172510",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 281,
+    "name": "Suministra SRL",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://suministra.pandape.computrabajo.com/Detail/14222575",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 282,
+    "name": "Tantor",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://tantor.teamtailor.com/jobs/8744129-auxiliaire-de-vie-avs-h-f-75004-paris-4e-arrondissement",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 283,
+    "name": "Tata Capital",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.shine.com/jobs/customer-service-executive-car-finance-chas-india/tata-capital/20052630",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 284,
+    "name": "TE Connectivity",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.te.com/job/MGR-II-PRODUCT-PRICING/162050-en_US",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 285,
+    "name": "TeachMe.To",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://coaching.teachme.to/jobs/740068-tennis-coach-private-in-plymouth-teachme-to",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 286,
+    "name": "Tecdata Engineering",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/es/job/senior-ios-engineer--barcelona--ee804c774b10dc48ca84ab5db4c4021e9",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 287,
+    "name": "TEKsystems",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.teksystems.com/us/en/job/TESYUSJP006432616ENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 288,
+    "name": "Tenet Healthcare",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://tenet.taleo.net/careersection/10000mb/jobdetail.ftl",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 289,
+    "name": "Thales",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.thalesgroup.com/fr/fr/apply",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 290,
+    "name": "The Salvation Army",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://thesalvationarmysyracusearc.betterteam.com/materials-handler",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 291,
+    "name": "Thermo Fisher Scientific",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://thermofisher.phenompro.com/global/en/job/TFSCGLOBALR01360715EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 292,
+    "name": "Tiendas NETO",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://tiendas-neto.pandape.computrabajo.com/Detail/14229510",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 293,
+    "name": "TJX",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://himalayas.app/companies/tjx/jobs/financial-analyst",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 294,
+    "name": "TJX Companies",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.tjx.com/global/en/job/TJCOGLOBALREQ173191EXTERNALENGLOBAL",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 295,
+    "name": "Trinity Health",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.trinity-health.org/us/en/job/TRHEUS00708231HOLYCROSSFLENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 296,
+    "name": "Tsmg",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/tr/job/corporate-trainer--cankaya--efae9c32b0471d5d1fefc3a527894aec5",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 297,
+    "name": "Turner \u0026 Townsend",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://au.whatjobs.com/pub_api__cpl__134630822__7084",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 298,
+    "name": "Uber",
+    "provider": "greenhouse",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://boards.greenhouse.io/uber",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 299,
+    "name": "uhs.jibeapply.com",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.uhsinc.com/jobs/386062",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 300,
+    "name": "umiami",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://umiami.wd1.myworkdayjobs.com/UMCareerStaff/job/Miami-FL/Registered-Nurse---Emergency-Department---Full-Time_R100096629",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 301,
+    "name": "UNAVAILABLE",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://en-ca.whatjobs.com/pub_api__cpl__163810844__7103",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 302,
+    "name": "UnitedHealth Group",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.unitedhealthgroup.com/job/denver/telephonic-nurse-practitioner-part-time-co-license-required/34088/103514712672",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 303,
+    "name": "Universal-Job",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.jobleads.com/ch/job/senior-software-engineer-web-and-cloud-80-100-m-w-d--bezirk-olten--e32396f9dbbcdb597e2cbfa50cc1541c4",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 304,
+    "name": "University of Miami",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://uofmiami.phenompeople.net/us/en/job/UOMUOMUSR100102633EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 305,
+    "name": "Veolia",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Performance Management",
+      "Administrative support",
+      "Quality / Health / Safety / Environment",
+      "Sales",
+      "Engineering / Design / Projects",
+      "Customer Service",
+      "Logistics",
+      "HR Specialist",
+      "IT Generalist",
+      "Operations \u0026 Maintenance",
+      "Civil works / Construction",
+      "Financial Control / FP\u0026A"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/VeoliaEnvironnementSA/744000162960049",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 306,
+    "name": "Vercel",
+    "provider": "ashby",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://jobs.ashbyhq.com/vercel",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 307,
+    "name": "Vertiv",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.linkedin.com/jobs/view/4481458231/",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 308,
+    "name": "Veterans Health Administration",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.usajobs.gov/job/892976300",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 309,
+    "name": "Wall partners Spa",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://wall-partners.pandape.computrabajo.com/Detail/14199223",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 310,
+    "name": "Walmart",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://careers.walmart.ca/job/waterdown/can-omni-customer-fulfillment-associate/4853/103520907840",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 311,
+    "name": "WebleeTechnologies",
+    "provider": "smartrecruiters",
+    "jobs_fetched": 100,
+    "departments": [
+      "Finance"
+    ],
+    "sample_url": "https://jobs.smartrecruiters.com/WebleeTechnologies/743999658850579",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 312,
+    "name": "Whataburger",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://whataburgermigration.phenompeople.net/us/en/job/WRIWRKUSJR10014321EXTERNALENUS",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 313,
+    "name": "WM SE",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.adzuna.de/land/ad/5971347513",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 314,
+    "name": "WSP",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.seek.com.au/job/95984199",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 315,
+    "name": "WSP in Africa",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://emit.fa.ca3.oraclecloud.com/hcmUI/CandidateExperience/en/sites/jobsearch/job/99670",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 316,
+    "name": "WVU Medicine",
+    "provider": "workday",
+    "jobs_fetched": 20,
+    "departments": [
+      "Corporate \u0026 Engineering"
+    ],
+    "sample_url": "https://wvumedicine.wd1.myworkdayjobs.com/WVUH/job/Fairmont-Medical-Center/PRN-Registered-Long-Term-Care-CNA_JR26-44082-1",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 317,
+    "name": "МАГНИТ, Розничная сеть",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://trudvsem.ru/vacancy/card/7226c750-02f1-11eb-8600-bfd13399602c/000ee4f0-e2ff-11f1-8eb4-b3efc2365c94",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 318,
+    "name": "Пятёрочка",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://trudvsem.ru/vacancy/card/1027700404797/f24004b0-e2f6-11f1-a264-ffcfc60e7169",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 319,
+    "name": "Российские железные дороги",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://trudvsem.ru/vacancy/card/1027700404797/a2d3e8e0-e3f7-11f1-b8ee-253b459b97c2",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 320,
+    "name": "全家便利商店股份有限公司",
+    "provider": "generic",
+    "jobs_fetched": 1,
+    "departments": [
+      "Corporate \u0026 Product Engineering"
+    ],
+    "sample_url": "https://www.cake.me/companies/familymart/jobs/72a8177e-2e94-4774-999a-e5685a9105b2-marketing-planning-specialist-p-f0bd6afda5342fbffc9c2e43db6078",
+    "status": "SUCCESS"
+  }
+]

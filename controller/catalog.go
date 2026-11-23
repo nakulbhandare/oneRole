@@ -388,6 +388,10 @@ func parseJobSearchQuery(query url.Values) (models.JobSearchRequest, error) {
 	if request.TargetCountry == "" {
 		request.TargetCountry, _ = scalarQuery(query, "country")
 	}
+	request.CompanyTier, _ = scalarQuery(query, "company_tier")
+	if request.CompanyTier == "" {
+		request.CompanyTier, _ = scalarQuery(query, "tier")
+	}
 	locations := cleanSlice(query["location"])
 	if len(locations) > 10 {
 		return request, queryValidationError{field: "location", code: "max_items", message: "must contain at most 10 items"}

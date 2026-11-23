@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onerole-worker-chromium
+  namespace: onerole
+  labels:
+    app: onerole-worker-chromium
+    app.kubernetes.io/name: onerole-worker-chromium
+    app.kubernetes.io/part-of: onerole-platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: onerole-worker-chromium
+  template:
+    metadata:
+      labels:
+        app: onerole-worker-chromium
+        app.kubernetes.io/name: onerole-worker-chromium
+        app.kubernetes.io/part-of: onerole-platform
+    spec:
+      containers:
+      - name: worker
+        image: oneroleacr.azurecr.io/onerole-worker-chromium:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3001
+          name: health
+        env:
+        - name: PORT
+          value: "3001"
+        - name: NATS_URL
+          value: "nats://nats:4222"
+        - name: DATABASE_URL
+          value: "mongodb://mongodb:27017/onerole"
+        - name: STREAM_NAME
+          value: "APPLICATIONS"
+        - name: SUBJECT
+          value: "applications.submit"
+        - name: CONSUMER_NAME
+          value: "chromium-workers"
+        - name: CONCURRENCY
+          value: "2"
+        - name: PUPPETEER_EXECUTABLE_PATH
+          value: "/usr/bin/chromium"
+        - name: CHROME_PATH
+          value: "/usr/bin/chromium"
+        - name: RESUME_FILE_PATH
+          value: "/app/Nakul_Bhandare_Resume.pdf"
+        - name: ENABLE_SYSTEM_EMAILS
+          value: "true"
+        - name: SMTP_HOST
+          value: "smtp.gmail.com"
+        - name: SMTP_PORT
+          value: "587"
+        - name: SMTP_FROM
+          value: "OneRole Applications <bhandarenakul11@gmail.com>"
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+        resources:
+          requests:
+            cpu: 100m
+            memory: 400Mi
+          limits:
+            cpu: 1500m
+            memory: 2500Mi
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3001
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: onerole-worker-chromium-hpa
+  namespace: onerole
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: onerole-worker-chromium
+  minReplicas: 3
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85

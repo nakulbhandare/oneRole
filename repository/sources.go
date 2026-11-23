@@ -911,12 +911,19 @@ func (r *JobSourceRepository) ingestPosting(ctx context.Context, run SourceSyncR
 			locStr = strings.Join(posting.Locations, ", ")
 		}
 
+		tier := ClassifyJobTier(compDoc.CanonicalName, posting.Title)
+		cleanDesc := posting.Description
+		if strings.Contains(cleanDesc, "<") && strings.Contains(cleanDesc, ">") {
+			cleanDesc = cleanHTMLToText(cleanDesc)
+		}
+
 		newJob := jobDoc{
 			ID:                     jobID,
 			CompanyID:              &run.Source.CompanyID,
 			CompanyName:            compDoc.CanonicalName,
 			CanonicalTitle:         posting.Title,
-			DescriptionText:        posting.Description,
+			DescriptionText:        cleanDesc,
+			DescriptionHTML:        posting.Description,
 			DisplayLocation:        locStr,
 			Location:               locStr,
 			EmploymentTypes:        employmentTypes,
@@ -926,6 +933,8 @@ func (r *JobSourceRepository) ingestPosting(ctx context.Context, run SourceSyncR
 			LastSeenAt:             now.UTC(),
 			PublicationTimeQuality: quality,
 			Status:                 "open",
+			CompanyTier:            tier,
+			JobDomain:              "software_engineering",
 			SourceURL:              posting.CanonicalURL,
 		}
 
@@ -1158,5 +1167,48 @@ func (r *JobSourceRepository) GetStuckSourcesX(ctx context.Context, limit int) (
 		})
 	}
 	return items, nil
+}
+
+func ClassifyJobTier(companyName, title string) string {
+	titleLower := strings.ToLower(title)
+	compLower := strings.ToLower(companyName)
+
+	if strings.Contains(titleLower, "intern") || strings.Contains(titleLower, "internship") || strings.Contains(titleLower, "trainee") || strings.Contains(titleLower, "co-op") {
+		return "internship"
+	}
+
+	faang := []string{
+		"openai", "anthropic", "apple", "meta", "facebook", "instagram", "whatsapp",
+		"google", "alphabet", "youtube", "waymo", "deepmind",
+		"tesla", "nvidia", "amazon", "aws", "twitch", "netflix",
+		"microsoft", "azure", "github", "linkedin",
+		"amd", "intel", "qualcomm", "broadcom", "asml", "arm",
+		"xai", "scale ai", "mistral", "cohere", "perplexity",
+		"bytedance", "tiktok", "uber", "airbnb", "stripe", "palantir", "snowflake", "databricks", "salesforce", "adobe", "oracle",
+	}
+	for _, f := range faang {
+		if compLower == f || strings.Contains(compLower, f) {
+			return "faang"
+		}
+	}
+
+	mnc := []string{
+		"cisco", "ibm", "datadog", "figma", "coinbase",
+		"sap", "servicenow", "workday", "paypal", "intuit", "shopify", "spotify",
+		"twitter", "block", "atlassian", "twilio", "dropbox", "snap", "pinterest", "doordash", "instacart",
+		"robinhood", "crowdstrike", "cloudflare", "mongodb", "elastic", "hubspot", "zendesk",
+		"docusign", "zoom", "slack", "okta", "splunk", "vmware", "dell", "hp", "ebay", "walmart",
+		"visa", "mastercard", "american express", "jpmorgan", "goldman sachs", "morgan stanley", "citigroup",
+		"bank of america", "capital one", "bloomberg", "citadel", "jane street", "two sigma", "tcs", "infosys",
+		"wipro", "hcl", "tech mahindra", "cognizant", "ltimindtree", "accenture", "capgemini", "deloitte", "pwc", "ey", "kpmg",
+		"fluence energy", "fluenceenergy", "siemens", "schneider",
+	}
+	for _, m := range mnc {
+		if compLower == m || strings.Contains(compLower, m) {
+			return "mnc"
+		}
+	}
+
+	return "startup"
 }
 

@@ -29,33 +29,64 @@ func (e TransitionError) Error() string {
 // TransitionApplication validates one proposed state change. The caller owns
 // persistence and must write the accepted event/state atomically.
 func TransitionApplication(from, to models.ApplicationStatus, evidence TransitionEvidence) error {
-	if !isApplicationStatus(from) || !isApplicationStatus(to) {
+	normFrom := models.NormalizeApplicationStatus(string(from))
+	normTo := models.NormalizeApplicationStatus(string(to))
+
+	if !isApplicationStatus(from) && !models.IsRule8Status(normFrom) {
 		return TransitionError{From: from, To: to, Reason: "unknown application status"}
 	}
-	if !allowedTransition(from, to) {
+	if !isApplicationStatus(to) && !models.IsRule8Status(normTo) {
+		return TransitionError{From: from, To: to, Reason: "unknown application status"}
+	}
+	if !allowedTransition(from, to) && !allowedRule8Transition(normFrom, normTo) {
 		return TransitionError{From: from, To: to, Reason: "transition is not allowed"}
 	}
 
 	switch {
-	case to == models.ApplicationSubmitted:
+	case to == models.ApplicationSubmitted || normTo == models.StatusSubmittedConfirmed:
 		if evidence.VerifiedReceiptID == "" {
 			return TransitionError{From: from, To: to, Reason: "verified employer receipt evidence is required"}
 		}
-	case (from == models.ApplicationSubmitting || from == models.ApplicationInFlight) && to == models.ApplicationSubmissionUnconfirmed:
+	case (from == models.ApplicationSubmitting || from == models.ApplicationInFlight || normFrom == models.StatusSubmitting) && (to == models.ApplicationSubmissionUnconfirmed || normTo == models.StatusSubmittedUnverified):
 		if !evidence.AmbiguousOutcome {
 			return TransitionError{From: from, To: to, Reason: "ambiguous employer outcome is required"}
 		}
-	case to == models.ApplicationFailedRetryable:
+	case to == models.ApplicationFailedRetryable || normTo == models.StatusFailed:
 		if !evidence.KnownSafeToRetry || !evidence.RetryBudgetRemaining ||
-			(from == models.ApplicationSubmissionUnconfirmed && !evidence.ReconciledNoSubmission) {
+			((from == models.ApplicationSubmissionUnconfirmed || normFrom == models.StatusSubmittedUnverified) && !evidence.ReconciledNoSubmission) {
 			return TransitionError{From: from, To: to, Reason: "safe retry evidence and remaining budget are required"}
 		}
-	case from == models.ApplicationFailedRetryable && to == models.ApplicationQueued:
+	case (from == models.ApplicationFailedRetryable || normFrom == models.StatusFailed) && (to == models.ApplicationQueued || normTo == models.StatusQueued):
 		if !evidence.KnownSafeToRetry || !evidence.RetryBudgetRemaining {
 			return TransitionError{From: from, To: to, Reason: "safe retry evidence and remaining budget are required"}
 		}
 	}
 	return nil
+}
+
+func allowedRule8Transition(from, to models.ApplicationStatus) bool {
+	switch from {
+	case models.StatusDiscovered:
+		return oneStatusOf(to, models.StatusEligible, models.StatusRejected)
+	case models.StatusEligible:
+		return oneStatusOf(to, models.StatusPreparing, models.StatusRejected)
+	case models.StatusPreparing:
+		return oneStatusOf(to, models.StatusReady, models.StatusActionRequired, models.StatusFailed, models.StatusRejected)
+	case models.StatusReady:
+		return oneStatusOf(to, models.StatusQueued, models.StatusRejected)
+	case models.StatusQueued:
+		return oneStatusOf(to, models.StatusSubmitting, models.StatusActionRequired, models.StatusRejected)
+	case models.StatusSubmitting:
+		return oneStatusOf(to, models.StatusSubmittedConfirmed, models.StatusSubmittedUnverified,
+			models.StatusActionRequired, models.StatusFailed, models.StatusRejected)
+	case models.StatusSubmittedUnverified:
+		return oneStatusOf(to, models.StatusSubmittedConfirmed, models.StatusActionRequired,
+			models.StatusFailed, models.StatusRejected)
+	case models.StatusFailed:
+		return oneStatusOf(to, models.StatusQueued, models.StatusRejected)
+	default:
+		return false
+	}
 }
 
 func allowedTransition(from, to models.ApplicationStatus) bool {

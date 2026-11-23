@@ -1306,6 +1306,18 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
                      (fs.existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : null) ||
                      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
+  if (!candidate.email || candidate.email === 'test@onerole.ai' || candidate.email.includes('noreply') || candidate.email.includes('mail.onerole.com')) {
+    candidate.email = 'bhandarenakul11@gmail.com';
+  }
+  if (!candidate.first_name || candidate.first_name.toLowerCase() === 'test') {
+    candidate.first_name = 'Nakul';
+    candidate.last_name = 'Bhandare';
+  }
+  const candidateEmail = candidate.email;
+  const candidateName = `${candidate.first_name} ${candidate.last_name}`.trim();
+  console.log(`[Chromium Submitter] Initializing Headless Chromium browser...`);
+  console.log(`[Chromium Submitter] Candidate Profile: ${candidateName} <${candidateEmail}> | Phone: ${(candidate && candidate.phone) || '+1 (350)-355-6570'}`);
+
   const browser = await puppeteer.launch({
     executablePath: chromePath,
     headless: assistMode ? false : 'new',
@@ -1330,17 +1342,21 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
     // FIX 4 (Resume file path overwrite): Resolve the master resume path ONCE and never overwrite it.
     // Priority: candidate.resume_file_path → master PDF → rendered HTML PDF → inline HTML fallback
     const MASTER_RESUME_PATHS = [
+      process.env.RESUME_FILE_PATH,
+      '/app/Nakul_Bhandare_Resume.pdf',
       path.resolve(__dirname, '../../oneRole_UI/public/Nakul_Bhandare_Resume.pdf'),
       path.resolve(__dirname, '../oneRole_UI/public/Nakul_Bhandare_Resume.pdf'),
       '/app/public/Nakul_Bhandare_Resume.pdf',
       '/usr/src/app/public/Nakul_Bhandare_Resume.pdf'
-    ];
+    ].filter(Boolean);
     const masterResumePath = MASTER_RESUME_PATHS.find(p => fs.existsSync(p)) || null;
 
     // Start from candidate's declared path, fall back to master, never overwrite with temp unless no master
     let resumeFilePath = (candidate.resume_file_path && fs.existsSync(candidate.resume_file_path))
       ? candidate.resume_file_path
       : masterResumePath;
+
+    console.log(`[Chromium Submitter] Resume resolved: ${resumeFilePath || 'PDF generated from candidate master profile'}`);
 
     const defaultResumeHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.4;color:#222;}h1{margin-bottom:4px;}h2{border-bottom:1px solid #ccc;margin-top:16px;margin-bottom:8px;}</style></head><body><h1>Nakul Bhandare</h1><p>bhandarenakul11@gmail.com | +1 (350)-355-6570 | San Francisco, CA | linkedin.com/in/nakul-bhandare | github.com/nakulbhandare</p><h2>Professional Summary</h2><p>Senior Software Engineer with 7+ years of experience architecting high-throughput Go microservices, event streaming pipelines, and distributed cloud systems on AWS and GCP.</p><h2>Experience</h2><p><strong>Senior Software Engineer</strong> - Technology Solutions (2020 - Present)<br>• Architected Go microservices handling 50,000+ daily requests with 99.95% uptime.<br>• Designed event streaming pipelines using Kafka, Redis, and NATS JetStream, cutting latency by 45%.<br>• Managed production PostgreSQL database schemas and optimized indexing strategies.</p><h2>Education</h2><p><strong>Master of Science in Computer Science</strong> - University of the Pacific (2024 - 2026)<br><strong>Bachelor of Engineering in Computer Science</strong> - Pune University (2015 - 2019)</p><h2>Skills</h2><p>Go (Golang), Python, TypeScript, React, Docker, Kubernetes, AWS, GCP, PostgreSQL, MongoDB, Redis, Kafka, Distributed Systems, Microservices, System Architecture.</p></body></html>`;
 
@@ -1386,6 +1402,13 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
     page.on('response', async (res) => {
       try {
         const u = res.url();
+        if (u.includes('ApiSubmit') || u.includes('submit') || u.includes('application') || u.includes('graphql') || u.includes('FormAction')) {
+          const status = res.status();
+          const text = await res.text().catch(() => '');
+          if (text.length > 0 && text.length < 500) {
+            console.log(`[Chromium ATS Network] ${res.request().method()} ${u.slice(0, 80)} -> HTTP ${status}: ${text.slice(0, 150)}`);
+          }
+        }
         if (u.includes('ApiSubmitMultipleFormsAction') || u.includes('ApiSubmitSingleApplicationFormAction') || u.includes('ApiSubmitApplication') || u.includes('submitMultipleFormsAction') || u.includes('ApiSubmitCandidateApplication')) {
           if (res.status() === 200) {
             const body = await res.text().catch(() => '');
@@ -1467,7 +1490,10 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
       targetUrl = targetUrl.replace(/\/+$/, '') + '/application';
     }
 
+    console.log(`[Chromium Submitter] Navigating Chromium tab to: ${targetUrl}...`);
     await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 35000 });
+    const pageTitle = await page.title().catch(() => 'Job Portal');
+    console.log(`[Chromium Submitter] Page loaded: "${pageTitle}". Detecting ATS form inputs...`);
 
     // Handle Account Creation & Email OTP Verification if prompted by portal
     await handleAccountCreationAndVerification(page, candidate);
@@ -2684,6 +2710,7 @@ async function retryableUpload(element, filePath, retries = 3) {
       if (!activeSubmitBtn && submitBtn) activeSubmitBtn = submitBtn;
 
       if (activeSubmitBtn) {
+        console.log(`[Chromium Submitter] Found submit button. Triggering physical click on submit button...`);
         await activeSubmitBtn.scrollIntoViewIfNeeded().catch(() => {});
         await new Promise(r => setTimeout(r, 600));
         await activeSubmitBtn.click({ delay: 60 }).catch(() => {});
@@ -2705,6 +2732,9 @@ async function retryableUpload(element, filePath, retries = 3) {
           finalUrl = page.url();
           bodyText = await page.evaluate(() => document.body ? document.body.innerText || '' : '').catch(() => '');
           const lower = (bodyText || '').toLowerCase();
+          if (wait === 0 || wait === 5 || wait === 11) {
+            console.log(`[Chromium Submitter] Observing page confirmation state (Tick ${wait + 1}/12): URL="${finalUrl}", Excerpt: "${lower.slice(0, 100).replace(/\s+/g, ' ')}"`);
+          }
 
           // Check for spam or verification challenge
           if (lower.includes('flagged as possible spam') || lower.includes('flagged for abuse') || lower.includes('automated requests') || lower.includes('unusual activity detected')) {
@@ -2992,12 +3022,27 @@ async function retryableUpload(element, filePath, retries = 3) {
         }).catch(() => ({ messages: '', unfilledQuestions: [] }));
       } catch (evalErr) {}
 
+      console.log(`[Chromium Submitter] Form validation state: messages="${errorDetails.messages}", unfilled="${(errorDetails.unfilledQuestions || []).join(', ')}"`);
+
       let finalError = errorDetails.messages;
       if (errorDetails.unfilledQuestions && errorDetails.unfilledQuestions.length > 0) {
         finalError = (finalError ? finalError + ' | ' : '') + 'Unanswered questions: ' + errorDetails.unfilledQuestions.join(', ');
       }
       if (!finalError) {
-        finalError = 'Submission was not confirmed by employer ATS portal';
+        // Check if page contains reCAPTCHA Enterprise, Turnstile, or bot protection tokens
+        const hasBotShield = await page.evaluate(() => {
+          const bodyText = (document.body.innerText || '').toLowerCase();
+          const hasRecaptchaEls = !!document.querySelector('.grecaptcha-badge, iframe[src*="recaptcha"], iframe[src*="turnstile"], iframe[src*="hcaptcha"]');
+          const hasRecaptchaGlobal = typeof window.___grecaptcha_cfg !== 'undefined' || typeof window.grecaptcha !== 'undefined';
+          const hasSpamText = bodyText.includes('possible spam') || bodyText.includes('security check') || bodyText.includes('verify you are human') || bodyText.includes('recaptcha');
+          return hasRecaptchaEls || hasRecaptchaGlobal || hasSpamText;
+        }).catch(() => false);
+
+        if (hasBotShield) {
+          finalError = 'Captcha or bot challenge detected by employer portal (Google reCAPTCHA Enterprise)';
+        } else {
+          finalError = 'Submission was not confirmed by employer ATS portal';
+        }
       }
 
       const err = new Error(finalError);
@@ -3011,16 +3056,19 @@ async function retryableUpload(element, filePath, retries = 3) {
     else if (finalUrl.includes('greenhouse.io')) prov = 'greenhouse_browser';
     else if (finalUrl.includes('workday')) prov = 'workday_browser';
 
-    const receiptID = atsReceiptFromApi || ((prov.toUpperCase().replace('_', '-')) + '-' + Date.now());
+    const receiptID = atsReceiptFromApi || null;
+    console.log(`[Chromium Submitter] Application submitted to ${prov}. Real Receipt ID: ${receiptID || 'None (Awaiting Confirmation Email)'}`);
 
     return {
       success: true,
       receipt_id: receiptID,
+      confirmed: !!receiptID,
+      unverified: !receiptID,
       provider: prov,
       submitted_at: new Date().toISOString(),
       candidate_email: candidate.email,
       confirmation_url: finalUrl,
-      verified_by_employer: true
+      verified_by_employer: !!receiptID
     };
   } finally {
     if (browser) {

@@ -17,6 +17,7 @@ type AutoApplyAPI interface {
 	GetJobRecommendations(context.Context, service.ActorScope, int, int) ([]service.ScoredJob, error)
 	GetApplicationResume(context.Context, service.ActorScope, string) (*service.ApplicationResumeView, error)
 	AssistApplication(context.Context, service.ActorScope, string) (*service.AutoApplyResult, error)
+	CompleteEdgeApplication(context.Context, service.ActorScope, string, string, string) (*service.AutoApplyResult, error)
 	SendNotificationEmail(context.Context, service.EmailPayload) (*service.EmailDeliveryResult, error)
 	GetMailerStatus() map[string]any
 }
@@ -158,6 +159,30 @@ func (h *AutoApplyHandler) Assist(w http.ResponseWriter, r *http.Request) {
 	result, err := h.api.AssistApplication(r.Context(), scope, appID)
 	if err != nil {
 		writeError(w, r, http.StatusInternalServerError, "assist_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *AutoApplyHandler) EdgeComplete(w http.ResponseWriter, r *http.Request) {
+	scope, ok := actorScope(r)
+	if !ok {
+		writeError(w, r, http.StatusNotFound, "not_found", "Resource not found.")
+		return
+	}
+	appID := r.PathValue("applicationID")
+	if appID == "" {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", "Application ID is required.")
+		return
+	}
+	var req struct {
+		ReceiptID       string `json:"receipt_id"`
+		ConfirmationURL string `json:"confirmation_url"`
+	}
+	_ = decodeJSON(r, &req)
+	result, err := h.api.CompleteEdgeApplication(r.Context(), scope, appID, req.ReceiptID, req.ConfirmationURL)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "complete_failed", err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
