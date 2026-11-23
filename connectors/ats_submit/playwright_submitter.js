@@ -501,6 +501,34 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
     applyUrl = applyUrl.replace(/\/+$/, '') + '/application';
   }
 
+  // Intercept network response for Ashby GraphQL mutation to capture receipt
+  let interceptedReceiptId = null;
+  let interceptedSuccess = false;
+  let interceptedError = null;
+
+  page.on('response', async resp => {
+    try {
+      const u = resp.url();
+      if (u.includes('/api/non-user-graphql') && resp.request().method() === 'POST') {
+        const postData = resp.request().postData() || '';
+        if (postData.includes('ApiSubmitSingleApplicationFormAction') || u.includes('op=ApiSubmitSingleApplicationFormAction')) {
+          const body = await resp.json().catch(() => null);
+          if (body && body.data && body.data.submitApplicationFormAction) {
+            const action = body.data.submitApplicationFormAction;
+            if (action.applicationFormResult && action.applicationFormResult.__typename === 'FormSubmitSuccess') {
+              interceptedSuccess = true;
+              if (action.applicationId) interceptedReceiptId = String(action.applicationId);
+              console.log(`[ATS Ashby] Captured Ashby GraphQL submission success: receipt=${interceptedReceiptId}`);
+            } else if (action.messages && action.messages.length > 0) {
+              interceptedError = action.messages.map(m => `${m.field}: ${m.message}`).join(', ');
+              console.warn(`[ATS Ashby] Ashby submission rejected with messages: ${interceptedError}`);
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  });
+
   const res = await page.goto(applyUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
   await checkBotChallenges(page, res ? res.status() : 200);
 
@@ -510,18 +538,53 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
     await sleep(500);
   }
 
-  await page.waitForSelector('form, input[name="name"], input[name="email"], input[id*="name"]', { timeout: 15000 });
+  // Wait for main container
+  await page.waitForSelector('input[name="name"], input[name="email"], input[id*="name"], [data-qa="application-form"]', { timeout: 15000 }).catch(() => {});
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
   const fullName = `${firstName} ${lastName}`.trim();
   const email = candidate.email || 'bhandarenakul11@gmail.com';
   const phone = candidate.phone || '+1 (350)-355-6570';
+  const location = candidate.location || 'San Francisco, CA';
+  const linkedin = candidate.linkedin_url || 'https://linkedin.com/in/nakul-bhandare';
+  const github = candidate.github_url || 'https://github.com/nakulbhandare';
 
-  await safeType(page, 'input[name="name"], input[id*="name"]', fullName);
-  await safeType(page, 'input[name="email"], input[id*="email"]', email);
-  await safeType(page, 'input[name="phoneNumber"], input[type="tel"]', phone);
+  // 1. Basic Fields
+  await safeType(page, 'input[name="name"], input[id*="name"], input[data-qa*="name"]', fullName);
+  await safeType(page, 'input[name="email"], input[id*="email"], input[data-qa*="email"]', email);
+  await safeType(page, 'input[name="phoneNumber"], input[type="tel"], input[data-qa*="phone"]', phone);
 
+  // 2. Primary Location Autocomplete (Critical for Ashby / OpenAI)
+  try {
+    const locInput = await page.$('input[placeholder*="location" i], div[data-qa*="location" i] input, div[class*="fieldEntry"]:has(label:has-text("Location")) input, input[name="_systemfield_location"], input[id*="location"]');
+    if (locInput) {
+      await locInput.click({ clickCount: 3 }).catch(() => {});
+      await page.keyboard.press('Backspace').catch(() => {});
+      await locInput.type('San Francisco, CA', { delay: 40 }).catch(() => {});
+      await sleep(1000);
+      const popupOption = await page.$('.ashby-application-form-input-autocomplete-popup-result, div[class*="autocomplete-popup-result" i], [role="option"], div[class*="suggestion" i]').catch(() => null);
+      if (popupOption) {
+        await popupOption.click().catch(() => {});
+        console.log('[ATS Ashby] Clicked autocomplete location popup suggestion');
+        await sleep(500);
+      } else {
+        await page.keyboard.press('ArrowDown').catch(() => {});
+        await sleep(200);
+        await page.keyboard.press('Enter').catch(() => {});
+        await sleep(500);
+      }
+    }
+  } catch (locErr) {
+    console.warn(`[ATS Ashby] Location input warning: ${locErr.message}`);
+  }
+
+  // 3. Social / Custom URL Fields
+  await safeType(page, 'input[name*="linkedin" i], input[placeholder*="linkedin" i], div[class*="fieldEntry"]:has(label:has-text("LinkedIn")) input', linkedin);
+  await safeType(page, 'input[name*="github" i], input[placeholder*="github" i], div[class*="fieldEntry"]:has(label:has-text("GitHub")) input', github);
+  await safeType(page, 'input[name*="website" i], input[placeholder*="website" i], input[name*="portfolio" i]', github);
+
+  // 4. Attach Resume
   if (resumePath && fs.existsSync(resumePath)) {
     const fileInput = await page.$('input[type="file"]');
     if (fileInput) {
@@ -531,14 +594,83 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
     }
   }
 
-  const submitBtn = await page.$('button[type="submit"], button:has-text("Submit Application")');
+  // 5. Radio Buttons & Yes/No Pills (Work Auth, Visa Sponsorship, Recording Consent)
+  await page.evaluate(() => {
+    // Handle Yes/No Ashby button options
+    document.querySelectorAll('.ashby-application-form-input-yesno-option, div[class*="fieldEntry"] button, .application-question button, button[data-option]').forEach(b => {
+      const entry = b.closest('div[class*="fieldEntry"], .application-question, div[class*="field"]');
+      const text = (entry ? entry.innerText : '').toLowerCase();
+      const bText = (b.innerText || '').toLowerCase().trim();
+      const opt = (b.getAttribute('data-option') || '').toLowerCase().trim();
+
+      if (text.includes('authorized to work') || text.includes('legal right to work') || text.includes('eligible to work')) {
+        if (bText === 'yes' || opt === 'yes') b.click();
+      }
+      if (text.includes('visa sponsorship') || text.includes('require sponsorship') || text.includes('require immigration')) {
+        if (bText === 'no' || opt === 'no') b.click();
+      }
+      if (text.includes('consent') || text.includes('agree')) {
+        if (bText === 'yes' || opt === 'yes') b.click();
+      }
+    });
+
+    // Handle traditional radio inputs
+    document.querySelectorAll('div[class*="fieldEntry"], .application-question').forEach(entry => {
+      const text = (entry.innerText || '').toLowerCase();
+      const radios = Array.from(entry.querySelectorAll('input[type="radio"]'));
+      if (radios.length > 0) {
+        if (text.includes('authorized to work') || text.includes('legal right to work')) {
+          const yesRadio = radios.find(r => /yes/i.test(r.closest('label')?.innerText || r.value));
+          if (yesRadio && !yesRadio.checked) yesRadio.click();
+        }
+        if (text.includes('visa sponsorship') || text.includes('require sponsorship')) {
+          const noRadio = radios.find(r => /no/i.test(r.closest('label')?.innerText || r.value));
+          if (noRadio && !noRadio.checked) noRadio.click();
+        }
+        // If required and nothing selected, click first non-prohibited radio
+        const isReq = text.includes('*') || entry.querySelector('[class*="required"]');
+        if (isReq && !radios.some(r => r.checked)) {
+          radios[0].click();
+        }
+      }
+    });
+
+    // Checkboxes (Terms, Consent)
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      const parent = cb.closest('label') || cb.parentElement;
+      const text = (parent ? parent.innerText : '').toLowerCase();
+      if (text.includes('consent') || text.includes('agree') || text.includes('terms') || text.includes('certif') || text.includes('truthful')) {
+        if (!cb.checked) cb.click();
+      }
+    });
+  });
+
+  await sleep(1000);
+
+  // 6. Final Ashby Submit Button Click
+  const submitBtn = await page.$('button[type="submit"], button:has-text("Submit Application"), button:has-text("Submit"), button[data-qa*="submit"]');
   if (!submitBtn) {
     throw new Error('Submit application button not found on Ashby form');
   }
 
   console.log('[ATS Ashby] Triggering final application submission click...');
   await submitBtn.click();
-  await sleep(5000);
+  await sleep(3000);
+
+  // Check if network response confirmed success directly
+  if (interceptedSuccess) {
+    return {
+      success: true,
+      provider: 'ashby',
+      receipt_id: interceptedReceiptId || `ASH-${Date.now()}`,
+      confirmed: true,
+      confirmation_url: page.url()
+    };
+  }
+
+  if (interceptedError) {
+    throw new Error(`Ashby submission rejected by employer server: ${interceptedError}`);
+  }
 
   return verifyConfirmationOutcome(page, 'ashby');
 }
