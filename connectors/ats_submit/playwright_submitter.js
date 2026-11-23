@@ -434,10 +434,21 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
 async function executeAshbyWorkflow(page, url, candidate, resumePath) {
   console.log('[ATS Ashby] Executing dedicated Ashby submission workflow...');
 
-  const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
+  let applyUrl = url;
+  if (!applyUrl.includes('/application')) {
+    applyUrl = applyUrl.replace(/\/+$/, '') + '/application';
+  }
+
+  const res = await page.goto(applyUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
   await checkBotChallenges(page, res ? res.status() : 200);
 
-  await page.waitForSelector('form, input[name="name"], input[name="email"]', { timeout: 15000 });
+  const applyBtn = await page.$('a[href*="/application"], button:has-text("Apply")');
+  if (applyBtn) {
+    await applyBtn.click().catch(() => {});
+    await sleep(500);
+  }
+
+  await page.waitForSelector('form, input[name="name"], input[name="email"], input[id*="name"]', { timeout: 15000 });
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
