@@ -274,12 +274,20 @@ async function start() {
         return;
       }
 
-      // 4d. Periodic Heartbeat to extend JetStream ack timer
+      // 4d. Periodic Heartbeat to extend JetStream ack timer and MongoDB execution lease
       let heartbeatActive = true;
-      const heartbeatTimer = setInterval(() => {
+      const heartbeatTimer = setInterval(async () => {
         if (!heartbeatActive) return;
         try {
           msg.working();
+          if (typeof appsColl !== 'undefined' && appsColl) {
+            await appsColl.updateOne({ _id: application_id }, {
+              $set: {
+                execution_lease_expires_at: new Date(Date.now() + 60000),
+                updated_at: new Date()
+              }
+            }).catch(() => {});
+          }
         } catch (e) {
           console.warn(`[Worker] Failed to send heartbeat for application ${application_id}:`, e.message);
         }
@@ -387,7 +395,7 @@ async function start() {
         const submitTime = new Date();
         const hasVerifiedReceipt = !!(result && result.receipt_id && !result.unverified);
         const finalStatus = hasVerifiedReceipt ? 'SUBMITTED_CONFIRMED' : 'SUBMITTED_UNVERIFIED';
-        const candidateEmail = (candidate && candidate.email && candidate.email !== 'test@onerole.ai' && !candidate.email.includes('mail.onerole.com')) ? candidate.email : 'bhandarenakul11@gmail.com';
+        const candidateEmail = (candidate && candidate.email && candidate.email !== 'test@onerole.ai') ? candidate.email : 'bhandarenakul11@gmail.com';
 
         const updateDoc = {
           status: finalStatus,

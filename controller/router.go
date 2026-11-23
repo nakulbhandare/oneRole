@@ -32,6 +32,7 @@ type HTTPDependencies struct {
 	Readiness      ReadinessChecker
 	Catalog        CatalogAPI
 	Enterprise     *EnterpriseHandler
+	EmailIdentity  *EmailIdentityHandler
 }
 
 // NewHTTPHandler registers the documented /api/v1 authentication and
@@ -129,6 +130,13 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 		mux.Handle("POST /api/v1/applications/{applicationID}/edge-complete", tenantScope(http.HandlerFunc(autoApplyHandler.EdgeComplete)))
 		mux.Handle("GET /api/v1/notifications/email/status", http.HandlerFunc(autoApplyHandler.EmailStatus))
 		mux.Handle("POST /api/v1/notifications/email/test", http.HandlerFunc(autoApplyHandler.TestEmail))
+	}
+
+	if deps.EmailIdentity != nil {
+		mux.Handle("GET /api/v1/email-identity", tenantScope(http.HandlerFunc(deps.EmailIdentity.GetIdentity)))
+		mux.Handle("PUT /api/v1/email-identity/forwarding", tenantScope(http.HandlerFunc(deps.EmailIdentity.UpdateForwarding)))
+		mux.Handle("GET /api/v1/email-identity/messages", tenantScope(http.HandlerFunc(deps.EmailIdentity.ListMessages)))
+		mux.HandleFunc("POST /api/v1/inbound-email/webhook", deps.EmailIdentity.InboundWebhook)
 	}
 
 	// Catalog reads are authenticated but global; no tenant header is required.

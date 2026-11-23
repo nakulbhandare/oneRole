@@ -288,6 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyLiveFilters(true),
         fetchApplications(),
         fetchProfile(),
+        loadEmailIdentity(),
         fetchTelemetry()
       ]);
     }
@@ -802,6 +803,7 @@ function switchNav(tabId, pushHistory = true) {
     fetchApplications();
   } else if (tabId === 'profile') {
     fetchProfile();
+    loadEmailIdentity();
   } else if (tabId === 'overview') {
     fetchTelemetry();
   } else if (tabId === 'insights') {
@@ -5320,30 +5322,28 @@ async function fetchApplications() {
           created_at: app.created_at,
           submitted_at: app.submitted_at || app.created_at,
           applied: app.created_at ? formatTimeAgo(app.created_at) : 'Today',
-          receipt: app.verified_receipt_id || (mappedStatus === 'action_required' ? 'Pending Human 1-Click' : (mappedStatus === 'in_flight' ? 'In-Flight...' : ''))
+          receipt: app.verified_receipt_id || (mappedStatus === 'action_required' ? 'Pending Human 1-Click' : (mappedStatus === 'in_flight' ? 'In-Flight...' : '')),
+          last_error: app.last_error || app.error_detail || ''
         };
       });
     }
 
     const localApps = JSON.parse(localStorage.getItem('onerole_local_apps') || '[]');
 
-    // Build lookup map from authoritative MongoDB applications indexed by id, job_id, company::role, and company
+    // Build lookup map from authoritative MongoDB applications indexed by id, job_id, and company::role
     const mongoMap = new Map();
     mongoApps.forEach(a => {
       if (a.id) mongoMap.set(a.id, a);
       if (a.job_id) mongoMap.set(a.job_id, a);
       const compRole = ((a.company || '') + '::' + (a.role || '')).toLowerCase().trim();
       if (compRole !== '::') mongoMap.set(compRole, a);
-      const comp = (a.company || '').toLowerCase().trim();
-      if (comp) mongoMap.set(`comp::${comp}`, a);
     });
 
     // Update local applications with confirmed status from MongoDB
     const updatedLocal = localApps.map(localApp => {
       const serverApp = (localApp.id ? mongoMap.get(localApp.id) : null) ||
                         (localApp.job_id ? mongoMap.get(localApp.job_id) : null) ||
-                        mongoMap.get(((localApp.company || '') + '::' + (localApp.role || '')).toLowerCase().trim()) ||
-                        mongoMap.get(`comp::${(localApp.company || '').toLowerCase().trim()}`);
+                        mongoMap.get(((localApp.company || '') + '::' + (localApp.role || '')).toLowerCase().trim());
       if (serverApp) {
         if (localApp.status === 'in_flight' && serverApp.status === 'submitted') {
           showToast(`🎉 Application for ${localApp.company} confirmed submitted by employer ATS! Verified receipt: ${serverApp.receipt}`, 'success');
@@ -5355,6 +5355,7 @@ async function fetchApplications() {
           status: serverApp.status,
           rawStatus: serverApp.rawStatus,
           receipt: serverApp.receipt || localApp.receipt,
+          last_error: serverApp.last_error || localApp.last_error || '',
           created_at: serverApp.created_at || localApp.created_at,
           submitted_at: serverApp.submitted_at || localApp.submitted_at,
           applied: formatTimeAgo(serverApp.created_at || serverApp.submitted_at || localApp.created_at)
@@ -5397,12 +5398,13 @@ async function fetchApplications() {
       return 0;
     });
 
-    // Deduplicate AFTER sorting, keeping the newest / authoritative record per company/job
+    // Deduplicate AFTER sorting, keeping the newest / authoritative record per distinct job
     const seenComps = new Set();
     const combined = [];
     for (const app of allPool) {
       const compKey = (app.company || '').toLowerCase().trim();
-      const dedupKey = compKey || app.job_id || app.id;
+      const roleKey = (app.role || '').toLowerCase().trim();
+      const dedupKey = app.id || app.job_id || (compKey ? `${compKey}::${roleKey}` : '');
       if (dedupKey && !seenComps.has(dedupKey)) {
         seenComps.add(dedupKey);
         delete app._isMongo;
@@ -5501,7 +5503,8 @@ function updateTrackerCounts() {
   const dedupedApps = [];
   for (const app of sortedApps) {
     const compKey = (app.company || '').toLowerCase().trim();
-    const dedupKey = compKey || app.job_id || app.id;
+    const roleKey = (app.role || '').toLowerCase().trim();
+    const dedupKey = app.id || app.job_id || (compKey ? `${compKey}::${roleKey}` : '');
     if (dedupKey && !seenComps.has(dedupKey)) {
       seenComps.add(dedupKey);
       dedupedApps.push(app);
@@ -5588,12 +5591,13 @@ function renderAppTrackerTable() {
     return timeDiff;
   });
 
-  // 2. Perform deduplication AFTER sorting, keeping the newest application per company/job
+  // 2. Perform deduplication AFTER sorting, keeping the newest application per distinct job
   const seenComps = new Set();
   let items = [];
   for (const app of sortedApps) {
     const compKey = (app.company || '').toLowerCase().trim();
-    const dedupKey = compKey || app.job_id || app.id;
+    const roleKey = (app.role || '').toLowerCase().trim();
+    const dedupKey = app.id || app.job_id || (compKey ? `${compKey}::${roleKey}` : '');
     if (dedupKey && !seenComps.has(dedupKey)) {
       seenComps.add(dedupKey);
       if (app.created_at || app.submitted_at) {
@@ -5740,13 +5744,17 @@ function renderAppTrackerTable() {
         <span class="text-[11px] text-red-600 font-semibold">Rejected</span>
       `;
     } else if (st === 'FAILED' || st === 'FAILED_PERMANENT') {
+      const errStr = (item.last_error || '').toLowerCase();
+      const isClosed = errStr.includes('404') || errStr.includes('closed') || errStr.includes('not found') || errStr.includes('invalid-url');
       statusHtml = `
-        <span class="status-failed cursor-pointer" onclick="event.stopPropagation(); openApplicationDetailModal('${item.id}', 'form')">
+        <span class="status-failed cursor-pointer" onclick="event.stopPropagation(); openApplicationDetailModal('${item.id}', 'form')" title="${escapeHtml(item.last_error || 'Failed')}">
           <span class="status-dot"></span>
-          <span>Failed</span>
+          <span>${isClosed ? 'Listing Closed' : 'Failed'}</span>
         </span>
       `;
-      actionBtnHtml = `
+      actionBtnHtml = isClosed ? `
+        <span class="text-[11px] text-[#78827e] font-medium" title="Employer closed this posting on their ATS portal">Closed</span>
+      ` : `
         <button class="btn-reapply" onclick="reapplyApplication('${item.id}', '${escapeHtml(item.company)}')">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           <span>Reapply</span>
@@ -7838,4 +7846,187 @@ async function simulateIncomingEmployerEmail() {
     showToast('✓ Simulation dispatched.', 'info');
   }
 }
+
+// ============================================================================
+// SUITE 10: DEDICATED EMAIL IDENTITY & INBOUND EMAIL GATEWAY (Phases 3, 5, 12)
+// ============================================================================
+async function loadEmailIdentity() {
+  try {
+    const res = await authenticatedFetch('/api/v1/email-identity');
+    if (res && res.ok) {
+      const data = await res.json();
+      const assignedInput = document.getElementById('identityAssignedEmail');
+      const forwardingInput = document.getElementById('identityForwardingEmail');
+      const statusPill = document.getElementById('identityStatusPill');
+
+      if (assignedInput && data.assigned_email) {
+        assignedInput.value = data.assigned_email;
+      }
+      if (forwardingInput && data.forwarding_email) {
+        forwardingInput.value = data.forwarding_email;
+      }
+      if (statusPill) {
+        const isFwd = data.forwarding_enabled !== false;
+        statusPill.innerHTML = `
+          <span class="w-2 h-2 rounded-full ${isFwd ? 'bg-[#24684f] animate-pulse' : 'bg-gray-400'}"></span>
+          <span>${isFwd ? 'Active & Forwarding' : 'Forwarding Paused'}</span>
+        `;
+      }
+    }
+  } catch (err) {
+    console.debug('[EmailIdentity] Failed to load identity:', err);
+  }
+}
+
+function copyAssignedEmail() {
+  const input = document.getElementById('identityAssignedEmail');
+  if (!input) return;
+  const val = input.value;
+  if (!val || val.includes('Loading')) return;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(val).then(() => {
+      showToast(`Copied assigned email to clipboard: ${val}`, 'success');
+    }).catch(() => {
+      input.select();
+      document.execCommand('copy');
+      showToast(`Copied assigned email: ${val}`, 'success');
+    });
+  } else {
+    input.select();
+    document.execCommand('copy');
+    showToast(`Copied assigned email: ${val}`, 'success');
+  }
+}
+
+async function saveForwardingEmail() {
+  const input = document.getElementById('identityForwardingEmail');
+  if (!input) return;
+  const targetEmail = input.value.trim();
+  if (!targetEmail || !targetEmail.includes('@')) {
+    showToast('Please provide a valid personal forwarding email address.', 'error');
+    return;
+  }
+
+  showToast('Updating forwarding destination...', 'info');
+  try {
+    const res = await authenticatedFetch('/api/v1/email-identity/forwarding', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        forwarding_email: targetEmail,
+        forwarding_enabled: true
+      })
+    });
+
+    if (res && res.ok) {
+      showToast(`✓ Forwarding destination updated to: ${targetEmail}`, 'success');
+      await loadEmailIdentity();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Failed to update forwarding: ${err?.error?.message || 'Server error'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Network error updating forwarding: ${err.message}`, 'error');
+  }
+}
+
+function openEmailMessagesModal() {
+  const modal = document.getElementById('emailMessagesModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    loadInboundMessages();
+  }
+}
+
+function closeEmailMessagesModal() {
+  const modal = document.getElementById('emailMessagesModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function loadInboundMessages() {
+  const tbody = document.getElementById('emailMessagesTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="6" class="p-6 text-center text-[#78827e]">
+        <div class="inline-flex items-center space-x-2">
+          <svg class="animate-spin w-4 h-4 text-[#24684f]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Fetching inbound communications from gateway...</span>
+        </div>
+      </td>
+    </tr>
+  `;
+
+  try {
+    const res = await authenticatedFetch('/api/v1/email-identity/messages?limit=25');
+    if (!res || !res.ok) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="p-6 text-center text-red-500 text-xs">
+            Failed to retrieve messages from server.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    const data = await res.json();
+    const items = data.items || [];
+    if (items.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="p-8 text-center text-[#78827e]">
+            <p class="font-medium text-xs">No inbound employer messages yet.</p>
+            <p class="text-[11px] mt-1 text-[#a3aca7]">All incoming confirmations, OTP challenges, and interview invites will appear here in real time.</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = items.map(msg => {
+      const dateStr = msg.received_at ? new Date(msg.received_at).toLocaleDateString() + ' ' + new Date(msg.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent';
+      const isFwd = msg.forwarding_status === 'forwarded';
+      const catClass = msg.category === 'confirmation' ? 'bg-[#edf5ef] text-[#24684f]' :
+                       msg.category === 'interview_invite' ? 'bg-[#eff6ff] text-[#1d4ed8]' :
+                       msg.category === 'verification_otp' ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-[#fafbfa] text-[#78827e]';
+
+      return `
+        <tr class="hover:bg-[#fafbfa] transition">
+          <td class="py-2.5 px-3 font-mono text-[11px] text-[#78827e] whitespace-nowrap">${dateStr}</td>
+          <td class="py-2.5 px-3 font-semibold text-[#1d2825]">${escapeHtml(msg.sender || 'Employer')}</td>
+          <td class="py-2.5 px-3 font-medium text-[#1d2825]">${escapeHtml(msg.subject || '(No subject)')}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${catClass}">
+              ${escapeHtml(msg.category || 'general')}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-[11px]">
+            <span class="inline-flex items-center space-x-1 ${isFwd ? 'text-[#24684f]' : 'text-[#78827e]'}">
+              <span class="w-1.5 h-1.5 rounded-full ${isFwd ? 'bg-[#24684f]' : 'bg-gray-400'}"></span>
+              <span>${isFwd ? 'Forwarded' : 'Processed'}</span>
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-right font-mono text-[11px] text-[#78827e]">
+            ${msg.employer_receipt_id ? `<span class="px-1.5 py-0.5 rounded bg-[#f2f4f3] text-[#1d2825] font-semibold">${escapeHtml(msg.employer_receipt_id)}</span>` : '—'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="p-6 text-center text-red-500 text-xs">
+          Error loading messages: ${escapeHtml(err.message)}
+        </td>
+      </tr>
+    `;
+  }
+}
+
 

@@ -37,6 +37,7 @@ jobs:
               - 'repository/**'
               - 'models/**'
               - 'config/**'
+              - 'internal/**'
               - 'connectors/**'
               - 'k8s/**'
             worker:

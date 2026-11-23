@@ -18,6 +18,9 @@ import (
 	"github.com/oneRole/connectors/job_sources"
 	"github.com/oneRole/controller"
 	dbconn "github.com/oneRole/db"
+	"github.com/oneRole/internal/emailgateway"
+	"github.com/oneRole/internal/emailidentity"
+	"github.com/oneRole/internal/watchdog"
 	"github.com/oneRole/middleware"
 	"github.com/oneRole/migrations"
 	"github.com/oneRole/repository"
@@ -242,6 +245,15 @@ func buildAPIHandler(ctx context.Context, cfg config.Config, database *mongo.Dat
 	enterpriseService := service.NewEnterpriseService(database)
 	enterpriseHandler := controller.NewEnterpriseHandler(enterpriseService)
 
+	emailIdentitySvc := emailidentity.NewService(database)
+	mailer := service.NewDefaultMailer()
+	gateway := emailgateway.NewGateway(database, emailIdentitySvc, mailer, emailgateway.GatewayConfig{})
+	emailIdentityHandler := controller.NewEmailIdentityHandler(emailIdentitySvc, gateway, database)
+
+	// Start Execution Watchdog to continuously eliminate indefinite submitting states
+	wd := watchdog.NewWatchdog(database, watchdog.DefaultConfig())
+	wd.Start(ctx)
+
 	verifier, err := middleware.NewJWTVerifier(cfg.JWTIssuer, cfg.JWTAudience,
 		cfg.JWTVerificationKeys, authRepositories.Sessions)
 	if err != nil {
@@ -258,6 +270,7 @@ func buildAPIHandler(ctx context.Context, cfg config.Config, database *mongo.Dat
 		Readiness:      readinessChecker{database: database, nats: natsConn},
 		Catalog:        catalog,
 		Enterprise:     enterpriseHandler,
+		EmailIdentity:  emailIdentityHandler,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("initialize HTTP API: %w", err)
