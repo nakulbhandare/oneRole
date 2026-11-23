@@ -366,6 +366,9 @@ async function start() {
               timeoutPromise
             ]);
           } catch (playwrightErr) {
+            if (isCaptchaOrBot(playwrightErr) || (playwrightErr && playwrightErr.isJobClosed)) {
+              throw playwrightErr;
+            }
             console.warn(`[Worker] Playwright submitter exception: ${playwrightErr.message}. Attempting legacy browser submitter fallback...`);
             usedEngine = 'tier2_legacy_chromium';
             result = await Promise.race([
