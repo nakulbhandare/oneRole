@@ -10,8 +10,11 @@ import (
 )
 
 var (
-	otpRegex  = regexp.MustCompile(`\b\d{6}\b`)
-	linkRegex = regexp.MustCompile(`https?://[^\s"'<>]+(?:verify|confirm|activate|token|code)[^\s"'<>]*`)
+	otpContextRegex = regexp.MustCompile(`(?i)(?:verification\s+code|security\s+code|passcode|one-time\s+password|otp|pin|enter\s+code)[:\s*]+([A-Z0-9]{4,8})\b`)
+	otpNumeric6Regex = regexp.MustCompile(`\b\d{6}\b`)
+	otpNumeric4Regex = regexp.MustCompile(`\b\d{4}\b`)
+	otpAlphaNumRegex = regexp.MustCompile(`\b[A-Z0-9]{6,8}\b`)
+	linkRegex        = regexp.MustCompile(`https?://[^\s"'<>]+(?:verify|confirm|activate|token|code|login)[^\s"'<>]*`)
 )
 
 // VerificationPayload holds the extracted OTP code and/or magic link from an employer email.
@@ -86,9 +89,19 @@ func (r *Registry) DeliverIncoming(recipientEmail, senderDomain, subject, body s
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	code := otpRegex.FindString(body)
-	if code == "" {
-		code = otpRegex.FindString(subject)
+	var code string
+	if m := otpContextRegex.FindStringSubmatch(body); len(m) > 1 {
+		code = m[1]
+	} else if m := otpContextRegex.FindStringSubmatch(subject); len(m) > 1 {
+		code = m[1]
+	} else if c := otpNumeric6Regex.FindString(body); c != "" {
+		code = c
+	} else if c := otpNumeric6Regex.FindString(subject); c != "" {
+		code = c
+	} else if c := otpNumeric4Regex.FindString(body); c != "" {
+		code = c
+	} else if c := otpAlphaNumRegex.FindString(body); c != "" {
+		code = c
 	}
 
 	link := linkRegex.FindString(body)

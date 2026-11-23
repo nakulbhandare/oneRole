@@ -313,11 +313,19 @@ async function doDevLogin(silent = false) {
   if (_devLoginPromise) return _devLoginPromise;
   _devLoginPromise = (async () => {
     try {
-      const res = await fetch('/api/v1/auth/dev-login', {
+      let res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'bhandarenakul11@gmail.com' })
+        body: JSON.stringify({ email: 'bhandarenakul11@gmail.com', password: 'dev-session-token' })
       });
+
+      if (!res.ok) {
+        res = await fetch('/api/v1/auth/dev-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'bhandarenakul11@gmail.com' })
+        });
+      }
 
       if (!res.ok) {
         throw new Error(`Auth failed with HTTP ${res.status}`);
@@ -5511,7 +5519,7 @@ function updateTrackerCounts() {
     const s = app.status;
     if (s === 'submitted') submitted++;
     else if (s === 'in_flight') inFlight++;
-    else if (s === 'screening_questions' || s === 'missing_info') needsYou++;
+    else if (s === 'screening_questions' || s === 'missing_info' || s === 'action_required') needsYou++;
     else if (s === 'failed') failed++;
     else if (s === 'skipped') skipped++;
     else submitted++;
@@ -5599,7 +5607,7 @@ function renderAppTrackerTable() {
   if (STATE.appFilterTab === 'submitted') {
     items = items.filter(i => i.status === 'submitted');
   } else if (STATE.appFilterTab === 'needs-you' || STATE.appFilterTab === 'needs_you') {
-    items = items.filter(i => i.status === 'screening_questions' || i.status === 'missing_info');
+    items = items.filter(i => i.status === 'screening_questions' || i.status === 'missing_info' || i.status === 'action_required');
   } else if (STATE.appFilterTab === 'failed') {
     items = items.filter(i => i.status === 'failed');
   } else if (STATE.appFilterTab === 'in-flight' || STATE.appFilterTab === 'inflight') {
