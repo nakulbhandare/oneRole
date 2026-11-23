@@ -594,53 +594,98 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
     }
   }
 
-  // 5. Radio Buttons & Yes/No Pills (Work Auth, Visa Sponsorship, Recording Consent)
-  await page.evaluate(() => {
-    // Handle Yes/No Ashby button options
-    document.querySelectorAll('.ashby-application-form-input-yesno-option, div[class*="fieldEntry"] button, .application-question button, button[data-option]').forEach(b => {
-      const entry = b.closest('div[class*="fieldEntry"], .application-question, div[class*="field"]');
-      const text = (entry ? entry.innerText : '').toLowerCase();
-      const bText = (b.innerText || '').toLowerCase().trim();
-      const opt = (b.getAttribute('data-option') || '').toLowerCase().trim();
+  // 5. Start Date Picker (Required by Ashby / OpenAI: "When can you start a new role?")
+  try {
+    const dateInput = await page.$('input[placeholder*="date" i], input[type="date"], div[class*="fieldEntry"]:has(label:has-text("start")) input');
+    if (dateInput) {
+      const today = new Date();
+      today.setDate(today.getDate() + 14); // 2 weeks out
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      const usDateStr = `${mm}/${dd}/${yyyy}`;
 
-      if (text.includes('authorized to work') || text.includes('legal right to work') || text.includes('eligible to work')) {
-        if (bText === 'yes' || opt === 'yes') b.click();
-      }
-      if (text.includes('visa sponsorship') || text.includes('require sponsorship') || text.includes('require immigration')) {
-        if (bText === 'no' || opt === 'no') b.click();
-      }
-      if (text.includes('consent') || text.includes('agree')) {
-        if (bText === 'yes' || opt === 'yes') b.click();
+      await dateInput.click().catch(() => {});
+      await dateInput.fill(usDateStr).catch(async () => {
+        await page.keyboard.type(usDateStr, { delay: 30 });
+      });
+      await page.keyboard.press('Enter').catch(() => {});
+      console.log(`[ATS Ashby] Set start date: ${usDateStr}`);
+    }
+  } catch (dateErr) {
+    console.warn(`[ATS Ashby] Date input warning: ${dateErr.message}`);
+  }
+
+  // 6. Radio Buttons, Yes/No Pills, Checkboxes, and Custom Questions
+  await page.evaluate(() => {
+    // A. Handle Boolean Button Containers (Yes / No)
+    document.querySelectorAll('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], .application-question, div[class*="question"]').forEach(entry => {
+      const text = (entry.innerText || '').toLowerCase();
+      const buttons = Array.from(entry.querySelectorAll('button'));
+      const yesBtn = buttons.find(b => (b.innerText || '').trim().toLowerCase() === 'yes' || b.getAttribute('data-option') === 'yes');
+      const noBtn = buttons.find(b => (b.innerText || '').trim().toLowerCase() === 'no' || b.getAttribute('data-option') === 'no');
+
+      if (yesBtn && noBtn) {
+        // Work authorization / Office presence / Relocation -> YES
+        if (text.includes('authorized to work') || text.includes('legal right to work') || text.includes('office') || text.includes('hybrid') || text.includes('on-site') || text.includes('eligible to work')) {
+          yesBtn.click();
+        }
+        // Sponsorship / Polygraph / Security Clearance -> NO
+        else if (text.includes('sponsorship') || text.includes('visa') || text.includes('polygraph') || text.includes('clearance') || text.includes('felony') || text.includes('convicted')) {
+          noBtn.click();
+        }
+        // General agreement -> YES
+        else if (text.includes('consent') || text.includes('agree') || text.includes('willing') || text.includes('able')) {
+          yesBtn.click();
+        }
+        // Default for any other required boolean: click YES
+        else {
+          const isPressed = yesBtn.getAttribute('aria-pressed') === 'true' || noBtn.getAttribute('aria-pressed') === 'true' || yesBtn.classList.contains('active') || noBtn.classList.contains('active');
+          if (!isPressed) {
+            yesBtn.click();
+          }
+        }
       }
     });
 
-    // Handle traditional radio inputs
-    document.querySelectorAll('div[class*="fieldEntry"], .application-question').forEach(entry => {
+    // B. Handle Traditional Radio Inputs (EEOC, Demographics, Screening)
+    document.querySelectorAll('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], .application-question').forEach(entry => {
       const text = (entry.innerText || '').toLowerCase();
       const radios = Array.from(entry.querySelectorAll('input[type="radio"]'));
       if (radios.length > 0) {
         if (text.includes('authorized to work') || text.includes('legal right to work')) {
           const yesRadio = radios.find(r => /yes/i.test(r.closest('label')?.innerText || r.value));
           if (yesRadio && !yesRadio.checked) yesRadio.click();
-        }
-        if (text.includes('visa sponsorship') || text.includes('require sponsorship')) {
+        } else if (text.includes('visa sponsorship') || text.includes('require sponsorship')) {
           const noRadio = radios.find(r => /no/i.test(r.closest('label')?.innerText || r.value));
           if (noRadio && !noRadio.checked) noRadio.click();
-        }
-        // If required and nothing selected, click first non-prohibited radio
-        const isReq = text.includes('*') || entry.querySelector('[class*="required"]');
-        if (isReq && !radios.some(r => r.checked)) {
-          radios[0].click();
+        } else if (text.includes('veteran')) {
+          const notVetRadio = radios.find(r => (r.closest('label')?.innerText || '').toLowerCase().includes('not a protected veteran') || (r.closest('label')?.innerText || '').toLowerCase().includes('decline'));
+          if (notVetRadio && !notVetRadio.checked) notVetRadio.click();
+        } else if (text.includes('disability')) {
+          const noDisRadio = radios.find(r => (r.closest('label')?.innerText || '').toLowerCase().includes('no, i do not') || (r.closest('label')?.innerText || '').toLowerCase().includes('decline'));
+          if (noDisRadio && !noDisRadio.checked) noDisRadio.click();
+        } else {
+          // If required and nothing selected, click first available option
+          const isReq = text.includes('*') || entry.querySelector('[class*="required"]');
+          if (isReq && !radios.some(r => r.checked)) {
+            radios[0].click();
+          }
         }
       }
     });
 
-    // Checkboxes (Terms, Consent)
+    // C. Handle Checkboxes (Arbitration, Certification, Truthfulness, Terms)
     document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      const parent = cb.closest('label') || cb.parentElement;
+      const parent = cb.closest('label') || cb.closest('div[class*="fieldEntry"]') || cb.parentElement;
       const text = (parent ? parent.innerText : '').toLowerCase();
-      if (text.includes('consent') || text.includes('agree') || text.includes('terms') || text.includes('certif') || text.includes('truthful')) {
-        if (!cb.checked) cb.click();
+      if (text.includes('consent') || text.includes('agree') || text.includes('terms') || 
+          text.includes('certif') || text.includes('truthful') || text.includes('arbitration') || 
+          text.includes('read') || text.includes('acknowledge') || cb.required || cb.getAttribute('aria-required') === 'true') {
+        if (!cb.checked) {
+          cb.click();
+        }
       }
     });
   });
