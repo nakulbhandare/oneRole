@@ -65,8 +65,6 @@ async function getChromiumBrowser() {
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--disable-dev-shm-usage',
-    '--disable-accelerated-2d-canvas',
-    '--disable-gpu',
     '--no-first-run',
     '--no-zygote',
     '--disable-blink-features=AutomationControlled'
@@ -129,41 +127,105 @@ function detectAtsProvider(url, htmlContent = '') {
 }
 
 /**
- * Check if the page has hit an anti-bot challenge or rate limit
+ * Check if initial page navigation hit a hard blocker (closed posting, HTTP 429 rate limit, or blocking access-denied interstitial).
+ * Note: Passive telemetry badges (e.g. .grecaptcha-badge, div.h-captcha, div.cf-turnstile) are standard DOM elements on ATS forms
+ * and must NEVER abort initial form loading.
  */
-async function checkBotChallenges(page, statusCode = 200) {
+async function checkInitialPageBlock(page, statusCode = 200) {
   if (statusCode === 429) {
     throw new CaptchaGateError('Employer ATS returned HTTP 429 rate limit or Security Check', 'rate_limit_429');
   }
 
-  const challenge = await page.evaluate(() => {
+  const blockState = await page.evaluate(() => {
     const bodyText = (document.body.innerText || '').toLowerCase();
     const titleText = (document.title || '').toLowerCase();
 
-    if (bodyText.includes('verify you are human') || bodyText.includes('security check') || titleText.includes('security check')) {
-      return 'human_verification';
-    }
-    if (document.querySelector('iframe[src*="turnstile"], div.cf-turnstile')) {
-      return 'cloudflare_turnstile';
-    }
-    if (document.querySelector('iframe[src*="recaptcha"], div.g-recaptcha, .grecaptcha-badge')) {
-      return 'google_recaptcha';
-    }
-    if (document.querySelector('iframe[src*="hcaptcha"], div.h-captcha')) {
-      return 'hcaptcha';
-    }
-    if (bodyText.includes('job board you were viewing is no longer active') || bodyText.includes('job has been closed') || bodyText.includes('page not found') || bodyText.includes('this job is no longer available')) {
+    // 1. Closed or removed posting
+    if (bodyText.includes('job board you were viewing is no longer active') ||
+        bodyText.includes('job has been closed') ||
+        bodyText.includes('page not found') ||
+        bodyText.includes('this job is no longer available') ||
+        bodyText.includes('this position has been filled')) {
       return 'job_closed';
     }
+
+    // 2. Explicit full-page blocking interstitial
+    if (titleText.includes('just a moment...') ||
+        bodyText.includes('checking your browser before accessing') ||
+        titleText.includes('attention required! | cloudflare') ||
+        bodyText.includes('access denied - akamai') ||
+        bodyText.includes('security check by cloudflare')) {
+      return 'blocking_interstitial';
+    }
+
     return null;
   });
 
-  if (challenge === 'job_closed') {
+  if (blockState === 'job_closed') {
     throw new JobUnavailableError('Job posting has closed or is no longer active on employer board');
   }
-  if (challenge) {
-    throw new CaptchaGateError(`Anti-bot gate detected: ${challenge}`, challenge);
+  if (blockState === 'blocking_interstitial') {
+    throw new CaptchaGateError('Full-page bot barrier encountered during page load', 'blocking_interstitial');
   }
+}
+
+/**
+ * Check if an active, visible interactive challenge is currently displayed to the candidate.
+ * Only called after submission if confirmation has not yet appeared.
+ */
+async function checkInteractiveChallenge(page) {
+  return page.evaluate(() => {
+    const bodyText = (document.body.innerText || '').toLowerCase();
+    const titleText = (document.title || '').toLowerCase();
+
+    if (bodyText.includes('please solve the challenge') ||
+        bodyText.includes('verify you are human to continue') ||
+        bodyText.includes('please complete the captcha') ||
+        bodyText.includes('security verification required') ||
+        titleText.includes('security check')) {
+      return 'interactive_challenge_prompt';
+    }
+
+    // Visible reCAPTCHA challenge box (bframe)
+    const recaptchaBframe = document.querySelector('iframe[src*="google.com/recaptcha/api2/bframe"], iframe[src*="recaptcha/enterprise/bframe"]');
+    if (recaptchaBframe) {
+      const rect = recaptchaBframe.getBoundingClientRect();
+      const style = window.getComputedStyle(recaptchaBframe);
+      if (rect.width > 100 && rect.height > 100 && style.visibility !== 'hidden' && style.display !== 'none') {
+        return 'google_recaptcha_interactive';
+      }
+    }
+
+    // Visible hCaptcha challenge popup
+    const hcaptchaChallenge = document.querySelector('iframe[src*="hcaptcha.com"][src*="frame=challenge"], iframe[title*="hCaptcha challenge"]');
+    if (hcaptchaChallenge) {
+      const rect = hcaptchaChallenge.getBoundingClientRect();
+      const style = window.getComputedStyle(hcaptchaChallenge);
+      if (rect.width > 100 && rect.height > 100 && style.visibility !== 'hidden' && style.display !== 'none') {
+        return 'hcaptcha_interactive';
+      }
+    }
+
+    // Visible Turnstile interactive challenge
+    const turnstileIframe = document.querySelector('iframe[src*="challenges.cloudflare.com"]');
+    if (turnstileIframe) {
+      const rect = turnstileIframe.getBoundingClientRect();
+      const style = window.getComputedStyle(turnstileIframe);
+      if (rect.width > 50 && rect.height > 30 && style.visibility !== 'hidden' && style.display !== 'none') {
+        const turnstileContainer = turnstileIframe.closest('div.cf-turnstile');
+        if (turnstileContainer && turnstileContainer.getAttribute('data-state') === 'interactive') {
+          return 'cloudflare_turnstile_interactive';
+        }
+      }
+    }
+
+    return null;
+  });
+}
+
+// Backward-compatible alias for existing callers
+async function checkBotChallenges(page, statusCode = 200) {
+  return checkInitialPageBlock(page, statusCode);
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -628,70 +690,94 @@ async function executeGenericWorkflow(page, url, candidate, resumePath) {
  * ============================================================================
  */
 async function verifyConfirmationOutcome(page, provider) {
-  // Check if an anti-bot challenge or rate limit appeared after submitting
-  await checkBotChallenges(page);
+  let finalState = null;
 
-  const pageState = await page.evaluate(() => {
-    const text = (document.body.innerText || '').toLowerCase();
-    const isConfirmed = text.includes('application submitted') ||
-                        text.includes('thank you for applying') ||
-                        text.includes('received your application') ||
-                        text.includes('application was successfully submitted') ||
-                        text.includes('your application has been submitted') ||
-                        window.location.href.includes('confirmation') ||
-                        window.location.href.includes('thank_you') ||
-                        window.location.href.includes('success');
+  // Poll for up to 8 seconds for the ATS submission to confirm or show error/challenge
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const pageState = await page.evaluate(() => {
+      const text = (document.body.innerText || '').toLowerCase();
+      const isConfirmed = text.includes('application submitted') ||
+                          text.includes('thank you for applying') ||
+                          text.includes('received your application') ||
+                          text.includes('application was successfully submitted') ||
+                          text.includes('your application has been submitted') ||
+                          text.includes('thanks for applying') ||
+                          text.includes('we have received your application') ||
+                          window.location.href.includes('confirmation') ||
+                          window.location.href.includes('thank_you') ||
+                          window.location.href.includes('success');
 
-    // Extract confirmation / reference numbers if printed
-    const rawText = document.body.innerText || '';
-    const patterns = [
-      /(?:confirmation|reference|application|submission)(?:\s+(?:number|id|code|#))?[:\s#]+([A-Za-z0-9_-]{5,40})/i,
-      /#([A-Z0-9]{6,20})\b/
-    ];
-    let extractedId = null;
-    for (const p of patterns) {
-      const m = rawText.match(p);
-      if (m && m[1]) {
-        extractedId = m[1].trim();
-        break;
+      let extractedId = null;
+      const patterns = [
+        /(?:confirmation|reference|application|submission)(?:\s+(?:number|id|code|#))?[:\s#]+([A-Za-z0-9_-]{5,40})/i,
+        /#([A-Z0-9]{6,20})\b/
+      ];
+      for (const p of patterns) {
+        const m = (document.body.innerText || '').match(p);
+        if (m && m[1]) {
+          extractedId = m[1].trim();
+          break;
+        }
       }
+
+      try {
+        const u = new URL(window.location.href);
+        const urlId = u.searchParams.get('id') || u.searchParams.get('application_id') || u.searchParams.get('confirmation');
+        if (urlId) extractedId = urlId.trim();
+      } catch (_) {}
+
+      return {
+        confirmed: isConfirmed,
+        receiptId: extractedId,
+        url: window.location.href,
+        title: document.title
+      };
+    }).catch(() => ({ confirmed: false }));
+
+    if (pageState && pageState.confirmed) {
+      finalState = pageState;
+      break;
     }
 
-    try {
-      const u = new URL(window.location.href);
-      const urlId = u.searchParams.get('id') || u.searchParams.get('application_id') || u.searchParams.get('confirmation');
-      if (urlId) extractedId = urlId.trim();
-    } catch (_) {}
-
-    return {
-      confirmed: isConfirmed,
-      receiptId: extractedId,
-      url: window.location.href,
-      title: document.title
-    };
-  });
-
-  if (!pageState.confirmed) {
-    // Check if inline validation errors appeared
-    const errors = await page.evaluate(() => {
-      const errNodes = document.querySelectorAll('.error, .error-message, [aria-invalid="true"], .field-error');
-      return Array.from(errNodes).map(e => (e.innerText || '').trim()).filter(Boolean);
-    });
-    if (errors.length > 0) {
-      throw new Error(`Employer form validation failed: ${errors.join(', ')}`);
+    // Check if an active, interactive challenge has appeared on screen
+    const interactiveChallenge = await checkInteractiveChallenge(page).catch(() => null);
+    if (interactiveChallenge) {
+      throw new CaptchaGateError(`Anti-bot gate detected: ${interactiveChallenge}`, interactiveChallenge);
     }
-    throw new Error('Submission was not confirmed by employer ATS portal');
+
+    await sleep(1000);
   }
 
-  return {
-    success: true,
-    provider: provider,
-    receipt_id: pageState.receiptId || null,
-    confirmed: !!pageState.receiptId,
-    unverified: !pageState.receiptId,
-    confirmation_url: pageState.url,
-    title: pageState.title
-  };
+  if (finalState && finalState.confirmed) {
+    console.log(`[Chromium Submitter] ✅ Submission verified for ${provider}! Receipt=${finalState.receiptId || 'Awaiting Confirmation Email'}`);
+    return {
+      success: true,
+      provider: provider,
+      receipt_id: finalState.receiptId || null,
+      confirmed: !!finalState.receiptId,
+      unverified: !finalState.receiptId,
+      confirmation_url: finalState.url,
+      title: finalState.title
+    };
+  }
+
+  // Check if inline validation errors appeared on the form
+  const errors = await page.evaluate(() => {
+    const errNodes = document.querySelectorAll('.error, .error-message, [aria-invalid="true"], .field-error');
+    return Array.from(errNodes).map(e => (e.innerText || '').trim()).filter(Boolean);
+  }).catch(() => []);
+
+  if (errors.length > 0) {
+    throw new Error(`Employer form validation failed: ${errors.join(', ')}`);
+  }
+
+  // If not confirmed and no explicit error, check one last time for interactive challenge
+  const finalChallenge = await checkInteractiveChallenge(page).catch(() => null);
+  if (finalChallenge) {
+    throw new CaptchaGateError(`Anti-bot gate detected: ${finalChallenge}`, finalChallenge);
+  }
+
+  throw new Error('Submission was not confirmed by employer ATS portal');
 }
 
 /**
@@ -710,17 +796,55 @@ async function submitWithPlaywright({ url, candidate, artifactsDir }) {
   const { browser } = await getChromiumBrowser();
 
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 800 },
+    viewport: { width: 1440, height: 900 },
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-    locale: 'en-US'
+    locale: 'en-US',
+    timezoneId: 'America/New_York',
+    deviceScaleFactor: 2
   }).catch(() => null);
 
   if (context && typeof context.addInitScript === 'function') {
     await context.addInitScript(() => {
+      // 1. Mask automated navigator properties
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      window.chrome = { runtime: {}, app: {}, loadTimes: () => {}, csi: () => {} };
       Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+      Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+
+      // 2. Realistic desktop Chrome runtime mock
+      window.chrome = {
+        runtime: {},
+        app: {},
+        loadTimes: () => {},
+        csi: () => {}
+      };
+
+      // 3. WebGL Vendor & Renderer Hardware Spoofing (eliminates SwiftShader/llvmpipe bot flags)
+      const origGetParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) return 'Google Inc. (Apple)'; // UNMASKED_VENDOR_WEBGL
+        if (parameter === 37446) return 'ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)'; // UNMASKED_RENDERER_WEBGL
+        return origGetParameter.apply(this, [parameter]);
+      };
+      if (typeof WebGL2RenderingContext !== 'undefined') {
+        const origGetParameter2 = WebGL2RenderingContext.prototype.getParameter;
+        WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+          if (parameter === 37445) return 'Google Inc. (Apple)';
+          if (parameter === 37446) return 'ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)';
+          return origGetParameter2.apply(this, [parameter]);
+        };
+      }
+
+      // 4. Permissions API Mock
+      if (navigator.permissions && navigator.permissions.query) {
+        const origQuery = navigator.permissions.query;
+        navigator.permissions.query = (parameters) => (
+          parameters.name === 'notifications'
+            ? Promise.resolve({ state: Notification.permission })
+            : origQuery(parameters)
+        );
+      }
     }).catch(() => {});
   }
 

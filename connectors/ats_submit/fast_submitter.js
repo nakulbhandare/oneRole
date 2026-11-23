@@ -314,10 +314,16 @@ async function submitFastApplication({ url, candidate, dryRun }) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-      const endpoint = `https://api.lever.co/v0/postings/${lever.board}/${lever.jobId}`;
-      const res = await fetch(endpoint, {
+      // First try public web form apply endpoint, then fallback to API endpoint
+      const webEndpoint = `https://jobs.lever.co/${lever.board}/${lever.jobId}/apply`;
+      const res = await fetch(webEndpoint, {
         method: 'POST',
         body: formData,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          'Origin': 'https://jobs.lever.co',
+          'Referer': webEndpoint
+        },
         signal: controller.signal
       });
       clearTimeout(timeoutId);
