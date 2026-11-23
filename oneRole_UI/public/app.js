@@ -5286,9 +5286,9 @@ async function fetchApplications() {
       mongoApps = (data.items || []).map((app, idx) => {
         const rawStatus = (app.status || 'submitted').toLowerCase();
         let mappedStatus = 'submitted';
-        if (rawStatus === 'action_required' || app.pause_reason === 'captcha_verification_required') {
+        if (rawStatus === 'action_required' || rawStatus === 'requires_manual_action' || app.pause_reason === 'captcha_verification_required' || app.pause_reason === 'employer_login_required') {
           mappedStatus = 'action_required';
-        } else if (rawStatus === 'requires_manual_action' || rawStatus === 'needs_user_input') {
+        } else if (rawStatus === 'needs_user_input') {
           if (app.pause_reason === 'missing_information') {
             mappedStatus = 'missing_info';
           } else {
@@ -5311,7 +5311,7 @@ async function fetchApplications() {
           domain: deriveCompanyDomain(app.company_name || ''),
           resume: 'Nakul_Bhandare_Resume.pdf',
           status: mappedStatus,
-          rawStatus: rawStatus,
+          rawStatus: mappedStatus === 'action_required' ? 'ACTION_REQUIRED' : rawStatus.toUpperCase(),
           created_at: app.created_at,
           submitted_at: app.submitted_at || app.created_at,
           applied: app.created_at ? formatTimeAgo(app.created_at) : 'Today',
@@ -6609,6 +6609,14 @@ async function reapplyApplication(appId, company) {
 
     if (res && res.ok) {
       showToast(`✓ Reapplied to ${company}! Application queued for Chromium submitter.`, 'success');
+      if (target) {
+        target.status = 'in_flight';
+        target.rawStatus = 'QUEUED';
+        target.applied = 'Just now';
+        updateTrackerCounts();
+        renderAppTrackerTable();
+      }
+      startInFlightPolling();
       await fetchApplications();
     } else {
       const err = await res.json().catch(() => ({}));

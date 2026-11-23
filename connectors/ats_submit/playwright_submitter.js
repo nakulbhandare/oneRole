@@ -511,6 +511,119 @@ async function executeWorkdayWorkflow(page, url) {
 
 /**
  * ============================================================================
+ * ATS WORKFLOW 5: SMARTRECRUITERS (Dedicated Adapter)
+ * ============================================================================
+ */
+async function executeSmartRecruitersWorkflow(page, url, candidate, resumePath) {
+  console.log('[ATS SmartRecruiters] Executing dedicated SmartRecruiters submission workflow...');
+  let applyUrl = url;
+  if (!applyUrl.includes('/apply')) {
+    applyUrl = applyUrl.replace(/\/+$/, '') + '/apply';
+  }
+
+  const res = await page.goto(applyUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
+  await checkBotChallenges(page, res ? res.status() : 200);
+
+  await page.waitForSelector('form, input[name*="firstName" i], input#first-name-input', { timeout: 15000 });
+
+  const firstName = candidate.first_name || 'Nakul';
+  const lastName = candidate.last_name || 'Bhandare';
+  const email = candidate.email || 'bhandarenakul11@gmail.com';
+  const phone = candidate.phone || '+1 (350)-355-6570';
+
+  await safeType(page, 'input[name*="firstName" i], input#first-name-input, input[id*="first_name" i]', firstName);
+  await safeType(page, 'input[name*="lastName" i], input#last-name-input, input[id*="last_name" i]', lastName);
+  await safeType(page, 'input[name*="email" i], input#email-input, input[type="email"]', email);
+  await safeType(page, 'input[name*="phone" i], input#phone-number-input, input[type="tel"]', phone);
+
+  if (resumePath && fs.existsSync(resumePath)) {
+    const fileInput = await page.$('input[type="file"]');
+    if (fileInput) {
+      await safeUpload(fileInput, resumePath);
+      console.log(`[ATS SmartRecruiters] Verified resume uploaded: ${resumePath}`);
+      await sleep(1500);
+    }
+  }
+
+  // Accept privacy / terms checkboxes if present
+  await page.evaluate(() => {
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      const parent = cb.closest('label') || cb.parentElement;
+      const text = (parent ? parent.innerText : '').toLowerCase();
+      if (text.includes('privacy') || text.includes('agree') || text.includes('terms') || text.includes('consent')) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  });
+
+  const submitBtn = await page.$('button[type="submit"], button#submit-btn, button:has-text("Submit")');
+  if (!submitBtn) {
+    throw new Error('Submit application button not found on SmartRecruiters form');
+  }
+
+  console.log('[ATS SmartRecruiters] Triggering final application submission click...');
+  await submitBtn.click();
+  await sleep(5000);
+
+  return verifyConfirmationOutcome(page, 'smartrecruiters');
+}
+
+/**
+ * ============================================================================
+ * ATS WORKFLOW 6: GENERIC RESILIENT WORKFLOW
+ * ============================================================================
+ */
+async function executeGenericWorkflow(page, url, candidate, resumePath) {
+  console.log('[ATS Generic] Executing layered generic ATS workflow...');
+  const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
+  await checkBotChallenges(page, res ? res.status() : 200);
+
+  const applyBtn = await page.$('a[href*="apply"], button:has-text("Apply"), a:has-text("Apply")');
+  if (applyBtn) {
+    await applyBtn.click().catch(() => {});
+    await sleep(1000);
+  }
+
+  await page.waitForSelector('form, input[type="text"], input[type="email"]', { timeout: 15000 }).catch(() => {});
+
+  const firstName = candidate.first_name || 'Nakul';
+  const lastName = candidate.last_name || 'Bhandare';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const email = candidate.email || 'bhandarenakul11@gmail.com';
+  const phone = candidate.phone || '+1 (350)-355-6570';
+
+  const filledName = await safeType(page, 'input[name*="name" i]:not([name*="first"]):not([name*="last"]), input[id*="name" i]:not([id*="first"]):not([id*="last"])', fullName);
+  if (!filledName) {
+    await safeType(page, 'input[name*="first" i], input[id*="first" i]', firstName);
+    await safeType(page, 'input[name*="last" i], input[id*="last" i]', lastName);
+  }
+  await safeType(page, 'input[type="email"], input[name*="email" i], input[id*="email" i]', email);
+  await safeType(page, 'input[type="tel"], input[name*="phone" i], input[id*="phone" i]', phone);
+
+  if (resumePath && fs.existsSync(resumePath)) {
+    const fileInput = await page.$('input[type="file"]');
+    if (fileInput) {
+      await safeUpload(fileInput, resumePath);
+      console.log(`[ATS Generic] Verified resume uploaded: ${resumePath}`);
+      await sleep(1500);
+    }
+  }
+
+  const submitBtn = await page.$('button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Apply Now")');
+  if (!submitBtn) {
+    throw new Error('Submit application button not found on generic ATS form');
+  }
+
+  console.log('[ATS Generic] Triggering final application submission click...');
+  await submitBtn.click();
+  await sleep(5000);
+
+  return verifyConfirmationOutcome(page, 'generic');
+}
+
+/**
+ * ============================================================================
  * CONFIRMATION VERIFICATION & RECEIPT EXTRACTION (Rule 7 Compliance)
  * ============================================================================
  */
@@ -598,9 +711,18 @@ async function submitWithPlaywright({ url, candidate, artifactsDir }) {
 
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     locale: 'en-US'
   }).catch(() => null);
+
+  if (context && typeof context.addInitScript === 'function') {
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      window.chrome = { runtime: {}, app: {}, loadTimes: () => {}, csi: () => {} };
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    }).catch(() => {});
+  }
 
   const page = context ? await context.newPage() : await browser.newPage();
   page.setDefaultTimeout(35000);
@@ -620,11 +742,12 @@ async function submitWithPlaywright({ url, candidate, artifactsDir }) {
       result = await executeGreenhouseWorkflow(page, url, candidate, resumePath);
     } else if (provider === 'ashby') {
       result = await executeAshbyWorkflow(page, url, candidate, resumePath);
+    } else if (provider === 'smartrecruiters') {
+      result = await executeSmartRecruitersWorkflow(page, url, candidate, resumePath);
     } else if (provider === 'workday') {
       result = await executeWorkdayWorkflow(page, url);
     } else {
-      // Universal generic fallback
-      result = await executeGreenhouseWorkflow(page, url, candidate, resumePath);
+      result = await executeGenericWorkflow(page, url, candidate, resumePath);
     }
 
     result.duration_ms = Date.now() - startTime;

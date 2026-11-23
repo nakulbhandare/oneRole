@@ -26,8 +26,9 @@ let activeJobs = 0;
 let isShuttingDown = false;
 
 function isCaptchaOrBot(err) {
-  if (!err || !err.message) return false;
-  const msg = err.message.toLowerCase();
+  if (!err) return false;
+  if (err.isBotGate || err.isCaptcha || err.challengeType) return true;
+  const msg = (err.message || '').toLowerCase();
   return msg.includes('captcha') ||
          msg.includes('turnstile') ||
          msg.includes('cloudflare') ||
@@ -37,15 +38,21 @@ function isCaptchaOrBot(err) {
          msg.includes('security check') ||
          msg.includes('verify you are human') ||
          msg.includes('flagged as possible spam') ||
-         msg.includes('possible spam');
+         msg.includes('possible spam') ||
+         msg.includes('rate_limit_429') ||
+         msg.includes('rate limit') ||
+         msg.includes('workday_bot_shield') ||
+         msg.includes('workday_login_required') ||
+         msg.includes('login_required') ||
+         msg.includes('account required') ||
+         msg.includes('user login') ||
+         msg.includes('sign-in required');
 }
 
 function isNonRetryableError(err) {
   if (!err || !err.message) return false;
+  if (err.isJobClosed) return true;
   const msg = err.message.toLowerCase();
-  // FIX 5 (Worker Daemon error classification): Only mark as permanently non-retryable when the
-  // error is definitively about bad payload or a closed/filled/invalid job posting.
-  // Network errors (ECONNRESET, ETIMEDOUT, DNS, 5xx) MUST remain retryable.
   const isPayloadError = msg.includes('url and candidate required') ||
     msg.includes('invalid payload') ||
     msg.includes('missing required field');
@@ -54,10 +61,10 @@ function isNonRetryableError(err) {
     msg.includes('posting has closed') ||
     msg.includes('application form closed') ||
     msg.includes('this job has been closed') ||
-    msg.includes('listing is no longer active');
-  const isHardNotFound = (msg.includes('404 not found') || msg.includes('job not found')) &&
+    msg.includes('listing is no longer active') ||
+    msg.includes('job posting has closed');
+  const isHardNotFound = (msg.includes('404 not found') || msg.includes('job not found') || msg.includes('404')) &&
     !msg.includes('econnrefused') && !msg.includes('enotfound') && !msg.includes('timeout');
-  // Explicitly NOT non-retryable: ECONNRESET, ECONNREFUSED, ENOTFOUND, ETIMEDOUT, 5xx errors, CAPTCHA
   const isTransient = msg.includes('econnreset') || msg.includes('econnrefused') ||
     msg.includes('enotfound') || msg.includes('etimedout') || msg.includes('timeout') ||
     msg.includes('network') || msg.includes('500') || msg.includes('502') ||
@@ -549,11 +556,17 @@ async function start() {
       const errTime = new Date();
 
       if (isCaptchaOrBot(err)) {
-        console.warn(`[Worker] BOT/CAPTCHA CHALLENGE for ${application_id}: Transitioning to requires_manual_action`);
+        const isLogin = (err.challengeType === 'workday_login_required' ||
+                         (err.message && (err.message.toLowerCase().includes('login') ||
+                                          err.message.toLowerCase().includes('account') ||
+                                          err.message.toLowerCase().includes('sign-in'))));
+        const pauseReason = isLogin ? 'employer_login_required' : 'captcha_verification_required';
+        console.warn(`[Worker] ACTION REQUIRED (${pauseReason}) for ${application_id}: ${err.message}`);
         await appsColl.updateOne({ _id: application_id, status: { $ne: 'submitted' } }, {
           $set: {
             status: 'requires_manual_action',
-            pause_reason: 'captcha_verification_required',
+            pause_reason: pauseReason,
+            last_error: err.message,
             updated_at: errTime
           }
         });
@@ -569,17 +582,21 @@ async function start() {
           actor_id: user_id,
           occurred_at: errTime,
           metadata: {
-            pause_reason: 'captcha_verification_required',
+            pause_reason: pauseReason,
             error: err.message
           }
         });
 
         msg.ack(); // Safely transitioned to manual assist mode
+        return;
       } else if (isNonRetryableError(err)) {
         console.error(`[Worker] NON-RETRYABLE ERROR for ${application_id}: ${err.message}`);
+        const isClosed = err.isJobClosed || err.message.toLowerCase().includes('closed') || err.message.toLowerCase().includes('filled') || err.message.toLowerCase().includes('404');
+        const pauseReason = isClosed ? 'job_closed' : 'invalid_payload';
         await appsColl.updateOne({ _id: application_id, status: { $ne: 'submitted' } }, {
           $set: {
             status: 'failed_permanent',
+            pause_reason: pauseReason,
             error_detail: err.message,
             last_error: err.message,
             updated_at: errTime
@@ -596,11 +613,22 @@ async function start() {
           actor_type: 'chromium_worker',
           actor_id: user_id,
           occurred_at: errTime,
-          metadata: { error: err.message, non_retryable: true }
+          metadata: { error: err.message, pause_reason: pauseReason, non_retryable: true }
         });
 
         msg.term('non_retryable_error');
+        return;
       } else {
+        // Check if application was already flagged for manual action or captcha before timeout
+        try {
+          const currentDoc = await appsColl.findOne({ _id: application_id }, { projection: { status: 1, pause_reason: 1 } });
+          if (currentDoc && (currentDoc.status === 'requires_manual_action' || currentDoc.pause_reason)) {
+            console.log(`[Worker] Application ${application_id} already in requires_manual_action (${currentDoc.pause_reason}). Acknowledging without timeout overwrite.`);
+            msg.ack();
+            return;
+          }
+        } catch (_) {}
+
         // Retryable transient error (timeout, network dropped, browser crash, unconfirmed form)
         if (deliveryCount < MAX_RETRIES) {
           const backoffDelay = calculateBackoffDelay(deliveryCount);

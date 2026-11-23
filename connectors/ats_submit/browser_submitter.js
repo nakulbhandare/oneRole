@@ -130,7 +130,7 @@ async function submitApplication(browser, url, candidate) {
   const page = await browser.newPage();
   try {
     context.logStep('page_created');
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     context.logStep('navigated');
 
     if (context.isStuck()) throw new Error('Timeout during navigation');
@@ -1488,10 +1488,21 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
       targetUrl = targetUrl.replace(/\/+$/, '') + '/apply';
     } else if (targetUrl.includes('ashbyhq.com') && !targetUrl.endsWith('/application')) {
       targetUrl = targetUrl.replace(/\/+$/, '') + '/application';
+    } else if (targetUrl.includes('lever.co') && !targetUrl.includes('/apply')) {
+      targetUrl = targetUrl.replace(/\/+$/, '') + '/apply';
     }
 
     console.log(`[Chromium Submitter] Navigating Chromium tab to: ${targetUrl}...`);
-    await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 35000 });
+    try {
+      await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    } catch (navErr) {
+      if (navErr && navErr.message && navErr.message.includes('timeout')) {
+        console.warn(`[Chromium Submitter] Initial navigation timeout on ${targetUrl}, retrying with domcontentloaded...`);
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      } else {
+        throw navErr;
+      }
+    }
     const pageTitle = await page.title().catch(() => 'Job Portal');
     console.log(`[Chromium Submitter] Page loaded: "${pageTitle}". Detecting ATS form inputs...`);
 
@@ -1512,7 +1523,7 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
       );
       if (applyCTA) {
         await Promise.all([
-          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {}),
+          page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {}),
           applyCTA.click()
         ]);
         await new Promise(r => setTimeout(r, 1500));
@@ -1524,7 +1535,7 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
         );
         if (applyManuallyBtn) {
           await Promise.all([
-            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {}),
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {}),
             applyManuallyBtn.click()
           ]);
           await new Promise(r => setTimeout(r, 1500));
@@ -2405,7 +2416,7 @@ async function retryableUpload(element, filePath, retries = 3) {
       try {
         await nextBtn.scrollIntoViewIfNeeded().catch(() => {});
         await Promise.all([
-          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 6000 }).catch(() => {}),
+          page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 6000 }).catch(() => {}),
           nextBtn.click({ delay: 30 })
         ]);
 

@@ -1071,6 +1071,19 @@ func (e *AutoApplyEngine) buildChromiumTask(ctx context.Context, scope ActorScop
 	if profile.Email == "" || strings.Contains(strings.ToLower(profile.Email), "noreply") || profile.Email == "test@onerole.ai" {
 		profile.Email = "bhandarenakul11@gmail.com"
 	}
+	// Global: If user has an assigned employer-facing OneRole email identity, route all ATS correspondence through it
+	if e.db != nil {
+		var emailIdent struct {
+			AssignedEmail string `bson:"assigned_email"`
+			Status        string `bson:"status"`
+		}
+		if err := e.db.Collection("email_identities").FindOne(ctx, bson.M{
+			"user_id": scope.UserID,
+			"status":  "active",
+		}).Decode(&emailIdent); err == nil && emailIdent.AssignedEmail != "" {
+			profile.Email = emailIdent.AssignedEmail
+		}
+	}
 	if profile.FirstName == "" || strings.ToLower(profile.FirstName) == "test" {
 		profile.FirstName = "Nakul"
 		profile.LastName = "Bhandare"
@@ -1260,10 +1273,10 @@ func (e *AutoApplyEngine) dispatchApplication(ctx context.Context, scope ActorSc
 			if mErr != nil {
 				fmt.Printf("[AutoApplyEngine] marshal error for app %s: %v, falling back to local queue\n", appID, mErr)
 			} else {
-				// 1. Primary: Publish to JetStream with guaranteed storage ACK and deduplication
+				// 1. Primary: Publish to JetStream with guaranteed storage ACK and bounded execution delivery
 				if e.js != nil {
 					pubCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					_, pubErr := e.js.Publish(pubCtx, "applications.submit", data, jetstream.WithMsgID(appID))
+					_, pubErr := e.js.Publish(pubCtx, "applications.submit", data, jetstream.WithMsgID(fmt.Sprintf("%s-%d", appID, time.Now().UnixNano())))
 					cancel()
 					if pubErr != nil {
 						fmt.Printf("[AutoApplyEngine] JetStream publish warning for app %s: %v\n", appID, pubErr)
