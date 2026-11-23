@@ -2677,7 +2677,10 @@
             <!-- Applied Using Header -->
             <div class="p-3.5 rounded-[10px] bg-[#fafbfa] border border-[#e5ebe7] flex items-center justify-between text-xs">
               <span class="text-[#78827e] font-medium">Applied using</span>
-              <span id="appModalCandidateEmailBanner" class="font-bold text-[#1d2825] font-mono select-all">bhandarenakul11@gmail.com</span>
+              <div class="flex items-center space-x-2">
+                <span id="appModalCandidateEmailBanner" class="font-bold text-[#1d2825] font-mono select-all">bhandarenakul11@gmail.com</span>
+                <span id="appModalEmailVerificationBadge"></span>
+              </div>
             </div>
 
             <!-- Personal Information Section (4 fields) -->
@@ -3248,6 +3251,6 @@
   <!-- TOAST CONTAINER -->
   <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
-  <script src="/app.js?v=5.4"></script>
+  <script src="/app.js?v=5.5"></script>
 </body>
 </html>

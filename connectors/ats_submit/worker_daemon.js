@@ -387,6 +387,7 @@ async function start() {
         const submitTime = new Date();
         const hasVerifiedReceipt = !!(result && result.receipt_id && !result.unverified);
         const finalStatus = hasVerifiedReceipt ? 'SUBMITTED_CONFIRMED' : 'SUBMITTED_UNVERIFIED';
+        const candidateEmail = (candidate && candidate.email && candidate.email !== 'test@onerole.ai' && !candidate.email.includes('mail.onerole.com')) ? candidate.email : 'bhandarenakul11@gmail.com';
 
         const updateDoc = {
           status: finalStatus,
@@ -394,6 +395,8 @@ async function start() {
           verified_receipt_id: hasVerifiedReceipt ? result.receipt_id : null,
           confirmation_url: result.confirmation_url || job_url,
           submission_engine: result.provider || usedEngine,
+          candidate_email: candidateEmail,
+          email_verification_status: 'pending_inbox_sync',
           updated_at: submitTime
         };
         if (typeof db !== 'undefined' && db && job_id) {
@@ -456,7 +459,6 @@ async function start() {
       });
 
       // Dispatch confirmation email to registered client email
-      const candidateEmail = (candidate && candidate.email && candidate.email !== 'test@onerole.ai' && !candidate.email.includes('mail.onerole.com')) ? candidate.email : 'bhandarenakul11@gmail.com';
       let jobTitle = 'Software Engineer';
       let companyName = 'Employer';
       if (typeof db !== 'undefined' && db) {
@@ -518,9 +520,9 @@ async function start() {
           })
           .catch(() => {});
 
-        console.log(`[Email Service] Confirmation email event registered for ${candidateEmail} (${jobTitle} at ${companyName}, Receipt: ${result.receipt_id})`);
-        console.log(`[Email Service] Outbound application confirmation email dispatched to candidate: ${candidateEmail}`);
-        console.log(`[Email Service] Subject: "${subject}" | Receipt ID: ${result.receipt_id} | Status: DELIVERED`);
+        console.log(`[Notification Service] Candidate notification queued for ${candidateEmail} (${jobTitle} at ${companyName}, Channel A Receipt: ${result.receipt_id || 'unverified'})`);
+        console.log(`[Notification Service] Dispatching system submission notice to candidate: ${candidateEmail}`);
+        console.log(`[Verification Service] Channel B (Employer Inbox Verification): PENDING employer confirmation email correlation`);
       } catch (emailErr) {
         console.error(`[Email Service] Failed to record email notification: ${emailErr.message}`);
       }

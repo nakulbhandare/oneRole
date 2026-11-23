@@ -49,6 +49,10 @@ type applicationDoc struct {
 	Version                 int64             `bson:"version"`
 	PauseReason             string            `bson:"pause_reason,omitempty"`
 	VerifiedReceiptID       *string           `bson:"verified_receipt_id,omitempty"`
+	CandidateEmail          string            `bson:"candidate_email,omitempty"`
+	EmailVerificationStatus string            `bson:"email_verification_status,omitempty"`
+	EmailMessageID          string            `bson:"email_message_id,omitempty"`
+	ConfirmationEmailReceivedAt *time.Time    `bson:"confirmation_email_received_at,omitempty"`
 	Answers                 map[string]string `bson:"answers,omitempty"`
 	LastError               *string           `bson:"last_error,omitempty"`
 	CreatedAt               time.Time         `bson:"created_at"`
@@ -433,14 +437,18 @@ func (r *ApplicationRepository) GetApplication(ctx context.Context, scope servic
 
 	res := models.Application{
 		ID:                 app.ID,
-		JobID:              app.JobID,
-		Status:             publicStatus,
-		Capability:         validCapability(app.CapabilitySnapshot),
-		PauseReason:        pauseReason,
-		LastError:          app.LastError,
-		VerifiedReceiptID:  app.VerifiedReceiptID,
-		CreatedAt:          app.CreatedAt.UTC(),
-		UpdatedAt:          app.UpdatedAt.UTC(),
+		JobID:                       app.JobID,
+		Status:                      publicStatus,
+		Capability:                  validCapability(app.CapabilitySnapshot),
+		PauseReason:                 pauseReason,
+		LastError:                   app.LastError,
+		VerifiedReceiptID:           app.VerifiedReceiptID,
+		CandidateEmail:              app.CandidateEmail,
+		EmailVerificationStatus:     app.EmailVerificationStatus,
+		EmailMessageID:              app.EmailMessageID,
+		ConfirmationEmailReceivedAt: app.ConfirmationEmailReceivedAt,
+		CreatedAt:                   app.CreatedAt.UTC(),
+		UpdatedAt:                   app.UpdatedAt.UTC(),
 	}
 	return res, nil
 }
@@ -491,17 +499,21 @@ func (r *ApplicationRepository) ListApplications(ctx context.Context, scope serv
 			pauseReason = &doc.PauseReason
 		}
 		items = append(items, models.Application{
-			ID:                doc.ID,
-			JobID:             doc.JobID,
-			CompanyName:       doc.CompanyName,
-			JobTitle:          doc.JobTitle,
-			Status:            pubStatus,
-			Capability:        validCapability(doc.CapabilitySnapshot),
-			PauseReason:       pauseReason,
-			LastError:         doc.LastError,
-			VerifiedReceiptID: doc.VerifiedReceiptID,
-			CreatedAt:         doc.CreatedAt.UTC(),
-			UpdatedAt:         doc.UpdatedAt.UTC(),
+			ID:                          doc.ID,
+			JobID:                       doc.JobID,
+			CompanyName:                 doc.CompanyName,
+			JobTitle:                    doc.JobTitle,
+			Status:                      pubStatus,
+			Capability:                  validCapability(doc.CapabilitySnapshot),
+			PauseReason:                 pauseReason,
+			LastError:                   doc.LastError,
+			VerifiedReceiptID:           doc.VerifiedReceiptID,
+			CandidateEmail:              doc.CandidateEmail,
+			EmailVerificationStatus:     doc.EmailVerificationStatus,
+			EmailMessageID:              doc.EmailMessageID,
+			ConfirmationEmailReceivedAt: doc.ConfirmationEmailReceivedAt,
+			CreatedAt:                   doc.CreatedAt.UTC(),
+			UpdatedAt:                   doc.UpdatedAt.UTC(),
 		})
 	}
 
@@ -525,17 +537,21 @@ func (r *ApplicationRepository) ListApplications(ctx context.Context, scope serv
 						pauseReason = &doc.PauseReason
 					}
 					items = append(items, models.Application{
-						ID:                doc.ID,
-						JobID:             doc.JobID,
-						CompanyName:       doc.CompanyName,
-						JobTitle:          doc.JobTitle,
-						Status:            pubStatus,
-						Capability:        validCapability(doc.CapabilitySnapshot),
-						PauseReason:       pauseReason,
-						LastError:         doc.LastError,
-						VerifiedReceiptID: doc.VerifiedReceiptID,
-						CreatedAt:         doc.CreatedAt.UTC(),
-						UpdatedAt:         doc.UpdatedAt.UTC(),
+						ID:                          doc.ID,
+						JobID:                       doc.JobID,
+						CompanyName:                 doc.CompanyName,
+						JobTitle:                    doc.JobTitle,
+						Status:                      pubStatus,
+						Capability:                  validCapability(doc.CapabilitySnapshot),
+						PauseReason:                 pauseReason,
+						LastError:                   doc.LastError,
+						VerifiedReceiptID:           doc.VerifiedReceiptID,
+						CandidateEmail:              doc.CandidateEmail,
+						EmailVerificationStatus:     doc.EmailVerificationStatus,
+						EmailMessageID:              doc.EmailMessageID,
+						ConfirmationEmailReceivedAt: doc.ConfirmationEmailReceivedAt,
+						CreatedAt:                   doc.CreatedAt.UTC(),
+						UpdatedAt:                   doc.UpdatedAt.UTC(),
 					})
 				}
 			}

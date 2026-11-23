@@ -124,9 +124,13 @@ type Application struct {
 	Capability           ApplicationCapability   `json:"capability" bson:"capability_snapshot"`
 	PauseReason          *string                 `json:"pause_reason,omitempty" bson:"pause_reason,omitempty"`
 	LastError            *string                 `json:"last_error,omitempty" bson:"last_error,omitempty"`
-	VerifiedReceiptID    *string                 `json:"verified_receipt_id,omitempty" bson:"verified_receipt_id,omitempty"`
-	ConfirmationEvidence map[string]any          `json:"confirmation_evidence,omitempty" bson:"confirmation_evidence,omitempty"`
-	FencingToken         int64                   `json:"fencing_token,omitempty" bson:"fencing_token,omitempty"`
+	VerifiedReceiptID           *string                 `json:"verified_receipt_id,omitempty" bson:"verified_receipt_id,omitempty"`
+	ConfirmationEvidence        map[string]any          `json:"confirmation_evidence,omitempty" bson:"confirmation_evidence,omitempty"`
+	CandidateEmail              string                  `json:"candidate_email,omitempty" bson:"candidate_email,omitempty"`
+	EmailVerificationStatus     string                  `json:"email_verification_status,omitempty" bson:"email_verification_status,omitempty"`
+	EmailMessageID              string                  `json:"email_message_id,omitempty" bson:"email_message_id,omitempty"`
+	ConfirmationEmailReceivedAt *time.Time              `json:"confirmation_email_received_at,omitempty" bson:"confirmation_email_received_at,omitempty"`
+	FencingToken                int64                   `json:"fencing_token,omitempty" bson:"fencing_token,omitempty"`
 	LeaseOwner           *string                 `json:"lease_owner,omitempty" bson:"lease_owner,omitempty"`
 	LeaseExpiresAt       *time.Time              `json:"lease_expires_at,omitempty" bson:"lease_expires_at,omitempty"`
 	AttemptCount         int                     `json:"attempt_count,omitempty" bson:"attempt_count,omitempty"`
@@ -146,6 +150,24 @@ type ApplicationEvent struct {
 	ActorType     string    `json:"actor_type" bson:"actor_type"`
 	ActorID       string    `json:"actor_id" bson:"actor_id"`
 	OccurredAt    time.Time `json:"occurred_at" bson:"occurred_at"`
+}
+
+// EmailVerificationEvent represents a correlated and verified incoming employer email.
+type EmailVerificationEvent struct {
+	ID            string    `json:"id" bson:"_id"`
+	TenantID      string    `json:"tenant_id" bson:"tenant_id"`
+	ApplicationID string    `json:"application_id" bson:"application_id"`
+	MessageID     string    `json:"message_id" bson:"message_id"`
+	Sender        string    `json:"sender" bson:"sender"`
+	Recipient     string    `json:"recipient" bson:"recipient"`
+	Subject       string    `json:"subject" bson:"subject"`
+	Employer      string    `json:"employer" bson:"employer"`
+	Provider      string    `json:"provider" bson:"provider"`
+	ReceiptID     string    `json:"receipt_id,omitempty" bson:"receipt_id,omitempty"`
+	Confidence    float64   `json:"confidence" bson:"confidence"`
+	Status        string    `json:"status" bson:"status"`
+	ReceivedAt    time.Time `json:"received_at" bson:"received_at"`
+	CreatedAt     time.Time `json:"created_at" bson:"created_at"`
 }
 
 // SkillFitAnalysis provides FreeHire-style 3-tier gap analysis against target vacancy.

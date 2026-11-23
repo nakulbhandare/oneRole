@@ -5996,7 +5996,16 @@ function renderAppDetailModalContent(app) {
 
   // Tab 1: Form View
   const emailBanner = document.getElementById('appModalCandidateEmailBanner');
-  if (emailBanner) emailBanner.innerText = 'bhandarenakul11@gmail.com';
+  if (emailBanner) emailBanner.innerText = app.candidate_email || 'bhandarenakul11@gmail.com';
+
+  const emailVerifBadge = document.getElementById('appModalEmailVerificationBadge');
+  if (emailVerifBadge) {
+    if (app.email_verification_status === 'confirmed') {
+      emailVerifBadge.innerHTML = `<span class="inline-flex items-center space-x-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200"><span>✓ Employer Email Verified</span></span>`;
+    } else {
+      emailVerifBadge.innerHTML = `<span class="inline-flex items-center space-x-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-200"><span>⏳ Awaiting Employer Email</span></span>`;
+    }
+  }
 
   // Tab 2: Tailored Resume
   const resumeContainer = document.getElementById('appModalResumeDocument');
