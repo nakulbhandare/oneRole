@@ -485,28 +485,38 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     }
   }
 
-  // 5. Fill all required textareas and single-line text inputs
-  const formTextInputs = await page.$$('input.input__single-line, textarea.input__multi-line, textarea, input[type="text"]');
-  for (const inp of formTextInputs) {
-    const val = await inp.inputValue().catch(() => '');
-    const isCombobox = await inp.getAttribute('role').then(r => r === 'combobox').catch(() => false);
-    if (!val && !isCombobox) {
-      const label = ((await inp.getAttribute('aria-label')) || '').toLowerCase();
-      if (label.includes('why') || label.includes('cover') || label.includes('note')) {
-        await inp.fill('I am excited about this role and eager to contribute my skills to the team. My background and experience align well with the responsibilities outlined in the job description.').catch(() => {});
-      } else if (label.includes('where') || label.includes('location') || label.includes('work') || label.includes('reside')) {
-        await inp.fill(location).catch(() => {});
-      } else if (label.includes('linkedin')) {
-        await inp.fill(linkedin).catch(() => {});
-      } else if (label.includes('website') || label.includes('portfolio') || label.includes('github')) {
-        await inp.fill(github).catch(() => {});
-      } else if (label.includes('pronoun')) {
-        await inp.fill('He/Him').catch(() => {});
-      } else {
-        await inp.fill('N/A').catch(() => {});
-      }
+  // 5. Fill all custom textareas and single-line text inputs rapidly via React prototype setter
+  await page.evaluate(({ loc, lk, gh }) => {
+    function setVal(el, val) {
+      if (!el) return;
+      const proto = Object.getPrototypeOf(el);
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+      if (setter) setter.call(el, val);
+      else el.value = val;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
     }
-  }
+
+    document.querySelectorAll('input.input__single-line, textarea.input__multi-line, textarea, input[type="text"]').forEach(inp => {
+      const isCombobox = inp.getAttribute('role') === 'combobox' || inp.className.includes('select__input');
+      if (isCombobox || inp.value) return;
+
+      const label = ((inp.getAttribute('aria-label') || '') + ' ' + (inp.closest('.field, .form-field')?.innerText || '')).toLowerCase();
+      if (label.includes('why') || label.includes('cover') || label.includes('note')) {
+        setVal(inp, 'I am excited about this role and eager to contribute my skills to the team. My background and experience align well with the responsibilities outlined in the job description.');
+      } else if (label.includes('where') || label.includes('location') || label.includes('work') || label.includes('reside')) {
+        setVal(inp, loc);
+      } else if (label.includes('linkedin')) {
+        setVal(inp, lk);
+      } else if (label.includes('website') || label.includes('portfolio') || label.includes('github')) {
+        setVal(inp, gh);
+      } else if (label.includes('pronoun')) {
+        setVal(inp, 'He/Him');
+      } else {
+        setVal(inp, 'N/A');
+      }
+    });
+  }, { loc: location, lk: linkedin, gh: github });
 
   // 6. Intelligent Dynamic Question Answering for modern Greenhouse
   await page.evaluate((cand) => {

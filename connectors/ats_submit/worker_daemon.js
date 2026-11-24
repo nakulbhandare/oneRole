@@ -15,7 +15,7 @@ const CONCURRENCY = parseInt(process.env.CONCURRENCY || '10', 10);
 
 // D7: Retry, Timeout, and Backoff Configuration
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '3', 10);
-const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS || '45000', 10); // 45s bounded timeout per job
+const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS || '90000', 10); // 90s bounded timeout per job
 const HEARTBEAT_INTERVAL_MS = parseInt(process.env.HEARTBEAT_INTERVAL_MS || '15000', 10); // 15s heartbeats
 const BASE_BACKOFF_MS = parseInt(process.env.BASE_BACKOFF_MS || '3000', 10); // 3s base backoff
 const MAX_BACKOFF_MS = parseInt(process.env.MAX_BACKOFF_MS || '30000', 10); // 30s max backoff
