@@ -360,16 +360,7 @@ func (h *AshbyHarvester) harvestViaGraphQL(ctx context.Context, org, jobID strin
         fieldEntries {
           id
           isRequired
-          field {
-            ... on StringField { id path title type }
-            ... on EmailField { id path title type }
-            ... on PhoneField { id path title type }
-            ... on FileField { id path title type }
-            ... on LongTextField { id path title type }
-            ... on BooleanField { id path title type }
-            ... on ValueSelectField { id path title type selectableValues { label value } }
-            ... on MultiValueSelectField { id path title type selectableValues { label value } }
-          }
+          field
         }
       }
     }

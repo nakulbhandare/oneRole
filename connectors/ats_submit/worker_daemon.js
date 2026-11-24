@@ -247,7 +247,7 @@ async function start() {
       try {
         const u = new URL(job_url);
         const ghJid = u.searchParams.get('gh_jid') || u.searchParams.get('token');
-        if (ghJid && !job_url.includes('/embed/job_app')) {
+        if (ghJid && !job_url.includes('/embed/job_app') && !u.hostname.includes('greenhouse.io')) {
           let domainBoard = u.searchParams.get('for');
           if (!domainBoard) {
             const host = u.hostname.replace(/^(www\.|jobs\.|careers\.)/, '');
