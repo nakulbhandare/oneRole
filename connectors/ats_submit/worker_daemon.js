@@ -583,6 +583,35 @@ async function start() {
 
         msg.ack(); // Safely transitioned to manual assist mode
         return;
+      } else if (err.message && err.message.toLowerCase().includes('submission was not confirmed')) {
+        console.warn(`[Worker] ACTION REQUIRED (submission_verification_required) for ${application_id}: ${err.message}`);
+        await appsColl.updateOne({ _id: application_id, status: { $ne: 'submitted' } }, {
+          $set: {
+            status: 'requires_manual_action',
+            pause_reason: 'submission_verification_required',
+            last_error: err.message,
+            updated_at: errTime
+          }
+        });
+
+        await eventsColl.insertOne({
+          _id: generateEventId(appPrefix),
+          tenant_id: tenant_id,
+          application_id: application_id,
+          event_type: 'application.requires_manual_action',
+          from_status: 'submitting',
+          to_status: 'requires_manual_action',
+          actor_type: 'chromium_worker',
+          actor_id: user_id,
+          occurred_at: errTime,
+          metadata: {
+            pause_reason: 'submission_verification_required',
+            error: err.message
+          }
+        });
+
+        msg.ack();
+        return;
       } else if (isNonRetryableError(err)) {
         console.error(`[Worker] NON-RETRYABLE ERROR for ${application_id}: ${err.message}`);
         const isClosed = err.isJobClosed || err.message.toLowerCase().includes('closed') || err.message.toLowerCase().includes('filled') || err.message.toLowerCase().includes('404');
