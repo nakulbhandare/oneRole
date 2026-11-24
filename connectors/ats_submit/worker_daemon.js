@@ -245,6 +245,22 @@ async function start() {
         }
       }
 
+      // Canonical URL Normalization: convert career site wrappers directly to canonical direct ATS endpoints
+      let targetJobUrl = job_url;
+      try {
+        const u = new URL(job_url);
+        const ghJid = u.searchParams.get('gh_jid') || u.searchParams.get('token');
+        if (ghJid && !job_url.includes('/embed/job_app')) {
+          let domainBoard = u.searchParams.get('for');
+          if (!domainBoard) {
+            const host = u.hostname.replace(/^(www\.|jobs\.|careers\.)/, '');
+            domainBoard = host.split('.')[0];
+          }
+          targetJobUrl = `https://job-boards.greenhouse.io/embed/job_app?for=${domainBoard}&token=${ghJid}`;
+          console.log(`[Worker] Normalized career site wrapper URL to canonical direct ATS embed: ${targetJobUrl}`);
+        }
+      } catch (_) {}
+
       const appPrefix = String(application_id).slice(0, 8);
       const deliveryCount = (msg.info && typeof msg.info.deliveryCount === 'number') ? msg.info.deliveryCount : 1;
       console.log(`[Worker] Processing application: ${application_id} for job: ${job_id} (Attempt ${deliveryCount}/${MAX_RETRIES})`);
@@ -350,9 +366,9 @@ async function start() {
 
         if (typeof submitFastApplication === 'function') {
           try {
-            console.log(`[Worker] Evaluating Tier-1 Fast-Path for URL: ${job_url}`);
+            console.log(`[Worker] Evaluating Tier-1 Fast-Path for URL: ${targetJobUrl}`);
             const fastResult = await submitFastApplication({
-              url: job_url,
+              url: targetJobUrl,
               candidate: candidate,
               dryRun: false
             });
@@ -374,12 +390,12 @@ async function start() {
         // ---------------------------------------------------------
         if (!result || !result.success) {
           usedEngine = 'tier2_playwright_chromium';
-          console.log(`[Worker] Executing Tier-2 Playwright Chromium: URL=${job_url}, Candidate=${candidate.email || 'bhandarenakul11@gmail.com'}`);
+          console.log(`[Worker] Executing Tier-2 Playwright Chromium: URL=${targetJobUrl}, Candidate=${candidate.email || 'bhandarenakul11@gmail.com'}`);
           try {
             const { submitWithPlaywright } = require('./playwright_submitter');
             result = await Promise.race([
               submitWithPlaywright({
-                url: job_url,
+                url: targetJobUrl,
                 candidate: candidate,
                 dryRun: false,
                 assistMode: false,

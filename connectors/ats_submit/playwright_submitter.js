@@ -67,7 +67,11 @@ async function getChromiumBrowser() {
     '--disable-dev-shm-usage',
     '--no-first-run',
     '--no-zygote',
-    '--disable-blink-features=AutomationControlled'
+    '--disable-blink-features=AutomationControlled',
+    '--headless=new',
+    '--window-size=1440,900',
+    '--start-maximized',
+    '--lang=en-US,en'
   ];
 
   if (playwright) {
@@ -180,6 +184,8 @@ async function checkInitialPageBlock(page, statusCode = 200) {
 /**
  * Check if an active, visible interactive challenge is currently displayed to the candidate.
  * Only called after submission if confirmation has not yet appeared.
+ * NOTE: Passive invisible badges (e.g. .grecaptcha-badge, anchor iframes) are standard on modern ATS
+ * portals and MUST NEVER be classified as interactive challenges.
  */
 async function checkInteractiveChallenge(page) {
   return page.evaluate(() => {
@@ -194,22 +200,25 @@ async function checkInteractiveChallenge(page) {
       return 'interactive_challenge_prompt';
     }
 
-    // Visible reCAPTCHA challenge box (bframe)
-    const recaptchaBframe = document.querySelector('iframe[src*="google.com/recaptcha"], iframe[src*="recaptcha.net/recaptcha"], iframe[src*="bframe"], iframe[title*="recaptcha challenge" i]');
+    // Visible reCAPTCHA challenge tile box (bframe) - MUST NOT match passive anchor or badge
+    const recaptchaBframe = document.querySelector('iframe[src*="/bframe"], iframe[title*="recaptcha challenge" i]');
     if (recaptchaBframe) {
-      const rect = recaptchaBframe.getBoundingClientRect();
-      const style = window.getComputedStyle(recaptchaBframe);
-      if (rect.width > 50 && rect.height > 50 && style.visibility !== 'hidden' && style.display !== 'none') {
-        return 'google_recaptcha_interactive';
+      const isBadge = recaptchaBframe.closest('.grecaptcha-badge, [class*="badge"]') || (recaptchaBframe.src && recaptchaBframe.src.includes('/anchor'));
+      if (!isBadge) {
+        const rect = recaptchaBframe.getBoundingClientRect();
+        const style = window.getComputedStyle(recaptchaBframe);
+        if (rect.width >= 280 && rect.height >= 350 && style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0') {
+          return 'google_recaptcha_interactive';
+        }
       }
     }
 
-    // Visible hCaptcha challenge popup / enclave
-    const hcaptchaChallenge = document.querySelector('iframe[src*="hcaptcha.com"][src*="frame=challenge"], iframe[src*="hcaptcha.com"][src*="frame=enclave"], iframe[title*="hCaptcha challenge"], iframe[title*="hcaptcha" i]');
+    // Visible hCaptcha challenge popup / enclave - MUST be an active challenge modal
+    const hcaptchaChallenge = document.querySelector('iframe[src*="hcaptcha.com"][src*="frame=challenge"], iframe[src*="hcaptcha.com"][src*="frame=enclave"], iframe[title*="hCaptcha challenge" i]');
     if (hcaptchaChallenge) {
       const rect = hcaptchaChallenge.getBoundingClientRect();
       const style = window.getComputedStyle(hcaptchaChallenge);
-      if ((rect.width > 30 && rect.height > 30) || hcaptchaChallenge.getAttribute('data-hcaptcha-widget-id')) {
+      if (rect.width >= 280 && rect.height >= 350 && style.visibility !== 'hidden' && style.display !== 'none') {
         return 'hcaptcha_interactive';
       }
     }
@@ -219,7 +228,7 @@ async function checkInteractiveChallenge(page) {
     if (turnstileIframe) {
       const rect = turnstileIframe.getBoundingClientRect();
       const style = window.getComputedStyle(turnstileIframe);
-      if (rect.width > 50 && rect.height > 30 && style.visibility !== 'hidden' && style.display !== 'none') {
+      if (rect.width >= 250 && rect.height >= 120 && style.visibility !== 'hidden' && style.display !== 'none') {
         const turnstileContainer = turnstileIframe.closest('div.cf-turnstile');
         if (turnstileContainer && turnstileContainer.getAttribute('data-state') === 'interactive') {
           return 'cloudflare_turnstile_interactive';
@@ -237,6 +246,27 @@ async function checkBotChallenges(page, statusCode = 200) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/**
+ * Humanized Bezier mouse movement generator
+ */
+async function humanizedMouseMove(page, targetX, targetY) {
+  try {
+    const startX = Math.floor(Math.random() * 400) + 100;
+    const startY = Math.floor(Math.random() * 300) + 100;
+    await page.mouse.move(startX, startY);
+    const steps = 12;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const cx = (startX + targetX) / 2 + (Math.random() * 30 - 15);
+      const cy = Math.min(startY, targetY) - (Math.random() * 40);
+      const x = Math.round((1 - t) * (1 - t) * startX + 2 * (1 - t) * t * cx + t * t * targetX);
+      const y = Math.round((1 - t) * (1 - t) * startY + 2 * (1 - t) * t * cy + t * t * targetY);
+      await page.mouse.move(x, y);
+      await sleep(15 + Math.floor(Math.random() * 15));
+    }
+  } catch (_) {}
+}
 
 /**
  * Universal safe upload helper (handles Playwright setInputFiles and Puppeteer uploadFile)
@@ -456,18 +486,19 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
   // Handle customer website wrappers (e.g. https://www.mongodb.com/careers/job/?gh_jid=8274765)
   // Convert directly to direct Greenhouse embed job_app URL if gh_jid parameter is present
   let targetUrl = url;
-  if (!url.includes('greenhouse.io')) {
-    try {
-      const u = new URL(url);
-      const ghJid = u.searchParams.get('gh_jid');
-      if (ghJid) {
+  try {
+    const u = new URL(url);
+    const ghJid = u.searchParams.get('gh_jid') || u.searchParams.get('token');
+    if (ghJid && !url.includes('/embed/job_app')) {
+      let domainBoard = u.searchParams.get('for');
+      if (!domainBoard) {
         const host = u.hostname.replace(/^(www\.|jobs\.|careers\.)/, '');
-        const domainBoard = host.split('.')[0];
-        targetUrl = `https://job-boards.greenhouse.io/embed/job_app?for=${domainBoard}&token=${ghJid}`;
-        console.log(`[ATS Greenhouse] Converted wrapper URL (${url}) to direct Greenhouse board URL: ${targetUrl}`);
+        domainBoard = host.split('.')[0];
       }
-    } catch (_) {}
-  }
+      targetUrl = `https://job-boards.greenhouse.io/embed/job_app?for=${domainBoard}&token=${ghJid}`;
+      console.log(`[ATS Greenhouse] Converted wrapper URL (${url}) to direct Greenhouse board URL: ${targetUrl}`);
+    }
+  } catch (_) {}
 
   const res = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
   await checkBotChallenges(page, res ? res.status() : 200);
@@ -596,18 +627,20 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     });
   }, { linkedin, github });
 
-  // 7. Handle any interactive React-Select questions on Greenhouse (relocation, sponsorship, authorization)
+  // 7. Handle any interactive React-Select questions on Greenhouse (relocation, sponsorship, authorization, EEOC)
   const reactSelectQuestions = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('input[id*="question_"].select__input, input[id*="question_"][role="combobox"]')).map(inp => ({
+    return Array.from(document.querySelectorAll('input.select__input[role="combobox"], input[id*="question_"].select__input')).map(inp => ({
       id: inp.id,
-      label: (inp.closest('.field, .form-field, label') || inp.parentElement)?.innerText || inp.getAttribute('aria-label') || ''
-    }));
+      label: (inp.closest('.field, .form-field, .field-wrapper, label') || inp.parentElement)?.innerText || inp.getAttribute('aria-label') || ''
+    })).filter(q => q.id && q.id !== 'country' && q.id !== 'candidate-location');
   });
 
   for (const q of reactSelectQuestions) {
     const labelLower = q.label.toLowerCase();
     let targetOption = 'Yes';
-    if (labelLower.includes('live') || labelLower.includes('relocate')) {
+    if (labelLower.includes('gender') || labelLower.includes('race') || labelLower.includes('veteran') || labelLower.includes('disability') || labelLower.includes('hispanic') || labelLower.includes('latino') || labelLower.includes('identity')) {
+      targetOption = "I don't wish to answer";
+    } else if (labelLower.includes('live') || labelLower.includes('relocate') || labelLower.includes('reside')) {
       targetOption = 'currently live';
     } else if (labelLower.includes('sponsorship') || labelLower.includes('visa') || labelLower.includes('ever worked')) {
       targetOption = 'No';
@@ -623,8 +656,13 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
 
   console.log('[ATS Greenhouse] Triggering final application submission click...');
   await submitBtn.scrollIntoViewIfNeeded().catch(() => {});
+  const sBox = await submitBtn.boundingBox().catch(() => null);
+  if (sBox) {
+    await humanizedMouseMove(page, sBox.x + sBox.width / 2, sBox.y + sBox.height / 2);
+    await sleep(200);
+  }
   await submitBtn.click({ timeout: 10000 });
-  await sleep(5000);
+  await sleep(4000);
 
   // 9. Verify Confirmation with intercepted response context
   return verifyConfirmationOutcome(page, 'greenhouse', {
@@ -894,12 +932,34 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
 
   console.log('[ATS Ashby] Triggering final application submission click...');
   await submitBtn.scrollIntoViewIfNeeded().catch(() => {});
+  const ashbyBox = await submitBtn.boundingBox().catch(() => null);
+  if (ashbyBox) {
+    await humanizedMouseMove(page, ashbyBox.x + ashbyBox.width / 2, ashbyBox.y + ashbyBox.height / 2);
+    await sleep(250);
+  }
   await submitBtn.click();
 
   // Wait up to 12 seconds for the server-side submission response
   for (let i = 0; i < 12; i++) {
     if (interceptedSuccess || interceptedCaptcha || interceptedError) break;
     await sleep(1000);
+  }
+
+  // If server responded with possible spam / reCAPTCHA error on first attempt, retry with jitter
+  if (interceptedCaptcha && !interceptedSuccess) {
+    console.warn(`[ATS Ashby] First submission flagged by server (${interceptedCaptcha}). Applying humanized jitter and retrying submit...`);
+    interceptedCaptcha = null;
+    await sleep(2500);
+    const retryBox = await submitBtn.boundingBox().catch(() => null);
+    if (retryBox) {
+      await humanizedMouseMove(page, retryBox.x + retryBox.width / 2, retryBox.y + retryBox.height / 2);
+      await sleep(300);
+    }
+    await submitBtn.click().catch(() => {});
+    for (let i = 0; i < 12; i++) {
+      if (interceptedSuccess || interceptedCaptcha || interceptedError) break;
+      await sleep(1000);
+    }
   }
 
   // 1. Check if network response confirmed success directly
@@ -1115,9 +1175,10 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
                           text.includes('your application has been submitted') ||
                           text.includes('thanks for applying') ||
                           text.includes('we have received your application') ||
-                          window.location.pathname.includes('/confirmation') ||
-                          window.location.pathname.includes('/thank_you') ||
-                          window.location.pathname.includes('/submitted');
+                          document.querySelector('.application--submitted, #application-confirmation, div.application-submitted') !== null ||
+                          window.location.href.includes('/confirmation') ||
+                          window.location.href.includes('/thank_you') ||
+                          window.location.href.includes('/submitted');
 
       let extractedId = null;
       const patterns = [
@@ -1138,7 +1199,7 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
 
       try {
         const u = new URL(window.location.href);
-        const urlId = u.searchParams.get('id') || u.searchParams.get('application_id') || u.searchParams.get('confirmation');
+        const urlId = u.searchParams.get('id') || u.searchParams.get('application_id') || u.searchParams.get('confirmation') || u.searchParams.get('token');
         if (urlId) extractedId = urlId.trim();
       } catch (_) {}
 
@@ -1155,10 +1216,12 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
       break;
     }
 
-    // Check if an active, interactive challenge has appeared on screen
-    const interactiveChallenge = await checkInteractiveChallenge(page).catch(() => null);
-    if (interactiveChallenge) {
-      throw new CaptchaGateError(`Anti-bot gate detected: ${interactiveChallenge}`, interactiveChallenge);
+    // Check if an active, interactive challenge has appeared on screen (only after 5s to allow in-flight transit)
+    if (i >= 5) {
+      const interactiveChallenge = await checkInteractiveChallenge(page).catch(() => null);
+      if (interactiveChallenge) {
+        throw new CaptchaGateError(`Anti-bot gate detected: ${interactiveChallenge}`, interactiveChallenge);
+      }
     }
 
     await sleep(1000);
