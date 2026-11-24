@@ -1076,18 +1076,26 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
                           text.includes('your application has been submitted') ||
                           text.includes('thanks for applying') ||
                           text.includes('we have received your application') ||
-                          window.location.href.includes('confirmation') ||
-                          window.location.href.includes('thank_you') ||
-                          window.location.href.includes('success');
+                          window.location.pathname.includes('/confirmation') ||
+                          window.location.pathname.includes('/thank_you') ||
+                          window.location.pathname.includes('/submitted');
 
       let extractedId = null;
       const patterns = [
-        /(?:confirmation|reference|application|submission)(?:\s+(?:number|id|code|#))?[:\s#]+([A-Za-z0-9_-]{5,40})/i,
+        /(?:confirmation|reference|application|submission)\s*(?:number|id|code|#)[:\s#]+([A-Za-z0-9_-]{5,40})/i,
+        /(?:receipt|confirmation)[:\s#]+([A-Za-z0-9_-]{5,40})/i,
         /#([A-Z0-9]{6,20})\b/
       ];
       for (const p of patterns) {
         const m = (document.body.innerText || '').match(p);
         if (m && m[1]) {
+          const cand = m[1].trim();
+          if (!/^(powered|greenhouse|submit|application|review|true|false)$/i.test(cand)) {
+            extractedId = cand;
+            break;
+          }
+        }
+      }
           extractedId = m[1].trim();
           break;
         }
