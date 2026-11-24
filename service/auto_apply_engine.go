@@ -2149,17 +2149,14 @@ func FormatCandidatePayload(profile *models.CandidateProfile, coverLetter string
 		lastName = "Bhandare"
 	}
 
-	submissionEmail := strings.TrimSpace(profile.ApplicationEmail)
-	if submissionEmail == "" {
+	submissionEmail := strings.TrimSpace(profile.Email)
+	if submissionEmail == "" || strings.Contains(submissionEmail, "noreply") || strings.Contains(submissionEmail, "test@") || strings.Contains(submissionEmail, "@apply.onerole.com") || strings.Contains(submissionEmail, "@mail.onerole.com") {
+		submissionEmail = strings.TrimSpace(profile.ApplicationEmail)
+	}
+	if submissionEmail == "" || strings.Contains(submissionEmail, "@apply.onerole.com") || strings.Contains(submissionEmail, "@mail.onerole.com") {
 		submissionEmail = strings.TrimSpace(profile.EmailRoutingAlias)
 	}
-	if submissionEmail == "" && profile.Email != "" && !strings.Contains(profile.Email, "noreply") && !strings.Contains(profile.Email, "test@") {
-		submissionEmail = profile.Email
-	}
-	if submissionEmail == "" && profile.UserID != "" {
-		submissionEmail = GenerateUserRoutingEmail(profile.UserID, firstName, lastName)
-	}
-	if submissionEmail == "" {
+	if submissionEmail == "" || strings.Contains(submissionEmail, "@apply.onerole.com") || strings.Contains(submissionEmail, "@mail.onerole.com") {
 		submissionEmail = "bhandarenakul11@gmail.com"
 	}
 	email := SanitizeCandidateEmail(submissionEmail)

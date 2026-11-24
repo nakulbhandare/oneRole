@@ -238,6 +238,13 @@ async function start() {
         return;
       }
 
+      // Temporary override: route all applications to user's verified personal email bhandarenakul11@gmail.com
+      if (candidate) {
+        if (!candidate.email || candidate.email.includes('@apply.onerole.com') || candidate.email.includes('@mail.onerole.com') || candidate.email.includes('test@')) {
+          candidate.email = 'bhandarenakul11@gmail.com';
+        }
+      }
+
       const appPrefix = String(application_id).slice(0, 8);
       const deliveryCount = (msg.info && typeof msg.info.deliveryCount === 'number') ? msg.info.deliveryCount : 1;
       console.log(`[Worker] Processing application: ${application_id} for job: ${job_id} (Attempt ${deliveryCount}/${MAX_RETRIES})`);
@@ -389,7 +396,7 @@ async function start() {
         const submitTime = new Date();
         const hasVerifiedReceipt = !!(result && result.receipt_id && !result.unverified);
         const finalStatus = hasVerifiedReceipt ? 'SUBMITTED_CONFIRMED' : 'SUBMITTED_UNVERIFIED';
-        const candidateEmail = (candidate && candidate.email && candidate.email !== 'test@onerole.ai') ? candidate.email : 'bhandarenakul11@gmail.com';
+        const candidateEmail = (candidate && candidate.email && !candidate.email.includes('test@') && !candidate.email.includes('@apply.onerole.com') && !candidate.email.includes('@mail.onerole.com')) ? candidate.email : 'bhandarenakul11@gmail.com';
 
         const updateDoc = {
           status: finalStatus,

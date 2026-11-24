@@ -105,13 +105,21 @@ function detectAtsProvider(url, htmlContent = '') {
   const lowerUrl = (url || '').toLowerCase();
   const lowerHtml = (htmlContent || '').toLowerCase();
 
-  if (lowerUrl.includes('greenhouse.io') || lowerHtml.includes('greenhouse.io') || lowerHtml.includes('data-mapped="greenhouse"')) {
+  if (
+    lowerUrl.includes('greenhouse.io') ||
+    lowerUrl.includes('gh_jid=') ||
+    lowerUrl.includes('gh_src') ||
+    lowerUrl.includes('/careers/job?') ||
+    lowerHtml.includes('greenhouse.io') ||
+    lowerHtml.includes('data-mapped="greenhouse"') ||
+    lowerHtml.includes('grnhse_iframe')
+  ) {
     return 'greenhouse';
   }
-  if (lowerUrl.includes('jobs.lever.co') || lowerHtml.includes('lever.co')) {
+  if (lowerUrl.includes('jobs.lever.co') || lowerUrl.includes('lever.co') || lowerHtml.includes('lever.co')) {
     return 'lever';
   }
-  if (lowerUrl.includes('ashbyhq.com') || lowerHtml.includes('ashbyhq.com')) {
+  if (lowerUrl.includes('ashbyhq.com') || lowerHtml.includes('ashbyhq.com') || lowerHtml.includes('ashby-application-form')) {
     return 'ashby';
   }
   if (lowerUrl.includes('myworkdayjobs.com') || lowerHtml.includes('myworkdayjobs.com')) {
@@ -295,7 +303,10 @@ async function executeLeverWorkflow(page, url, candidate, resumePath) {
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
   const fullName = `${firstName} ${lastName}`.trim();
-  const email = candidate.email || 'bhandarenakul11@gmail.com';
+  let email = candidate.email;
+  if (!email || email.includes('@apply.onerole.com') || email.includes('@mail.onerole.com') || email.includes('test@')) {
+    email = 'bhandarenakul11@gmail.com';
+  }
   const phone = candidate.phone || '+1 (350)-355-6570';
   const location = candidate.location || 'San Francisco, CA';
   const org = candidate.current_employer || 'OneRole Platform';
@@ -442,7 +453,23 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     } catch (_) {}
   });
 
-  const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
+  // Handle customer website wrappers (e.g. https://www.mongodb.com/careers/job/?gh_jid=8274765)
+  // Convert directly to direct Greenhouse board URL if gh_jid parameter is present
+  let targetUrl = url;
+  if (!url.includes('greenhouse.io')) {
+    try {
+      const u = new URL(url);
+      const ghJid = u.searchParams.get('gh_jid');
+      if (ghJid) {
+        const host = u.hostname.replace(/^(www\.|jobs\.|careers\.)/, '');
+        const domainBoard = host.split('.')[0];
+        targetUrl = `https://job-boards.greenhouse.io/${domainBoard}/jobs/${ghJid}`;
+        console.log(`[ATS Greenhouse] Converted wrapper URL (${url}) to direct Greenhouse board URL: ${targetUrl}`);
+      }
+    } catch (_) {}
+  }
+
+  const res = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
   await checkBotChallenges(page, res ? res.status() : 200);
 
   // If there is an "Apply" button at top (e.g. anchor link or smooth scroll), click it if form is not yet visible
@@ -457,7 +484,10 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
-  const email = candidate.email || 'nakul.bhandare.94afcd63@apply.onerole.com';
+  let email = candidate.email;
+  if (!email || email.includes('@apply.onerole.com') || email.includes('@mail.onerole.com') || email.includes('test@')) {
+    email = 'bhandarenakul11@gmail.com';
+  }
   const phone = candidate.phone || '+1 (350)-355-6570';
   const location = candidate.location || 'San Francisco, CA';
   const linkedin = candidate.linkedin_url || 'https://linkedin.com/in/nakulbhandare';
@@ -685,7 +715,10 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
   const fullName = `${firstName} ${lastName}`.trim();
-  const email = candidate.email || 'bhandarenakul11@gmail.com';
+  let email = candidate.email;
+  if (!email || email.includes('@apply.onerole.com') || email.includes('@mail.onerole.com') || email.includes('test@')) {
+    email = 'bhandarenakul11@gmail.com';
+  }
   const phone = candidate.phone || '+1 (350)-355-6570';
   const location = candidate.location || 'San Francisco, CA';
   const linkedin = candidate.linkedin_url || 'https://linkedin.com/in/nakul-bhandare';
@@ -952,7 +985,10 @@ async function executeSmartRecruitersWorkflow(page, url, candidate, resumePath) 
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
-  const email = candidate.email || 'bhandarenakul11@gmail.com';
+  let email = candidate.email;
+  if (!email || email.includes('@apply.onerole.com') || email.includes('@mail.onerole.com') || email.includes('test@')) {
+    email = 'bhandarenakul11@gmail.com';
+  }
   const phone = candidate.phone || '+1 (350)-355-6570';
 
   await safeType(page, 'input[name*="firstName" i], input#first-name-input, input[id*="first_name" i]', firstName);
@@ -1014,7 +1050,10 @@ async function executeGenericWorkflow(page, url, candidate, resumePath) {
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
   const fullName = `${firstName} ${lastName}`.trim();
-  const email = candidate.email || 'bhandarenakul11@gmail.com';
+  let email = candidate.email;
+  if (!email || email.includes('@apply.onerole.com') || email.includes('@mail.onerole.com') || email.includes('test@')) {
+    email = 'bhandarenakul11@gmail.com';
+  }
   const phone = candidate.phone || '+1 (350)-355-6570';
 
   const filledName = await safeType(page, 'input[name*="name" i]:not([name*="first"]):not([name*="last"]), input[id*="name" i]:not([id*="first"]):not([id*="last"])', fullName);

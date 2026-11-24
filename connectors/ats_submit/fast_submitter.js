@@ -119,7 +119,7 @@ async function submitFastApplication({ url, candidate, dryRun }) {
   const lever = extractLeverParams(url);
   const ashby = extractAshbyParams(url);
 
-  const candidateEmail = (!candidate.email || candidate.email === 'test@onerole.ai' || candidate.email.includes('mail.onerole.com'))
+  const candidateEmail = (!candidate.email || candidate.email === 'test@onerole.ai' || candidate.email.includes('mail.onerole.com') || candidate.email.includes('apply.onerole.com'))
     ? 'bhandarenakul11@gmail.com'
     : candidate.email;
   const firstName = candidate.first_name || 'Nakul';

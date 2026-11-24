@@ -1306,7 +1306,7 @@ async function submitApplication({ url, candidate, dryRun, assistMode, pipe }) {
                      (fs.existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : null) ||
                      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
-  if (!candidate.email || candidate.email === 'test@onerole.ai' || candidate.email.includes('noreply') || candidate.email.includes('mail.onerole.com')) {
+  if (!candidate.email || candidate.email === 'test@onerole.ai' || candidate.email.includes('noreply') || candidate.email.includes('mail.onerole.com') || candidate.email.includes('apply.onerole.com')) {
     candidate.email = 'bhandarenakul11@gmail.com';
   }
   if (!candidate.first_name || candidate.first_name.toLowerCase() === 'test') {
