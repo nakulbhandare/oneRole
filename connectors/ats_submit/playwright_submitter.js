@@ -298,7 +298,7 @@ async function executeLeverWorkflow(page, url, candidate, resumePath) {
   await checkBotChallenges(page, res ? res.status() : 200);
 
   // Wait for main application form
-  await page.waitForSelector('form#application-form, form, input[name="name"]', { timeout: 15000 });
+  await page.waitForSelector('form#application-form, form[action*="apply"], input[name="name"]', { timeout: 15000 });
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
@@ -454,7 +454,7 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
   });
 
   // Handle customer website wrappers (e.g. https://www.mongodb.com/careers/job/?gh_jid=8274765)
-  // Convert directly to direct Greenhouse board URL if gh_jid parameter is present
+  // Convert directly to direct Greenhouse embed job_app URL if gh_jid parameter is present
   let targetUrl = url;
   if (!url.includes('greenhouse.io')) {
     try {
@@ -463,7 +463,7 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
       if (ghJid) {
         const host = u.hostname.replace(/^(www\.|jobs\.|careers\.)/, '');
         const domainBoard = host.split('.')[0];
-        targetUrl = `https://job-boards.greenhouse.io/${domainBoard}/jobs/${ghJid}`;
+        targetUrl = `https://job-boards.greenhouse.io/embed/job_app?for=${domainBoard}&token=${ghJid}`;
         console.log(`[ATS Greenhouse] Converted wrapper URL (${url}) to direct Greenhouse board URL: ${targetUrl}`);
       }
     } catch (_) {}
@@ -479,8 +479,8 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     await sleep(500);
   }
 
-  // Wait for Greenhouse application form
-  await page.waitForSelector('form#application-form, form#application_form, form, input#first_name', { timeout: 15000 });
+  // Wait for Greenhouse application form (specifically targeting Greenhouse form or first_name input, not generic header search forms)
+  await page.waitForSelector('form#application-form, form#application_form, input#first_name, input[name*="first_name"]', { timeout: 15000 });
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
