@@ -17,7 +17,7 @@ const CONCURRENCY = parseInt(process.env.CONCURRENCY || '10', 10);
 
 // D7: Retry, Timeout, and Backoff Configuration
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || '3', 10);
-const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS || '90000', 10); // 90s bounded timeout per job
+const JOB_TIMEOUT_MS = parseInt(process.env.JOB_TIMEOUT_MS || '240000', 10); // 4-minute bounded timeout per job
 const HEARTBEAT_INTERVAL_MS = parseInt(process.env.HEARTBEAT_INTERVAL_MS || '15000', 10); // 15s heartbeats
 const BASE_BACKOFF_MS = parseInt(process.env.BASE_BACKOFF_MS || '3000', 10); // 3s base backoff
 const MAX_BACKOFF_MS = parseInt(process.env.MAX_BACKOFF_MS || '30000', 10); // 30s max backoff
@@ -56,7 +56,9 @@ function isNonRetryableError(err) {
     msg.includes('application form closed') ||
     msg.includes('this job has been closed') ||
     msg.includes('listing is no longer active') ||
-    msg.includes('job posting has closed');
+    msg.includes('job posting has closed') ||
+    msg.includes('err_http_response_code_failure') ||
+    msg.includes('closed or removed by employer');
   const isHardNotFound = (msg.includes('404 not found') || msg.includes('job not found') || msg.includes('404')) &&
     !msg.includes('econnrefused') && !msg.includes('enotfound') && !msg.includes('timeout');
   const isTransient = msg.includes('econnreset') || msg.includes('econnrefused') ||
@@ -169,7 +171,7 @@ async function start() {
     await jsm.consumers.add(STREAM_NAME, {
       durable_name: CONSUMER_NAME,
       ack_policy: AckPolicy.Explicit,
-      ack_wait: 180 * 1000 * 1000 * 1000, // 180 seconds in nanoseconds
+      ack_wait: 300 * 1000 * 1000 * 1000, // 300 seconds (5 min) in nanoseconds
       max_deliver: MAX_RETRIES + 2 // Safety threshold for JetStream redelivery
     });
   }

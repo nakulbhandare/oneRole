@@ -473,6 +473,35 @@ function detectAtsProvider(url, htmlContent = '') {
   if (lowerUrl.includes('icims.com') || lowerHtml.includes('icims.com')) {
     return 'icims';
   }
+  if (lowerUrl.includes('bamboohr.com') || lowerHtml.includes('bamboohr.com')) {
+    return 'bamboohr';
+  }
+  if (lowerUrl.includes('recruitee.com') || lowerHtml.includes('recruitee')) {
+    return 'recruitee';
+  }
+  if (lowerUrl.includes('rippling.com') || lowerHtml.includes('rippling')) {
+    return 'rippling';
+  }
+  if (lowerUrl.includes('personio.com') || lowerUrl.includes('personio.de')) {
+    return 'personio';
+  }
+  if (lowerUrl.includes('teamtailor.com') || lowerHtml.includes('teamtailor')) {
+    return 'teamtailor';
+  }
+  if (lowerUrl.includes('catsone.com')) return 'catsone';
+  if (lowerUrl.includes('oasisrecruit.com')) return 'oasisrecruit';
+  if (lowerUrl.includes('careerplug.com')) return 'careerplug';
+  if (lowerUrl.includes('trakstar.com')) return 'trakstar';
+  if (lowerUrl.includes('jobvite.com')) return 'jobvite';
+  if (lowerUrl.includes('workable.com')) return 'workable';
+  if (lowerUrl.includes('applytojob.com') || lowerUrl.includes('jazzhr')) return 'jazzhr';
+  if (lowerUrl.includes('breezy.hr')) return 'breezy';
+  if (lowerUrl.includes('taleo.net')) return 'taleo';
+  if (lowerUrl.includes('successfactors.')) return 'successfactors';
+  if (lowerUrl.includes('oraclecloud.com')) return 'oracle_cloud';
+  if (lowerUrl.includes('careers-page.com')) return 'careers_page';
+  if (lowerUrl.includes('comeet.co')) return 'comeet';
+  if (lowerUrl.includes('dayforcehcm.com')) return 'dayforce';
   return 'generic';
 }
 
@@ -482,6 +511,9 @@ function detectAtsProvider(url, htmlContent = '') {
  * and must NEVER abort initial form loading.
  */
 async function checkInitialPageBlock(page, statusCode = 200) {
+  if (statusCode === 404 || statusCode === 410) {
+    throw new JobUnavailableError(`Job posting has been closed or removed by employer (HTTP ${statusCode})`);
+  }
   if (statusCode === 429) {
     throw new CaptchaGateError('Employer ATS returned HTTP 429 rate limit or Security Check', 'rate_limit_429');
   }
@@ -1536,18 +1568,82 @@ async function executeSmartRecruitersWorkflow(page, url, candidate = {}, resumeP
  * ATS WORKFLOW 6: GENERIC RESILIENT WORKFLOW
  * ============================================================================
  */
-async function executeGenericWorkflow(page, url, candidate, resumePath) {
-  console.log('[ATS Generic] Executing layered generic ATS workflow...');
-  const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
+async function executeGenericWorkflow(page, url, candidate, resumePath, provider = 'generic') {
+  console.log(`[ATS ${provider.toUpperCase()}] Executing universal multi-step ATS workflow (${url})...`);
+  let res;
+  try {
+    res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  } catch (navErr) {
+    if ((navErr.message || '').includes('ERR_HTTP_RESPONSE_CODE_FAILURE')) {
+      throw new JobUnavailableError(`Job posting has been closed or removed by employer (${navErr.message})`);
+    }
+    throw navErr;
+  }
   await checkBotChallenges(page, res ? res.status() : 200);
+  await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
 
-  const applyBtn = await page.$('a[href*="apply"], button[type="button"], a.apply-link');
-  if (applyBtn) {
-    await applyBtn.click().catch(() => {});
-    await sleep(1000);
+  // Dismiss cookie banners safely
+  await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button, a[role="button"]'));
+    for (const b of btns) {
+      const t = (b.innerText || '').trim().toLowerCase();
+      if (t === 'accept all' || t === 'accept cookies' || t === 'i agree' || t === 'got it' || t === 'allow all') {
+        b.click();
+        break;
+      }
+    }
+  }).catch(() => {});
+
+  // Provider-specific / universal Apply CTA click
+  if (provider === 'recruitee' && !url.includes('/c/new')) {
+    const newLink = await page.$('a[href*="/c/new"], button:has-text("Apply for this job"), a:has-text("Apply for this job"), a:has-text("Apply")');
+    if (newLink) {
+      await newLink.click().catch(() => {});
+      await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
+      await sleep(1500);
+    } else {
+      const cleanUrl = url.replace(/\/+$/, '');
+      await page.goto(`${cleanUrl}/c/new`, { waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => {});
+    }
+  } else {
+    const applySelectors = [
+      'a[href*="/c/new"]',
+      'a:has-text("Apply for This Job")',
+      'button:has-text("Apply for This Job")',
+      'a:has-text("Apply for this job")',
+      'button:has-text("Apply for this job")',
+      'a:has-text("Apply Now")',
+      'button:has-text("Apply Now")',
+      'a:has-text("Apply")',
+      'button:has-text("Apply")',
+      'a.apply-link',
+      '[data-qa="apply-button"]'
+    ];
+    for (const sel of applySelectors) {
+      const btn = await page.$(sel).catch(() => null);
+      if (btn && await btn.isVisible().catch(() => false)) {
+        await btn.scrollIntoViewIfNeeded().catch(() => {});
+        await btn.click().catch(() => {});
+        await sleep(1500);
+        break;
+      }
+    }
   }
 
-  await page.waitForSelector('form, input[type="text"], input[type="email"]', { timeout: 15000 }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+
+  // Resolve active form frame (supports main page + embedded ATS iframes like iCIMS/BambooHR)
+  async function resolveFormTarget() {
+    const frames = page.frames();
+    for (const frame of frames) {
+      if (frame === page.mainFrame()) continue;
+      const fUrl = (frame.url() || '').toLowerCase();
+      if (fUrl.includes('recaptcha') || fUrl.includes('hcaptcha') || fUrl.includes('turnstile')) continue;
+      const hasInputs = await frame.$('input[type="email"], input[type="file"], input[name*="name" i], form').catch(() => null);
+      if (hasInputs) return frame;
+    }
+    return page;
+  }
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
@@ -1557,34 +1653,141 @@ async function executeGenericWorkflow(page, url, candidate, resumePath) {
     email = 'bhandarenakul11@gmail.com';
   }
   const phone = candidate.phone || '+1 (350)-355-6570';
+  const linkedin = candidate.linkedin_url || 'https://linkedin.com/in/nakul-bhandare';
+  const github = candidate.github_url || 'https://github.com/nakulbhandare';
+  const location = candidate.location || 'San Francisco, CA';
 
-  const filledName = await safeType(page, 'input[name*="name" i]:not([name*="first"]):not([name*="last"]), input[id*="name" i]:not([id*="first"]):not([id*="last"])', fullName);
-  if (!filledName) {
-    await safeType(page, 'input[name*="first" i], input[id*="first" i]', firstName);
-    await safeType(page, 'input[name*="last" i], input[id*="last" i]', lastName);
-  }
-  await safeType(page, 'input[type="email"], input[name*="email" i], input[id*="email" i]', email);
-  await safeType(page, 'input[type="tel"], input[name*="phone" i], input[id*="phone" i]', phone);
+  let submitted = false;
+  for (let step = 0; step < 4; step++) {
+    const target = await resolveFormTarget();
+    await target.waitForSelector('input, textarea, select, form', { timeout: 12000 }).catch(() => {});
 
-  if (resumePath && fs.existsSync(resumePath)) {
-    const fileInput = await page.$('input[type="file"]');
-    if (fileInput) {
-      await safeUpload(fileInput, resumePath);
-      console.log(`[ATS Generic] Verified resume uploaded: ${resumePath}`);
-      await sleep(1500);
+    // 1. Upload resume into any visible/attached file input
+    if (resumePath && fs.existsSync(resumePath)) {
+      const fileInputs = await target.$$('input[type="file"]').catch(() => []);
+      for (const fi of fileInputs) {
+        const uploaded = await safeUpload(fi, resumePath);
+        if (uploaded) {
+          console.log(`[ATS ${provider.toUpperCase()}] Verified resume uploaded: ${resumePath}`);
+          await sleep(1200);
+        }
+      }
+    }
+
+    // 2. Fill text, email, tel, url, and textarea inputs deterministically
+    await target.evaluate((cand) => {
+      function setVal(el, val) {
+        if (!el || val === undefined || val === null || el.value) return;
+        const proto = el instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (desc && desc.set) desc.set.call(el, val);
+        else el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+
+      const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea'));
+      for (const inp of inputs) {
+        if (inp.disabled || inp.readOnly) continue;
+        const labelEl = inp.id ? document.querySelector(`label[for="${inp.id}"]`) : inp.closest('label');
+        const parentText = (inp.closest('div, fieldset, li, .field, .form-group') || {}).innerText || '';
+        const hint = ((inp.name || '') + ' ' + (inp.id || '') + ' ' + (inp.placeholder || '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (labelEl ? labelEl.innerText : '') + ' ' + parentText.slice(0, 140)).toLowerCase();
+
+        if (inp.type === 'email' || hint.includes('email')) setVal(inp, cand.email);
+        else if (inp.type === 'tel' || hint.includes('phone') || hint.includes('mobile')) setVal(inp, cand.phone);
+        else if (hint.includes('first') && hint.includes('name')) setVal(inp, cand.firstName);
+        else if (hint.includes('last') && hint.includes('name')) setVal(inp, cand.lastName);
+        else if (hint.includes('full name') || hint.includes('your name') || /\bname\b/.test(hint)) setVal(inp, cand.fullName);
+        else if (hint.includes('linkedin')) setVal(inp, cand.linkedin);
+        else if (hint.includes('github') || hint.includes('portfolio') || hint.includes('website') || inp.type === 'url') setVal(inp, cand.github);
+        else if (hint.includes('city') || hint.includes('location') || hint.includes('address')) setVal(inp, cand.location);
+        else if (hint.includes('zip') || hint.includes('postal')) setVal(inp, '94105');
+        else if (hint.includes('state') || hint.includes('province')) setVal(inp, 'California');
+        else if (hint.includes('country')) setVal(inp, 'United States');
+        else if (hint.includes('year') || inp.type === 'number') setVal(inp, '7');
+        else if (hint.includes('salary') || hint.includes('compensation')) setVal(inp, 'Competitive / Open');
+        else if (inp.required && inp.tagName === 'TEXTAREA') setVal(inp, '7+ years of experience building scalable Go microservices, distributed systems, and cloud infrastructure.');
+      }
+
+      // 3. Handle <select> dropdowns
+      const selects = Array.from(document.querySelectorAll('select'));
+      for (const sel of selects) {
+        if (sel.disabled || sel.options.length === 0) continue;
+        const hint = ((sel.name || '') + ' ' + (sel.id || '') + ' ' + ((sel.closest('div, fieldset') || {}).innerText || '').slice(0, 160)).toLowerCase();
+        const opts = Array.from(sel.options);
+        let match = null;
+        if (hint.includes('sponsor') || hint.includes('visa')) {
+          match = opts.find(o => /^no\b/i.test(o.text.trim()));
+        } else if (hint.includes('authorized') || hint.includes('eligible') || hint.includes('legally')) {
+          match = opts.find(o => /^yes\b/i.test(o.text.trim()));
+        } else if (hint.includes('gender') || hint.includes('race') || hint.includes('veteran') || hint.includes('disability')) {
+          match = opts.find(o => /decline|prefer not|don't wish|not a/i.test(o.text));
+        } else if (hint.includes('country')) {
+          match = opts.find(o => /united states|usa|\bus\b/i.test(o.text));
+        }
+        if (!match && sel.required && (!sel.value || sel.selectedIndex === 0)) {
+          match = opts.find(o => o.value && !/select|choose|--/i.test(o.text));
+        }
+        if (match) {
+          sel.value = match.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    }, { firstName, lastName, fullName, email, phone, linkedin, github, location }).catch(() => {});
+
+    // 4. Check privacy/GDPR/consent/required checkboxes natively via Playwright
+    const checkboxes = await target.$$('input[type="checkbox"]').catch(() => []);
+    for (const cb of checkboxes) {
+      const checked = await cb.isChecked().catch(() => false);
+      if (!checked) {
+        const text = await cb.evaluate(el => {
+          const lbl = el.id ? document.querySelector(`label[for="${el.id}"]`) : el.closest('label');
+          const wrap = el.closest('div, fieldset, li') || el.parentElement;
+          return ((lbl ? lbl.innerText : '') + ' ' + (wrap ? wrap.innerText : '')).toLowerCase();
+        }).catch(() => '');
+        if (text.includes('privacy') || text.includes('gdpr') || text.includes('consent') || text.includes('agree') ||
+            text.includes('terms') || text.includes('policy') || text.includes('certif') || text.includes('acknowledge') || text.includes('*')) {
+          await cb.check({ force: true }).catch(() => cb.click({ force: true }).catch(() => {}));
+        }
+      }
+    }
+
+    // 5. Look for final Submit button or Next/Continue button
+    const submitBtn = await target.$(
+      'button[type="submit"]:not(:disabled), input[type="submit"]:not(:disabled), ' +
+      'button:has-text("Submit Application"), button:has-text("Send Application"), button:has-text("Submit"), button:has-text("Apply Now")'
+    ).catch(() => null);
+
+    if (submitBtn && await submitBtn.isVisible().catch(() => false)) {
+      console.log(`[ATS ${provider.toUpperCase()}] Triggering final application submission click...`);
+      await submitBtn.scrollIntoViewIfNeeded().catch(() => {});
+      const box = await submitBtn.boundingBox().catch(() => null);
+      if (box) {
+        await humanizedMouseMove(page, box.x + box.width / 2, box.y + box.height / 2);
+        await sleep(200);
+      }
+      await submitBtn.click();
+      submitted = true;
+      break;
+    }
+
+    const nextBtn = await target.$('button:has-text("Next"), button:has-text("Continue"), button:has-text("Save and Continue")').catch(() => null);
+    if (nextBtn && await nextBtn.isVisible().catch(() => false)) {
+      console.log(`[ATS ${provider.toUpperCase()}] Advancing multi-step form (step ${step + 1})...`);
+      await nextBtn.click().catch(() => {});
+      await sleep(2000);
+    } else {
+      break;
     }
   }
 
-  const submitBtn = await page.$('button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Apply Now")');
-  if (!submitBtn) {
-    throw new Error('Submit application button not found on generic ATS form');
+  if (!submitted) {
+    throw new Error(`Submit application button not found on ${provider} ATS form`);
   }
 
-  console.log('[ATS Generic] Triggering final application submission click...');
-  await submitBtn.click();
-  await sleep(5000);
-
-  return verifyConfirmationOutcome(page, 'generic');
+  await sleep(3000);
+  return verifyConfirmationOutcome(page, provider);
 }
 
 /**
@@ -1749,7 +1952,7 @@ async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resu
     } else if (provider === 'workday') {
       result = await executeWorkdayWorkflow(page, url, candidate, resumePath);
     } else {
-      result = await executeGenericWorkflow(page, url, candidate, resumePath);
+      result = await executeGenericWorkflow(page, url, candidate, resumePath, provider);
     }
 
     result.duration_ms = Date.now() - startTime;
