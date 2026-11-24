@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onerole-email-imap-watcher
+  namespace: onerole
+  labels:
+    app: onerole-email-imap-watcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: onerole-email-imap-watcher
+  template:
+    metadata:
+      labels:
+        app: onerole-email-imap-watcher
+    spec:
+      containers:
+      - name: watcher
+        image: oneroleacr.azurecr.io/onerole-email-imap-watcher:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3002
+          name: health
+        env:
+        - name: PORT
+          value: "3002"
+        - name: IMAP_ADDR
+          value: "imap.gmail.com:993"
+        - name: IMAP_USER
+          value: "bhandarenakul11@gmail.com"
+        - name: IMAP_PASS
+          valueFrom:
+            secretKeyRef:
+              name: onerole-secrets
+              key: GMAIL_APP_PASSWORD
+              optional: true
+        - name: ONEROLE_API_URL
+          value: "http://onerole-api:8088"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3002
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3002
+          initialDelaySeconds: 10
+          periodSeconds: 20

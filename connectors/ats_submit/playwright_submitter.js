@@ -891,8 +891,8 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     await sleep(500);
   }
 
-  // Wait for Greenhouse application form (specifically targeting Greenhouse form or first_name input, not generic header search forms)
-  await page.waitForSelector('form#application-form, form#application_form, input#first_name, input[name*="first_name"]', { timeout: 15000 });
+  // Wait for Greenhouse application form (specifically targeting visible core inputs, not hidden wrapper forms)
+  await page.waitForSelector('input#first_name, input[name*="first_name"], input#email, input[name*="email"]', { timeout: 20000 });
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
@@ -1051,8 +1051,49 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     await humanizedMouseMove(page, sBox.x + sBox.width / 2, sBox.y + sBox.height / 2);
     await sleep(200);
   }
-  await submitBtn.click({ timeout: 10000 });
-  await sleep(4000);
+  await submitBtn.click({ timeout: 10000 }).catch(async clickErr => {
+    const isDisabled = await submitBtn.isDisabled().catch(() => false);
+    if (isDisabled) {
+      await submitBtn.evaluate(el => el.removeAttribute('disabled')).catch(() => {});
+      await submitBtn.click({ force: true, timeout: 10000 }).catch(() => {});
+    } else {
+      throw clickErr;
+    }
+  });
+  await sleep(3500);
+
+  // 8b. Greenhouse Email Security Code (HTTP 428 / security_code_recipient) auto-resolution
+  const secInput = await page.$('input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i], input[placeholder*="security code" i]').catch(() => null);
+  if (secInput || (interceptedCaptcha && interceptedCaptcha.includes('security_code_recipient'))) {
+    const apiBase = process.env.ONEROLE_API_URL || 'http://onerole-api:8088';
+    console.log(`[ATS Greenhouse] Security code challenge detected for ${email}. Polling ${apiBase}/api/v1/auth/email-otp...`);
+    let otpCode = null;
+    for (let p = 0; p < 2 && !otpCode; p++) {
+      try {
+        const otpResp = await fetch(`${apiBase}/api/v1/auth/email-otp?email=${encodeURIComponent(email)}&domain=greenhouse.io`, {
+          signal: AbortSignal.timeout(26000)
+        });
+        if (otpResp.ok) {
+          const otpJson = await otpResp.json();
+          if (otpJson && otpJson.code) otpCode = otpJson.code;
+        }
+      } catch (_) {}
+    }
+    if (otpCode) {
+      console.log(`[ATS Greenhouse] Received security code from Email OTP service! Entering code and re-submitting...`);
+      interceptedCaptcha = null;
+      const activeSecInput = secInput || await page.$('input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i]');
+      if (activeSecInput) {
+        await activeSecInput.click().catch(() => {});
+        await activeSecInput.fill(otpCode).catch(() => activeSecInput.type(otpCode, { delay: 45 }));
+        await sleep(500);
+        await submitBtn.click({ force: true }).catch(() => {});
+        await sleep(4000);
+      }
+    } else {
+      console.warn(`[ATS Greenhouse] Security code not received within OTP polling window for ${email}.`);
+    }
+  }
 
   // 9. Verify Confirmation with intercepted response context
   return verifyConfirmationOutcome(page, 'greenhouse', {

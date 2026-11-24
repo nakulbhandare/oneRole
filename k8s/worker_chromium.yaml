@@ -43,6 +43,8 @@ spec:
           value: "2"
         - name: JOB_TIMEOUT_MS
           value: "240000"
+        - name: ONEROLE_API_URL
+          value: "http://onerole-api:8088"
         - name: PUPPETEER_EXECUTABLE_PATH
           value: "/usr/bin/chromium"
         - name: CHROME_PATH
