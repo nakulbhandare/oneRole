@@ -1096,10 +1096,6 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
           }
         }
       }
-          extractedId = m[1].trim();
-          break;
-        }
-      }
 
       try {
         const u = new URL(window.location.href);
