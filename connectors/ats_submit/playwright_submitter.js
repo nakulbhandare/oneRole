@@ -461,14 +461,20 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
         const sel = f.querySelector('select');
         if (sel) {
           const opt = Array.from(sel.options).find(o => /yes/i.test(o.text || o.value));
-          if (opt) sel.value = opt.value;
+          if (opt) {
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+          }
         }
       }
       if (text.includes('sponsorship') || text.includes('visa')) {
         const sel = f.querySelector('select');
         if (sel) {
           const opt = Array.from(sel.options).find(o => /no/i.test(o.text || o.value));
-          if (opt) sel.value = opt.value;
+          if (opt) {
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+          }
         }
       }
     });
@@ -505,23 +511,49 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
   let interceptedReceiptId = null;
   let interceptedSuccess = false;
   let interceptedError = null;
+  let interceptedCaptcha = null;
 
   page.on('response', async resp => {
     try {
       const u = resp.url();
       if (u.includes('/api/non-user-graphql') && resp.request().method() === 'POST') {
         const postData = resp.request().postData() || '';
-        if (postData.includes('ApiSubmitSingleApplicationFormAction') || u.includes('op=ApiSubmitSingleApplicationFormAction')) {
-          const body = await resp.json().catch(() => null);
-          if (body && body.data && body.data.submitApplicationFormAction) {
-            const action = body.data.submitApplicationFormAction;
-            if (action.applicationFormResult && action.applicationFormResult.__typename === 'FormSubmitSuccess') {
-              interceptedSuccess = true;
-              if (action.applicationId) interceptedReceiptId = String(action.applicationId);
-              console.log(`[ATS Ashby] Captured Ashby GraphQL submission success: receipt=${interceptedReceiptId}`);
-            } else if (action.messages && action.messages.length > 0) {
-              interceptedError = action.messages.map(m => `${m.field}: ${m.message}`).join(', ');
-              console.warn(`[ATS Ashby] Ashby submission rejected with messages: ${interceptedError}`);
+        const body = await resp.json().catch(() => null);
+        console.log(`[ATS Ashby GraphQL] op=${u} postData=${postData.slice(0, 150)} response=${JSON.stringify(body).slice(0, 250)}`);
+        
+        // 1. Check for GraphQL Errors (e.g. Server-side reCAPTCHA Enterprise rejection)
+        if (body && body.errors && body.errors.length > 0) {
+          const isRecaptcha = body.errors.some(e => 
+            (e.extensions && e.extensions.ashbyErrorType === 'RECAPTCHA') ||
+            (e.message && (/spam/i.test(e.message) || /recaptcha/i.test(e.message)))
+          );
+          if (isRecaptcha) {
+            interceptedCaptcha = 'ashby_recaptcha_server_gate';
+            console.warn(`[ATS Ashby] 🛑 Server-side reCAPTCHA Enterprise flagged application as possible spam (ashbyErrorType: RECAPTCHA)`);
+          } else {
+            interceptedError = body.errors.map(e => e.message).join(', ');
+            console.warn(`[ATS Ashby] Ashby submission rejected by server: ${interceptedError}`);
+          }
+        }
+
+        // 2. Check for GraphQL Mutation Success / Payload
+        if (body && body.data) {
+          const dataKeys = Object.keys(body.data);
+          for (const key of dataKeys) {
+            const val = body.data[key];
+            if (val && typeof val === 'object') {
+              if (val.applicationFormResult && val.applicationFormResult.__typename === 'FormSubmitSuccess') {
+                interceptedSuccess = true;
+                if (val.applicationId) interceptedReceiptId = String(val.applicationId);
+                console.log(`[ATS Ashby] Captured Ashby submission success: receipt=${interceptedReceiptId}`);
+              } else if (val.applicationId) {
+                interceptedSuccess = true;
+                interceptedReceiptId = String(val.applicationId);
+                console.log(`[ATS Ashby] Captured Ashby applicationId: receipt=${interceptedReceiptId}`);
+              } else if (val.messages && val.messages.length > 0) {
+                interceptedError = val.messages.map(m => `${m.field || ''}: ${m.message}`).join(', ');
+                console.warn(`[ATS Ashby] Ashby submission rejected with messages: ${interceptedError}`);
+              }
             }
           }
         }
@@ -692,17 +724,43 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
 
   await sleep(1000);
 
-  // 6. Final Ashby Submit Button Click
-  const submitBtn = await page.$('button[type="submit"], button:has-text("Submit Application"), button:has-text("Submit"), button[data-qa*="submit"]');
+  // 6. Final Ashby Submit Button Click - target the real Submit Application button at the bottom of the form
+  let submitBtn = await page.$('button.ashby-application-form-submit-button, button[class*="_submitButton_"], button:has-text("Submit Application")');
+  if (!submitBtn) {
+    // Fallback: look for submit button that is NOT the upload button
+    const buttons = await page.$$('button');
+    for (const b of buttons) {
+      const bText = (await b.innerText().catch(() => '')).trim();
+      if (/submit application/i.test(bText) || (/submit/i.test(bText) && !/upload/i.test(bText))) {
+        submitBtn = b;
+        break;
+      }
+    }
+  }
+
   if (!submitBtn) {
     throw new Error('Submit application button not found on Ashby form');
   }
 
-  console.log('[ATS Ashby] Triggering final application submission click...');
-  await submitBtn.click();
-  await sleep(3000);
+  const btnDetails = await submitBtn.evaluate(el => ({
+    text: el.innerText.trim(),
+    type: el.getAttribute('type'),
+    className: el.className,
+    disabled: el.disabled
+  })).catch(() => ({}));
+  console.log(`[ATS Ashby] Found submit button: text="${btnDetails.text}", type="${btnDetails.type}", class="${btnDetails.className}", disabled=${btnDetails.disabled}`);
 
-  // Check if network response confirmed success directly
+  console.log('[ATS Ashby] Triggering final application submission click...');
+  await submitBtn.scrollIntoViewIfNeeded().catch(() => {});
+  await submitBtn.click();
+
+  // Wait up to 12 seconds for the server-side submission response
+  for (let i = 0; i < 12; i++) {
+    if (interceptedSuccess || interceptedCaptcha || interceptedError) break;
+    await sleep(1000);
+  }
+
+  // 1. Check if network response confirmed success directly
   if (interceptedSuccess) {
     return {
       success: true,
@@ -713,11 +771,29 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
     };
   }
 
+  // 2. Check if reCAPTCHA Enterprise flagged the submission
+  if (interceptedCaptcha) {
+    throw new CaptchaGateError(`Employer ATS anti-bot gate triggered: reCAPTCHA Enterprise flagged submission (${interceptedCaptcha})`, 'ashby_recaptcha');
+  }
+
+  // 3. Check if server returned explicit rejection error
   if (interceptedError) {
     throw new Error(`Ashby submission rejected by employer server: ${interceptedError}`);
   }
 
-  return verifyConfirmationOutcome(page, 'ashby');
+  // Check for any inline validation error messages in Ashby CSS modules
+  const ashbyErrors = await page.evaluate(() => {
+    const errEls = document.querySelectorAll('div[class*="error" i], span[class*="error" i], div[class*="fieldError" i], p[class*="error" i]');
+    return Array.from(errEls).map(el => (el.innerText || '').trim()).filter(t => t.length > 0 && !t.includes('something went wrong'));
+  }).catch(() => []);
+  if (ashbyErrors.length > 0) {
+    console.warn(`[ATS Ashby] Form validation messages visible: ${ashbyErrors.join(' | ')}`);
+  }
+
+  return verifyConfirmationOutcome(page, 'ashby', {
+    getInterceptedCaptcha: () => interceptedCaptcha,
+    getInterceptedError: () => interceptedError
+  });
 }
 
 /**
@@ -866,11 +942,22 @@ async function executeGenericWorkflow(page, url, candidate, resumePath) {
  * CONFIRMATION VERIFICATION & RECEIPT EXTRACTION (Rule 7 Compliance)
  * ============================================================================
  */
-async function verifyConfirmationOutcome(page, provider) {
+async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
   let finalState = null;
 
   // Poll for up to 8 seconds for the ATS submission to confirm or show error/challenge
   for (let attempt = 0; attempt < 8; attempt++) {
+    // 1. Immediately prioritize server-side bot challenge interception
+    const asyncCaptcha = feedbackContext.getInterceptedCaptcha ? feedbackContext.getInterceptedCaptcha() : null;
+    if (asyncCaptcha) {
+      throw new CaptchaGateError(`Employer ATS anti-bot gate triggered: reCAPTCHA Enterprise flagged submission (${asyncCaptcha})`, 'ashby_recaptcha');
+    }
+
+    const asyncError = feedbackContext.getInterceptedError ? feedbackContext.getInterceptedError() : null;
+    if (asyncError) {
+      throw new Error(`ATS submission rejected by employer server: ${asyncError}`);
+    }
+
     const pageState = await page.evaluate(() => {
       const text = (document.body.innerText || '').toLowerCase();
       const isConfirmed = text.includes('application submitted') ||
@@ -948,7 +1035,17 @@ async function verifyConfirmationOutcome(page, provider) {
     throw new Error(`Employer form validation failed: ${errors.join(', ')}`);
   }
 
-  // If not confirmed and no explicit error, check one last time for interactive challenge
+  // If not confirmed and no explicit error, check one last time for interactive challenge or intercepted server response
+  const finalCaptcha = feedbackContext.getInterceptedCaptcha ? feedbackContext.getInterceptedCaptcha() : null;
+  if (finalCaptcha) {
+    throw new CaptchaGateError(`Employer ATS anti-bot gate triggered: reCAPTCHA Enterprise flagged submission (${finalCaptcha})`, 'ashby_recaptcha');
+  }
+
+  const finalError = feedbackContext.getInterceptedError ? feedbackContext.getInterceptedError() : null;
+  if (finalError) {
+    throw new Error(`ATS submission rejected by employer server: ${finalError}`);
+  }
+
   const finalChallenge = await checkInteractiveChallenge(page).catch(() => null);
   if (finalChallenge) {
     throw new CaptchaGateError(`Anti-bot gate detected: ${finalChallenge}`, finalChallenge);
