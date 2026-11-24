@@ -22,7 +22,7 @@ import (
 
 var (
 	rxSearchNums = regexp.MustCompile(`\* SEARCH\s+([\d\s]+)`)
-	rxATSDomain  = regexp.MustCompile(`(?i)(greenhouse\.io|ashbyhq\.com|lever\.co|myworkdayjobs\.com|smartrecruiters\.com|recruitee\.com|bamboohr\.com|icims\.com|rippling\.com|personio|teamtailor|workable|jobvite|verification\s+code|security\s+code|application)`)
+	rxATSDomain  = regexp.MustCompile(`(?i)(greenhouse|ashbyhq|lever\.co|myworkday|smartrecruiters|recruitee|bamboohr|icims|rippling|personio|teamtailor|workable|jobvite)`)
 )
 
 type imapClient struct {
@@ -263,7 +263,8 @@ func main() {
 		log.Printf("[EmailIMAP] Connected & watching INBOX for %s -> %s", imapUser, apiURL)
 
 		for ctx.Err() == nil {
-			lines, err := client.cmd("SEARCH UNSEEN")
+			sinceDate := time.Now().UTC().Add(-24 * time.Hour).Format("02-Jan-2006")
+			lines, err := client.cmd(fmt.Sprintf("SEARCH UNSEEN SINCE %s", sinceDate))
 			if err != nil {
 				log.Printf("[EmailIMAP] SEARCH error: %v — reconnecting", err)
 				break
@@ -273,7 +274,10 @@ func main() {
 				if len(m) < 2 {
 					continue
 				}
-				for _, num := range strings.Fields(m[1]) {
+				nums := strings.Fields(m[1])
+				// Process newest messages first so fresh OTPs arrive in < 1s
+				for i := len(nums) - 1; i >= 0; i-- {
+					num := nums[i]
 					if seenSeqs[num] {
 						continue
 					}
@@ -286,7 +290,7 @@ func main() {
 					if to == "" {
 						to = imapUser
 					}
-					if rxATSDomain.MatchString(from + " " + subject + " " + body) {
+					if rxATSDomain.MatchString(from + " " + subject) {
 						postWebhook(httpClient, apiURL, to, from, subject, body)
 					}
 				}
