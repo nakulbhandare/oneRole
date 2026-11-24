@@ -500,8 +500,19 @@ function detectAtsProvider(url, htmlContent = '') {
   if (lowerUrl.includes('successfactors.')) return 'successfactors';
   if (lowerUrl.includes('oraclecloud.com')) return 'oracle_cloud';
   if (lowerUrl.includes('careers-page.com')) return 'careers_page';
-  if (lowerUrl.includes('comeet.co')) return 'comeet';
+  if (lowerUrl.includes('comeet.co') || lowerUrl.includes('comeet.com')) return 'comeet';
   if (lowerUrl.includes('dayforcehcm.com')) return 'dayforce';
+  if (lowerUrl.includes('zohorecruit.com')) return 'zohorecruit';
+  if (lowerUrl.includes('adp.com')) return 'adp';
+  if (lowerUrl.includes('saashr.com') || lowerUrl.includes('ultipro.com') || lowerUrl.includes('ukg.')) return 'ukg';
+  if (lowerUrl.includes('paylocity.com')) return 'paylocity';
+  if (lowerUrl.includes('paycomonline.net')) return 'paycom';
+  if (lowerUrl.includes('pinpointhq.com')) return 'pinpoint';
+  if (lowerUrl.includes('dover.com')) return 'dover';
+  if (lowerUrl.includes('gem.com')) return 'gem';
+  if (lowerUrl.includes('hiringthing.com')) return 'hiringthing';
+  if (lowerUrl.includes('gnahiring.com')) return 'gnahiring';
+  if (lowerUrl.includes('exponentats.com')) return 'exponentats';
   return 'generic';
 }
 
