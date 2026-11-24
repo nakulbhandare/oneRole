@@ -147,14 +147,10 @@ export async function fetchApplications() {
 export async function submitJobApplication(job) {
   const payload = {
     job_id: job.id,
-    company: job.company || 'Enterprise Company',
-    title: job.title || 'Software Engineer',
-    source_url: job.sourceUrl || job.source_url || '#',
-    candidate_email: 'bhandarenakul11@gmail.com',
-    candidate_name: 'Nakul Bhandare'
+    async: true
   };
 
-  const res = await authenticatedFetch('/api/v1/applications', {
+  const res = await authenticatedFetch('/api/v1/applications/auto-apply', {
     method: 'POST',
     body: JSON.stringify(payload)
   });

@@ -196,12 +196,12 @@ async function checkInteractiveChallenge(page) {
       }
     }
 
-    // Visible hCaptcha challenge popup
-    const hcaptchaChallenge = document.querySelector('iframe[src*="hcaptcha.com"][src*="frame=challenge"], iframe[title*="hCaptcha challenge"]');
+    // Visible hCaptcha challenge popup / enclave
+    const hcaptchaChallenge = document.querySelector('iframe[src*="hcaptcha.com"][src*="frame=challenge"], iframe[src*="hcaptcha.com"][src*="frame=enclave"], iframe[title*="hCaptcha challenge"], iframe[title*="hcaptcha" i]');
     if (hcaptchaChallenge) {
       const rect = hcaptchaChallenge.getBoundingClientRect();
       const style = window.getComputedStyle(hcaptchaChallenge);
-      if (rect.width > 100 && rect.height > 100 && style.visibility !== 'hidden' && style.display !== 'none') {
+      if ((rect.width > 30 && rect.height > 30) || hcaptchaChallenge.getAttribute('data-hcaptcha-widget-id')) {
         return 'hcaptcha_interactive';
       }
     }
@@ -344,15 +344,16 @@ async function executeLeverWorkflow(page, url, candidate, resumePath) {
     });
   });
 
-  // 5. Submit Lever Form
-  const submitBtn = await page.$('button#btn-submit, button[type="submit"], .template-btn-submit');
+  // 5. Submit Lever Form (Target the visible submission button, never hidden hcaptcha helper)
+  const submitBtn = await page.$('button#btn-submit:not(.hidden), button.template-btn-submit:not(.hidden), button[type="submit"]:not(.hidden), button:has-text("SUBMIT APPLICATION"):not(.hidden)');
   if (!submitBtn) {
     throw new Error('Submit application button not found on Lever form');
   }
 
   console.log('[ATS Lever] Triggering final application submission click...');
-  await submitBtn.click();
-  await sleep(5000);
+  await submitBtn.scrollIntoViewIfNeeded().catch(() => {});
+  await submitBtn.click({ timeout: 10000 });
+  await sleep(4000);
 
   // 6. Verify Confirmation
   return verifyConfirmationOutcome(page, 'lever');
@@ -367,15 +368,31 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
     if (!input) return;
     await input.click().catch(() => {});
     await sleep(200);
-    if (input.fill) {
+
+    if (input.pressSequentially) {
+      await input.pressSequentially(text, { delay: 40 }).catch(() => {});
+    } else if (input.fill) {
       await input.fill(text).catch(() => {});
     } else {
       await page.keyboard.type(text, { delay: 30 }).catch(() => {});
     }
-    await sleep(600);
-    const option = await page.$('.select__option, [id*="-option-0"], [class*="option"]').catch(() => {});
+    await sleep(800);
+
+    // Look for matching options in the DOM listbox
+    const option = await page.evaluate((targetText) => {
+      const options = Array.from(document.querySelectorAll('.select__option, [id*="-option-"], [class*="option"]'));
+      if (!options.length) return null;
+      const lowerTarget = (targetText || '').toLowerCase();
+      // Match exact or startsWith first
+      let matched = options.find(o => (o.innerText || '').toLowerCase().includes(lowerTarget));
+      if (!matched) matched = options[0];
+      if (matched && matched.id) return matched.id;
+      return null;
+    }, text);
+
     if (option) {
-      await option.click().catch(() => {});
+      const optEl = await page.$(`#${option}`);
+      if (optEl) await optEl.click().catch(() => {});
     } else {
       await page.keyboard.press('ArrowDown').catch(() => {});
       await sleep(100);
@@ -442,19 +459,42 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
   await safeType(page, 'input[id*="question_"][aria-label*="LinkedIn" i], input[name*="linkedin" i]', linkedin);
   await safeType(page, 'input[id*="question_"][aria-label*="Website" i], input[name*="website" i]', github);
 
-  // 6. Handle standard Screening dropdowns (Work Auth, Sponsorship, Notice Period) and validation bypass
-  await page.evaluate(() => {
-    // Disable native HTML5 validation popup locks
+  // 6. Intelligent Dynamic Question Answering for modern Greenhouse
+  await page.evaluate((cand) => {
+    // Disable native HTML5 validation locks
     const form = document.querySelector('form');
     if (form) form.setAttribute('novalidate', 'true');
 
-    // Fill any empty required hidden inputs in React-Select
+    // Remove required constraint on dummy React-Select hidden inputs
     document.querySelectorAll('input.remix-css-1a0ro4n-requiredInput, input[required][aria-hidden="true"]').forEach(input => {
-      if (!input.value) {
-        input.value = 'United States';
+      input.removeAttribute('required');
+      if (!input.value) input.value = 'United States';
+    });
+
+    // Check all compliance & privacy acknowledgment checkboxes
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      const container = cb.closest('.field, .form-field, fieldset, label') || cb.parentElement;
+      const text = (container ? container.innerText : '').toLowerCase();
+      if (text.includes('acknowledge') || text.includes('privacy') || text.includes('agree') || text.includes('consent') || cb.required) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
 
+    // Text inputs for "How did you hear about this job" or referral sources
+    document.querySelectorAll('input[type="text"][id*="question_"]').forEach(inp => {
+      if (!inp.value) {
+        const container = inp.closest('.field, .form-field') || inp.parentElement;
+        const text = (container ? container.innerText : '').toLowerCase();
+        if (text.includes('how did you hear') || text.includes('source') || text.includes('referral')) {
+          inp.value = 'LinkedIn';
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+          inp.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+
+    // Standard screening questions (Work Auth, Sponsorship, Notice Period)
     document.querySelectorAll('.field, .form-field, [data-field]').forEach(f => {
       const text = (f.innerText || '').toLowerCase();
       if (text.includes('authorized to work') || text.includes('legal right to work')) {
@@ -478,19 +518,39 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
         }
       }
     });
+  }, { linkedin, github });
+
+  // 7. Handle any interactive React-Select questions on Greenhouse (relocation, sponsorship)
+  const reactSelectQuestions = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('input[id*="question_"].select__input')).map(inp => ({
+      id: inp.id,
+      label: (inp.closest('.field, .form-field, label') || inp.parentElement)?.innerText || ''
+    }));
   });
 
-  // 7. Submit Greenhouse Form
-  const submitBtn = await page.$('button[type="submit"][class*="btn--pill"], input[type="submit"]#submit_app, button#submit_app, button[type="submit"]');
+  for (const q of reactSelectQuestions) {
+    const labelLower = q.label.toLowerCase();
+    let targetOption = 'Yes';
+    if (labelLower.includes('live') || labelLower.includes('relocate')) {
+      targetOption = 'currently live';
+    } else if (labelLower.includes('sponsorship') || labelLower.includes('visa')) {
+      targetOption = 'No';
+    }
+    await fillGreenhouseReactSelect(page, `input#${q.id}`, targetOption);
+  }
+
+  // 8. Submit Greenhouse Form
+  const submitBtn = await page.$('button:has-text("Submit application"):not(.hidden), button[type="submit"][class*="btn--pill"]:not(.hidden), input[type="submit"]#submit_app, button#submit_app, button[type="submit"]:not(.hidden)');
   if (!submitBtn) {
     throw new Error('Submit application button not found on Greenhouse form');
   }
 
   console.log('[ATS Greenhouse] Triggering final application submission click...');
-  await submitBtn.click();
+  await submitBtn.scrollIntoViewIfNeeded().catch(() => {});
+  await submitBtn.click({ timeout: 10000 });
   await sleep(5000);
 
-  // 8. Verify Confirmation
+  // 9. Verify Confirmation
   return verifyConfirmationOutcome(page, 'greenhouse');
 }
 

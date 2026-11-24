@@ -35,7 +35,6 @@ export function AppProvider({ children }) {
     });
     localStorage.removeItem('onerole_auth_token');
   }, []);
-  });
 
   // Load initial auth state
   useEffect(() => {
