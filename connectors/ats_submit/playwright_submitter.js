@@ -187,11 +187,11 @@ async function checkInteractiveChallenge(page) {
     }
 
     // Visible reCAPTCHA challenge box (bframe)
-    const recaptchaBframe = document.querySelector('iframe[src*="google.com/recaptcha/api2/bframe"], iframe[src*="recaptcha/enterprise/bframe"]');
+    const recaptchaBframe = document.querySelector('iframe[src*="google.com/recaptcha"], iframe[src*="recaptcha.net/recaptcha"], iframe[src*="bframe"], iframe[title*="recaptcha challenge" i]');
     if (recaptchaBframe) {
       const rect = recaptchaBframe.getBoundingClientRect();
       const style = window.getComputedStyle(recaptchaBframe);
-      if (rect.width > 100 && rect.height > 100 && style.visibility !== 'hidden' && style.display !== 'none') {
+      if (rect.width > 50 && rect.height > 50 && style.visibility !== 'hidden' && style.display !== 'none') {
         return 'google_recaptcha_interactive';
       }
     }
@@ -366,6 +366,8 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
   try {
     const input = await page.$(inputSelector);
     if (!input) return;
+    const cleanId = await input.getAttribute('id').catch(() => '');
+    await input.focus().catch(() => {});
     await input.click().catch(() => {});
     await sleep(200);
 
@@ -376,19 +378,23 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
     } else {
       await page.keyboard.type(text, { delay: 30 }).catch(() => {});
     }
-    await sleep(800);
+    await sleep(600);
+
+    // Wait for async option to appear in DOM
+    const optSelector = cleanId ? `[id*="${cleanId}-option-0"], [id*="${cleanId}-option-"]` : '.select__option, [id*="-option-"], [class*="option"]';
+    await page.waitForSelector(optSelector, { timeout: 4000 }).catch(() => {});
 
     // Look for matching options in the DOM listbox
-    const option = await page.evaluate((targetText) => {
-      const options = Array.from(document.querySelectorAll('.select__option, [id*="-option-"], [class*="option"]'));
+    const option = await page.evaluate(({ targetText, inputId }) => {
+      const selector = inputId ? `[id*="${inputId}-option-"]` : '.select__option, [id*="-option-"], [class*="option"]';
+      const options = Array.from(document.querySelectorAll(selector));
       if (!options.length) return null;
       const lowerTarget = (targetText || '').toLowerCase();
-      // Match exact or startsWith first
       let matched = options.find(o => (o.innerText || '').toLowerCase().includes(lowerTarget));
       if (!matched) matched = options[0];
       if (matched && matched.id) return matched.id;
       return null;
-    }, text);
+    }, { targetText: text, inputId: cleanId });
 
     if (option) {
       const optEl = await page.$(`#${option}`);
@@ -412,6 +418,30 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
 async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
   console.log('[ATS Greenhouse] Executing dedicated Greenhouse submission workflow...');
 
+  // Intercept network responses for Greenhouse submission & security challenges
+  let interceptedCaptcha = null;
+  let interceptedError = null;
+
+  page.on('response', async resp => {
+    try {
+      const u = resp.url();
+      if ((u.includes('greenhouse.io') && resp.request().method() === 'POST') || resp.status() === 428) {
+        if (resp.status() === 428) {
+          const body = await resp.text().catch(() => '');
+          console.warn(`[ATS Greenhouse] Intercepted HTTP 428 Precondition Required: ${body}`);
+          interceptedCaptcha = `Greenhouse reCAPTCHA verification required (${body || 'HTTP 428 Precondition Required'})`;
+        } else if (resp.status() >= 400 && resp.status() !== 401) {
+          const body = await resp.text().catch(() => '');
+          if (body.includes('captcha') || body.includes('security')) {
+            interceptedCaptcha = `Greenhouse security check (${body})`;
+          } else {
+            interceptedError = `Greenhouse server rejected submission (${resp.status()}: ${body.slice(0, 200)})`;
+          }
+        }
+      }
+    } catch (_) {}
+  });
+
   const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
   await checkBotChallenges(page, res ? res.status() : 200);
 
@@ -427,10 +457,10 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
 
   const firstName = candidate.first_name || 'Nakul';
   const lastName = candidate.last_name || 'Bhandare';
-  const email = candidate.email || 'bhandarenakul11@gmail.com';
+  const email = candidate.email || 'nakul.bhandare.94afcd63@apply.onerole.com';
   const phone = candidate.phone || '+1 (350)-355-6570';
   const location = candidate.location || 'San Francisco, CA';
-  const linkedin = candidate.linkedin_url || 'https://linkedin.com/in/nakul-bhandare';
+  const linkedin = candidate.linkedin_url || 'https://linkedin.com/in/nakulbhandare';
   const github = candidate.github_url || 'https://github.com/nakulbhandare';
 
   // 1. Core Profile Fields
@@ -455,9 +485,28 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     }
   }
 
-  // 5. LinkedIn & Website / Custom Questions
-  await safeType(page, 'input[id*="question_"][aria-label*="LinkedIn" i], input[name*="linkedin" i]', linkedin);
-  await safeType(page, 'input[id*="question_"][aria-label*="Website" i], input[name*="website" i]', github);
+  // 5. Fill all required textareas and single-line text inputs
+  const formTextInputs = await page.$$('input.input__single-line, textarea.input__multi-line, textarea, input[type="text"]');
+  for (const inp of formTextInputs) {
+    const val = await inp.inputValue().catch(() => '');
+    const isCombobox = await inp.getAttribute('role').then(r => r === 'combobox').catch(() => false);
+    if (!val && !isCombobox) {
+      const label = ((await inp.getAttribute('aria-label')) || '').toLowerCase();
+      if (label.includes('why') || label.includes('cover') || label.includes('note')) {
+        await inp.fill('I am excited about this role and eager to contribute my skills to the team. My background and experience align well with the responsibilities outlined in the job description.').catch(() => {});
+      } else if (label.includes('where') || label.includes('location') || label.includes('work') || label.includes('reside')) {
+        await inp.fill(location).catch(() => {});
+      } else if (label.includes('linkedin')) {
+        await inp.fill(linkedin).catch(() => {});
+      } else if (label.includes('website') || label.includes('portfolio') || label.includes('github')) {
+        await inp.fill(github).catch(() => {});
+      } else if (label.includes('pronoun')) {
+        await inp.fill('He/Him').catch(() => {});
+      } else {
+        await inp.fill('N/A').catch(() => {});
+      }
+    }
+  }
 
   // 6. Intelligent Dynamic Question Answering for modern Greenhouse
   await page.evaluate((cand) => {
@@ -478,19 +527,6 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
       if (text.includes('acknowledge') || text.includes('privacy') || text.includes('agree') || text.includes('consent') || cb.required) {
         cb.checked = true;
         cb.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-
-    // Text inputs for "How did you hear about this job" or referral sources
-    document.querySelectorAll('input[type="text"][id*="question_"]').forEach(inp => {
-      if (!inp.value) {
-        const container = inp.closest('.field, .form-field') || inp.parentElement;
-        const text = (container ? container.innerText : '').toLowerCase();
-        if (text.includes('how did you hear') || text.includes('source') || text.includes('referral')) {
-          inp.value = 'LinkedIn';
-          inp.dispatchEvent(new Event('input', { bubbles: true }));
-          inp.dispatchEvent(new Event('change', { bubbles: true }));
-        }
       }
     });
 
@@ -520,11 +556,11 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     });
   }, { linkedin, github });
 
-  // 7. Handle any interactive React-Select questions on Greenhouse (relocation, sponsorship)
+  // 7. Handle any interactive React-Select questions on Greenhouse (relocation, sponsorship, authorization)
   const reactSelectQuestions = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('input[id*="question_"].select__input')).map(inp => ({
+    return Array.from(document.querySelectorAll('input[id*="question_"].select__input, input[id*="question_"][role="combobox"]')).map(inp => ({
       id: inp.id,
-      label: (inp.closest('.field, .form-field, label') || inp.parentElement)?.innerText || ''
+      label: (inp.closest('.field, .form-field, label') || inp.parentElement)?.innerText || inp.getAttribute('aria-label') || ''
     }));
   });
 
@@ -533,7 +569,7 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     let targetOption = 'Yes';
     if (labelLower.includes('live') || labelLower.includes('relocate')) {
       targetOption = 'currently live';
-    } else if (labelLower.includes('sponsorship') || labelLower.includes('visa')) {
+    } else if (labelLower.includes('sponsorship') || labelLower.includes('visa') || labelLower.includes('ever worked')) {
       targetOption = 'No';
     }
     await fillGreenhouseReactSelect(page, `input#${q.id}`, targetOption);
@@ -550,8 +586,11 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
   await submitBtn.click({ timeout: 10000 });
   await sleep(5000);
 
-  // 9. Verify Confirmation
-  return verifyConfirmationOutcome(page, 'greenhouse');
+  // 9. Verify Confirmation with intercepted response context
+  return verifyConfirmationOutcome(page, 'greenhouse', {
+    getInterceptedCaptcha: () => interceptedCaptcha,
+    getInterceptedError: () => interceptedError
+  });
 }
 
 /**
