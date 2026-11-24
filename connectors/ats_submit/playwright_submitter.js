@@ -900,6 +900,42 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
         }
       }
     });
+
+    // D. Handle Textareas and Custom Free-Text Inputs on Ashby
+    document.querySelectorAll('textarea, input[type="text"]').forEach(inp => {
+      if (inp.value && inp.value.trim().length > 0) return;
+      const parent = inp.closest('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], .application-question') || inp.parentElement;
+      const label = ((parent ? parent.innerText : '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (inp.placeholder || '')).toLowerCase();
+
+      function setNativeVal(element, val) {
+        const proto = Object.getPrototypeOf(element);
+        const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        if (setter) setter.call(element, val);
+        else element.value = val;
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        element.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+
+      if (label.includes('why') || label.includes('interest') || label.includes('about') || label.includes('excite')) {
+        setNativeVal(inp, 'I am excited about this opportunity and believe my technical background, distributed systems engineering experience, and problem-solving skills align directly with the team and mission.');
+      } else if (label.includes('hear') || label.includes('source') || label.includes('refer') || label.includes('find')) {
+        setNativeVal(inp, 'LinkedIn');
+      } else if (label.includes('location') || label.includes('where') || label.includes('preference') || label.includes('payroll')) {
+        setNativeVal(inp, 'San Francisco, CA');
+      } else if (label.includes('compensation') || label.includes('salary') || label.includes('expect')) {
+        setNativeVal(inp, 'Negotiable / Competitive market rate');
+      } else if (label.includes('start') || label.includes('notice')) {
+        setNativeVal(inp, 'Immediate / 2 weeks notice');
+      } else if (label.includes('pronoun')) {
+        setNativeVal(inp, 'He/Him');
+      } else {
+        const isReq = label.includes('*') || (parent && parent.querySelector('[class*="required"]')) || inp.required;
+        if (isReq) {
+          setNativeVal(inp, 'N/A');
+        }
+      }
+    });
   });
 
   await sleep(1000);
