@@ -7,6 +7,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var (
@@ -29,9 +33,30 @@ type VerificationPayload struct {
 
 // Registry coordinates real-time waiting between browser automation workers and incoming email webhooks/IMAP.
 type Registry struct {
-	mu       sync.RWMutex
-	pending  map[string]chan *VerificationPayload
-	history  map[string]*VerificationPayload
+	mu      sync.RWMutex
+	pending map[string]chan *VerificationPayload
+	history map[string]*VerificationPayload
+	db      *mongo.Database
+}
+
+// SetDB attaches a MongoDB database so OTPs are shared across all API replicas.
+func (r *Registry) SetDB(db *mongo.Database) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.db = db
+}
+
+func domainBrandMatch(candidateDomain, subject, expectedDomain string) bool {
+	if expectedDomain == "" || expectedDomain == "*" {
+		return true
+	}
+	exp := strings.ToLower(strings.TrimSpace(expectedDomain))
+	cand := strings.ToLower(strings.TrimSpace(candidateDomain))
+	if strings.Contains(cand, exp) || strings.Contains(strings.ToLower(subject), exp) {
+		return true
+	}
+	brand := strings.Split(exp, ".")[0]
+	return len(brand) >= 3 && (strings.Contains(cand, brand) || strings.Contains(strings.ToLower(subject), brand))
 }
 
 var (
@@ -115,7 +140,23 @@ func (r *Registry) DeliverIncoming(recipientEmail, senderDomain, subject, body s
 		ReceivedAt: time.Now().UTC(),
 	}
 
-	// Try matching exact key and domain substring
+	// Persist to MongoDB for cross-replica coordination
+	if r.db != nil && (payload.Code != "" || payload.MagicLink != "") {
+		dbCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_, _ = r.db.Collection("email_otp_challenges").InsertOne(dbCtx, bson.M{
+			"recipient_email": strings.ToLower(strings.TrimSpace(recipientEmail)),
+			"employer_domain": strings.ToLower(strings.TrimSpace(senderDomain)),
+			"code":            payload.Code,
+			"magic_link":      payload.MagicLink,
+			"subject":         subject,
+			"received_at":     payload.ReceivedAt,
+			"expires_at":      payload.ReceivedAt.Add(10 * time.Minute),
+			"consumed":        false,
+		})
+		cancel()
+	}
+
+	// Try matching exact key and domain/brand substring
 	for k, ch := range r.pending {
 		parts := strings.Split(k, ":")
 		if len(parts) == 2 {
@@ -123,9 +164,8 @@ func (r *Registry) DeliverIncoming(recipientEmail, senderDomain, subject, body s
 			pendDomain := parts[1]
 
 			if strings.EqualFold(pendEmail, recipientEmail) &&
-				(strings.Contains(strings.ToLower(senderDomain), pendDomain) ||
-					strings.Contains(strings.ToLower(body), pendDomain) ||
-					pendDomain == "*") {
+				(domainBrandMatch(senderDomain, subject, pendDomain) ||
+					strings.Contains(strings.ToLower(body), pendDomain)) {
 				select {
 				case ch <- payload:
 				default:
@@ -143,15 +183,74 @@ func (r *Registry) DeliverIncoming(recipientEmail, senderDomain, subject, body s
 	return payload
 }
 
-// WaitForOTP blocks until an OTP arrives or context expires.
+// WaitForOTP blocks until an OTP arrives (in-memory or via MongoDB across replicas) or context expires.
 func (r *Registry) WaitForOTP(ctx context.Context, email, domain string) (*VerificationPayload, error) {
 	ch := r.RegisterExpectation(email, domain)
 	defer r.ClearExpectation(email, domain)
 
-	select {
-	case payload := <-ch:
-		return payload, nil
-	case <-ctx.Done():
-		return nil, fmt.Errorf("timeout waiting for email verification for %s from %s: %w", email, domain, ctx.Err())
+	r.mu.RLock()
+	db := r.db
+	r.mu.RUnlock()
+
+	checkDB := func() *VerificationPayload {
+		if db == nil {
+			return nil
+		}
+		qCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		since := time.Now().UTC().Add(-2 * time.Minute)
+		filter := bson.M{
+			"recipient_email": strings.ToLower(strings.TrimSpace(email)),
+			"received_at":     bson.M{"$gte": since},
+			"consumed":        bson.M{"$ne": true},
+		}
+		cur, err := db.Collection("email_otp_challenges").Find(qCtx, filter, options.Find().SetSort(bson.D{{Key: "received_at", Value: -1}}).SetLimit(10))
+		if err != nil {
+			return nil
+		}
+		defer cur.Close(qCtx)
+		for cur.Next(qCtx) {
+			var doc struct {
+				ID         any       `bson:"_id"`
+				Email      string    `bson:"recipient_email"`
+				Domain     string    `bson:"employer_domain"`
+				Code       string    `bson:"code"`
+				MagicLink  string    `bson:"magic_link"`
+				Subject    string    `bson:"subject"`
+				ReceivedAt time.Time `bson:"received_at"`
+			}
+			if cur.Decode(&doc) == nil && domainBrandMatch(doc.Domain, doc.Subject, domain) && (doc.Code != "" || doc.MagicLink != "") {
+				_, _ = db.Collection("email_otp_challenges").UpdateOne(qCtx, bson.M{"_id": doc.ID}, bson.M{"$set": bson.M{"consumed": true}})
+				return &VerificationPayload{
+					Email:      doc.Email,
+					Domain:     doc.Domain,
+					Code:       doc.Code,
+					MagicLink:  doc.MagicLink,
+					Subject:    doc.Subject,
+					ReceivedAt: doc.ReceivedAt,
+				}
+			}
+		}
+		return nil
+	}
+
+	if p := checkDB(); p != nil {
+		return p, nil
+	}
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case payload := <-ch:
+			return payload, nil
+		case <-ticker.C:
+			if p := checkDB(); p != nil {
+				return p, nil
+			}
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout waiting for email verification for %s from %s: %w", email, domain, ctx.Err())
+		}
 	}
 }

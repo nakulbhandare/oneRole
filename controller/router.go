@@ -8,6 +8,7 @@ import (
 	"github.com/oneRole/connectors/email_otp"
 	"github.com/oneRole/middleware"
 	"github.com/oneRole/service"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // ReadinessChecker performs a bounded dependency check before the API reports
@@ -33,6 +34,7 @@ type HTTPDependencies struct {
 	Catalog        CatalogAPI
 	Enterprise     *EnterpriseHandler
 	EmailIdentity  *EmailIdentityHandler
+	Database       *mongo.Database
 }
 
 // NewHTTPHandler registers the documented /api/v1 authentication and
@@ -88,6 +90,9 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 	mux.HandleFunc("GET /api/v1/healthz", handleHealth)
 	mux.HandleFunc("GET /api/v1/readyz", handleReadiness(deps.Readiness))
 
+	if deps.Database != nil {
+		email_otp.GetRegistry().SetDB(deps.Database)
+	}
 	otpHandler := email_otp.NewHandler()
 	mux.HandleFunc("POST /api/v1/auth/email-otp/webhook", otpHandler.IngestWebhook)
 	mux.HandleFunc("GET /api/v1/auth/email-otp", otpHandler.PollOTP)
