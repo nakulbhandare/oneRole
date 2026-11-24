@@ -190,3 +190,158 @@ func TestRegistryConcurrencyLimiter(t *testing.T) {
 	}
 	release()
 }
+
+func TestGreenhouseTier1Submit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/boards/stripe/jobs/123456" {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id": 998877, "application_id": 998877}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	adapter := NewGreenhouseAdapter(server.Client()).WithBaseURL(server.URL + "/v1")
+	schema := &models.FormSchema{
+		ID:       "schema-gh-stripe-123456",
+		Provider: "greenhouse",
+		JobID:    "123456",
+		JobURL:   "https://boards.greenhouse.io/stripe/jobs/123456",
+		Fields: []models.FormFieldSchema{
+			{FieldID: "first_name", Label: "First Name", Required: true},
+			{FieldID: "last_name", Label: "Last Name", Required: true},
+			{FieldID: "email", Label: "Email", Required: true},
+			{FieldID: "question_auth", Label: "Authorized to work in the US?", Required: true},
+		},
+	}
+	candidate := &models.CandidateProfile{
+		FirstName: "Nakul",
+		LastName:  "Bhandare",
+		Email:     "other-email@test.com", // Resolver / submitter must enforce bhandarenakul11@gmail.com
+		Phone:     "+1 (350)-355-6570",
+	}
+
+	res, err := adapter.SubmitTier1(context.Background(), schema, candidate, []byte("%PDF-1.4 Mock Resume"))
+	if err != nil {
+		t.Fatalf("SubmitTier1 failed: %v", err)
+	}
+	if res.Status != "SUBMITTED_CONFIRMED" {
+		t.Errorf("expected status SUBMITTED_CONFIRMED, got %s", res.Status)
+	}
+	if res.TargetEmail != "bhandarenakul11@gmail.com" {
+		t.Errorf("expected target email bhandarenakul11@gmail.com, got %s", res.TargetEmail)
+	}
+	if res.ReceiptID != "GH-998877" {
+		t.Errorf("expected GH-998877, got %s", res.ReceiptID)
+	}
+	if res.DurationMs >= 250 {
+		t.Errorf("expected duration < 250ms, got %dms", res.DurationMs)
+	}
+}
+
+func TestAshbyTier1Submit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		op := r.URL.Query().Get("op")
+		if op == "ApiCreateFileUploadHandle" {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":{"fileUploadHandle":{"handle":"mock-upload-handle-123"}}}`))
+			return
+		}
+		if op == "ApiSubmitSingleApplicationFormAction" {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":{"submitApplicationFormAction":{"applicationFormResult":{"__typename":"FormSubmitSuccess"},"applicationId":"app_ashby_456"}}}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	adapter := NewAshbyAdapter(server.Client()).WithGraphQLURL(server.URL)
+	schema := &models.FormSchema{
+		ID:       "schema-ashby-linear-eng-01",
+		Provider: "ashby",
+		JobID:    "eng-01",
+		JobURL:   "https://jobs.ashbyhq.com/linear/eng-01",
+		Fields: []models.FormFieldSchema{
+			{FieldID: "_systemfield_name", Label: "Full Name", Required: true},
+			{FieldID: "_systemfield_email", Label: "Email", Required: true},
+			{FieldID: "_systemfield_resume", Label: "Resume", Required: true},
+		},
+	}
+	candidate := &models.CandidateProfile{
+		FirstName: "Nakul",
+		LastName:  "Bhandare",
+		Email:     "noreply@example.com",
+		Phone:     "+1 (350)-355-6570",
+	}
+
+	res, err := adapter.SubmitTier1(context.Background(), schema, candidate, []byte("%PDF-1.4 Mock Resume"))
+	if err != nil {
+		t.Fatalf("Ashby SubmitTier1 failed: %v", err)
+	}
+	if res.Status != "SUBMITTED_CONFIRMED" {
+		t.Errorf("expected status SUBMITTED_CONFIRMED, got %s", res.Status)
+	}
+	if res.TargetEmail != "bhandarenakul11@gmail.com" {
+		t.Errorf("expected target email bhandarenakul11@gmail.com, got %s", res.TargetEmail)
+	}
+	if res.ReceiptID != "ASH-app_ashby_456" {
+		t.Errorf("expected ASH-app_ashby_456, got %s", res.ReceiptID)
+	}
+	if res.DurationMs >= 320 {
+		t.Errorf("expected duration < 320ms, got %dms", res.DurationMs)
+	}
+}
+
+func TestLeverTier1Submit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v0/postings/figma/job-789" {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":{"id":"lever-posting-receipt-999"}}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	adapter := NewLeverAdapter(server.Client()).WithBaseURL(server.URL + "/v0")
+	schema := &models.FormSchema{
+		ID:       "schema-lever-figma-job-789",
+		Provider: "lever",
+		JobID:    "job-789",
+		JobURL:   "https://jobs.lever.co/figma/job-789",
+		Fields: []models.FormFieldSchema{
+			{FieldID: "name", Label: "Full Name", Required: true},
+			{FieldID: "email", Label: "Email", Required: true},
+			{FieldID: "resume", Label: "Resume", Required: true},
+		},
+	}
+	candidate := &models.CandidateProfile{
+		FirstName: "Nakul",
+		LastName:  "Bhandare",
+		Email:     "dummy@figma.com",
+		Phone:     "+1 (350)-355-6570",
+	}
+
+	res, err := adapter.SubmitTier1(context.Background(), schema, candidate, []byte("%PDF-1.4 Mock Resume"))
+	if err != nil {
+		t.Fatalf("Lever SubmitTier1 failed: %v", err)
+	}
+	if res.Status != "SUBMITTED_CONFIRMED" {
+		t.Errorf("expected status SUBMITTED_CONFIRMED, got %s", res.Status)
+	}
+	if res.TargetEmail != "bhandarenakul11@gmail.com" {
+		t.Errorf("expected target email bhandarenakul11@gmail.com, got %s", res.TargetEmail)
+	}
+	if res.ReceiptID != "LEVER-lever-posting-receipt-999" {
+		t.Errorf("expected LEVER-lever-posting-receipt-999, got %s", res.ReceiptID)
+	}
+	if res.DurationMs >= 220 {
+		t.Errorf("expected duration < 220ms, got %dms", res.DurationMs)
+	}
+}

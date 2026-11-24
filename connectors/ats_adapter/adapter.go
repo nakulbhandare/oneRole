@@ -69,6 +69,21 @@ type ConfirmationResult struct {
 	VerifiedTimestamp    time.Time         `json:"verified_timestamp"`
 }
 
+// SubmissionResult represents the direct headless API / GraphQL submission outcome (M2 Tier 1 contract).
+type SubmissionResult struct {
+	ReceiptID       string            `json:"receipt_id"`
+	DurationMs      int64             `json:"duration_ms"`
+	Status          string            `json:"status"` // "SUBMITTED_CONFIRMED"
+	TargetEmail     string            `json:"target_email"` // "bhandarenakul11@gmail.com"
+	Provider        string            `json:"provider"`
+	ConfirmationURL string            `json:"confirmation_url,omitempty"`
+	CandidateID     string            `json:"candidate_id,omitempty"`
+	EvidenceDetails map[string]string `json:"evidence_details,omitempty"`
+	RawResponse     string            `json:"raw_response,omitempty"`
+	HTTPStatusCode  int               `json:"http_status_code,omitempty"`
+	Error           error             `json:"error,omitempty"`
+}
+
 // ATSAdapter represents a standardized, modular connector to an ATS provider.
 type ATSAdapter interface {
 	Provider() string
@@ -79,4 +94,10 @@ type ATSAdapter interface {
 	SubmitCandidate(ctx context.Context, req SubmissionRequest) (*SubmissionResponse, error)
 	VerifyConfirmation(ctx context.Context, resp *SubmissionResponse) (*ConfirmationResult, error)
 	ClassifyError(err error, statusCode int, responseBody string) ErrorClassification
+}
+
+// Tier1Adapter extends ATSAdapter with sub-350ms direct headless API / GraphQL submission.
+type Tier1Adapter interface {
+	ATSAdapter
+	SubmitTier1(ctx context.Context, schema *models.FormSchema, candidate *models.CandidateProfile, resumeBytes []byte) (*SubmissionResult, error)
 }

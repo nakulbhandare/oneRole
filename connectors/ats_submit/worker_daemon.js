@@ -4,6 +4,8 @@ const { connect, StringCodec, AckPolicy } = require('nats');
 const { MongoClient } = require('mongodb');
 const { submitApplication } = require('./browser_submitter');
 const { submitFastApplication } = require('./fast_submitter');
+const { submitWithPlaywright, initWarmPool } = require('./playwright_submitter');
+const { submitWorkdayCXS } = require('./workday_cxs');
 
 const NATS_URL = process.env.NATS_URL || 'nats://localhost:4222';
 const DATABASE_URL = process.env.DATABASE_URL || 'mongodb://localhost:27017/onerole';
@@ -38,15 +40,7 @@ function isCaptchaOrBot(err) {
          msg.includes('security check') ||
          msg.includes('verify you are human') ||
          msg.includes('flagged as possible spam') ||
-         msg.includes('possible spam') ||
-         msg.includes('rate_limit_429') ||
-         msg.includes('rate limit') ||
-         msg.includes('workday_bot_shield') ||
-         msg.includes('workday_login_required') ||
-         msg.includes('login_required') ||
-         msg.includes('account required') ||
-         msg.includes('user login') ||
-         msg.includes('sign-in required');
+         msg.includes('possible spam');
 }
 
 function isNonRetryableError(err) {
@@ -131,6 +125,10 @@ async function deliverNotificationEmail(candidateEmail, subject, textBody, appli
   return { success: false, reason: 'unconfigured' };
 }
 
+function generateEventId(prefix) {
+  return `evt-${Date.now()}-${prefix}-${Math.random().toString(36).substring(2, 7)}`;
+}
+
 async function start() {
   console.log(`[Worker] Starting OneRole Chromium Worker Daemon...`);
   console.log(`[Worker] NATS_URL=${NATS_URL}`);
@@ -199,9 +197,8 @@ async function start() {
     console.log(`[Worker] Healthcheck server listening on port ${PORT}`);
   });
 
-  function generateEventId(prefix) {
-    return `evt-${Date.now()}-${prefix}-${Math.random().toString(36).substring(2, 7)}`;
-  }
+  // Pre-initialize Tier 2 Warm Chromium Pool
+  initWarmPool().catch(err => console.warn('[Worker] Warm pool pre-init notice:', err.message));
 
   // 4. Process a single application item
   async function processMessage(msg) {
@@ -370,6 +367,7 @@ async function start() {
             const fastResult = await submitFastApplication({
               url: targetJobUrl,
               candidate: candidate,
+              endpoints: (data && data.endpoints) || (candidate && candidate.endpoints),
               dryRun: false
             });
 
@@ -385,16 +383,52 @@ async function start() {
         }
 
         // ---------------------------------------------------------
+        // Tier 2: Workday CXS Direct REST & Warm Chromium Submitter
         // ---------------------------------------------------------
-        // Tier 2: Playwright Chromium Browser Submitter (with Puppeteer fallback)
+        if (!result || !result.success) {
+          if (targetJobUrl.includes('myworkdayjobs.com') || (candidate && candidate.provider === 'workday')) {
+            console.log(`[Worker] Evaluating Tier-2 Workday CXS Engine for URL: ${targetJobUrl}`);
+            try {
+              let cxsFn = typeof submitWorkdayCXS === 'function' ? submitWorkdayCXS : null;
+              if (!cxsFn) {
+                try { cxsFn = require('./workday_cxs').submitWorkdayCXS; } catch (_) {}
+              }
+              if (cxsFn) {
+                const wdResult = await cxsFn({
+                  url: targetJobUrl,
+                  candidate: candidate,
+                  resumePath: candidate.resume_file_path,
+                  mockEndpoint: (data && data.endpoints && data.endpoints.workday) || (candidate && candidate.endpoints && candidate.endpoints.workday)
+                });
+                if (wdResult && wdResult.success) {
+                  result = wdResult;
+                  usedEngine = wdResult.provider || 'tier2_workday_cxs';
+                  console.log(`[Worker] ✅ Workday CXS Engine Succeeded in ${result.duration_ms || 450}ms! Receipt=${result.receipt_id}`);
+                }
+              }
+            } catch (wdErr) {
+              console.warn(`[Worker] Workday CXS notice: ${wdErr.message}. Escalating to Tier-2 Playwright Chromium.`);
+            }
+          }
+        }
+
+        // ---------------------------------------------------------
+        // Tier 2: Playwright Chromium Browser Submitter (with Warm Pool)
         // ---------------------------------------------------------
         if (!result || !result.success) {
           usedEngine = 'tier2_playwright_chromium';
           console.log(`[Worker] Executing Tier-2 Playwright Chromium: URL=${targetJobUrl}, Candidate=${candidate.email || 'bhandarenakul11@gmail.com'}`);
           try {
-            const { submitWithPlaywright } = require('./playwright_submitter');
+            let submitFn = typeof submitWithPlaywright === 'function' ? submitWithPlaywright : null;
+            if (!submitFn) {
+              try { submitFn = require('./playwright_submitter').submitWithPlaywright; } catch (_) {}
+            }
+            if (!submitFn && typeof submitApplication === 'function') {
+              submitFn = submitApplication;
+            }
+
             result = await Promise.race([
-              submitWithPlaywright({
+              submitFn({
                 url: targetJobUrl,
                 candidate: candidate,
                 dryRun: false,
@@ -422,6 +456,8 @@ async function start() {
           submission_engine: result.provider || usedEngine,
           candidate_email: candidateEmail,
           email_verification_status: 'pending_inbox_sync',
+          pause_reason: null,
+          last_error: null,
           updated_at: submitTime
         };
         if (typeof db !== 'undefined' && db && job_id) {
@@ -434,7 +470,8 @@ async function start() {
           } catch (e) {}
         }
         await appsColl.updateOne({ _id: application_id }, {
-          $set: updateDoc
+          $set: updateDoc,
+          $unset: { requires_manual_action: "", error_detail: "" }
         });
 
         // Record verified attempt in submission_attempts

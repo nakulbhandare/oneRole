@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/oneRole/connectors/ats_adapter"
 	"github.com/oneRole/models"
@@ -406,4 +408,498 @@ func (e *DeterministicSubmissionEngine) FinalizeFailure(
 	})
 
 	return nil
+}
+
+// Canonical candidate email strictly enforced across all submissions.
+const EnforcedCandidateEmail = "bhandarenakul11@gmail.com"
+
+// PrecompiledField represents an indexed form question/field with O(1) lookup keys and validation rules.
+type PrecompiledField struct {
+	FieldID         string   `json:"field_id"`
+	CanonicalLabel  string   `json:"canonical_label"`
+	SemanticKey     string   `json:"semantic_key"` // normalized key (e.g. "email", "first_name", "work_auth")
+	Type            string   `json:"type"`         // text, select, file, radio, checkbox
+	Required        bool     `json:"required"`
+	Options         []string `json:"options,omitempty"`
+	DefaultValue    string   `json:"default_value,omitempty"`
+	ValidationRegex string   `json:"validation_regex,omitempty"`
+}
+
+// FlatSchemaLookup provides O(1) lookup tables compiled from raw form schemas in <2ms.
+type FlatSchemaLookup struct {
+	SchemaID          string                      `json:"schema_id"`
+	Provider          string                      `json:"provider"`
+	JobID             string                      `json:"job_id"`
+	JobURL            string                      `json:"job_url"`
+	FieldsByID        map[string]PrecompiledField `json:"fields_by_id"`
+	FieldsBySemKey    map[string]PrecompiledField `json:"fields_by_sem_key"`
+	RequiredFields    []string                    `json:"required_fields"`
+	TotalFields       int                         `json:"total_fields"`
+	CompiledAt        time.Time                   `json:"compiled_at"`
+	CompilationMicros int64                       `json:"compilation_micros"`
+}
+
+// ResolvedCandidateApplication contains deterministic profile data and screening answers.
+type ResolvedCandidateApplication struct {
+	TargetEmail      string            `json:"target_email"` // strictly bhandarenakul11@gmail.com
+	FirstName        string            `json:"first_name"`
+	LastName         string            `json:"last_name"`
+	FullName         string            `json:"full_name"`
+	Phone            string            `json:"phone"`
+	City             string            `json:"city"`
+	LinkedInURL      string            `json:"linkedin_url"`
+	GitHubURL        string            `json:"github_url"`
+	PortfolioURL     string            `json:"portfolio_url"`
+	ResumeBytes      []byte            `json:"-"`
+	Answers          map[string]string `json:"answers"` // Mapped field_id -> resolved answer
+	ResolutionTimeMs int64             `json:"resolution_time_ms"`
+}
+
+// normalizeToken cleans a string for tokenization and semantic matching.
+func normalizeToken(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune(' ')
+		}
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+// classifySemanticKey maps field identifiers and labels to canonical semantic concepts.
+func classifySemanticKey(fieldID, label string) string {
+	norm := normalizeToken(label + " " + fieldID)
+	tokens := strings.Fields(norm)
+	tokenSet := make(map[string]bool, len(tokens))
+	for _, t := range tokens {
+		tokenSet[t] = true
+	}
+
+	// 1. Core Profile Attributes
+	if (tokenSet["first"] && tokenSet["name"]) || tokenSet["firstname"] || tokenSet["given"] {
+		return "first_name"
+	}
+	if (tokenSet["last"] && tokenSet["name"]) || tokenSet["lastname"] || tokenSet["surname"] || tokenSet["family"] {
+		return "last_name"
+	}
+	if (tokenSet["full"] && tokenSet["name"]) || tokenSet["fullname"] || fieldID == "name" || label == "Full Name" {
+		return "name"
+	}
+	if tokenSet["email"] || tokenSet["mail"] {
+		return "email"
+	}
+	if tokenSet["phone"] || tokenSet["mobile"] || tokenSet["telephone"] || tokenSet["cell"] {
+		return "phone"
+	}
+	if tokenSet["resume"] || tokenSet["cv"] || tokenSet["curriculum"] {
+		return "resume"
+	}
+	if tokenSet["city"] || tokenSet["location"] || tokenSet["address"] || tokenSet["residence"] {
+		return "location"
+	}
+	if tokenSet["linkedin"] {
+		return "linkedin"
+	}
+	if tokenSet["github"] {
+		return "github"
+	}
+	if tokenSet["portfolio"] || tokenSet["website"] {
+		return "portfolio"
+	}
+
+	// 2. Screening & Compliance Attributes
+	if tokenSet["authorized"] || tokenSet["authorization"] || (tokenSet["legally"] && tokenSet["eligible"]) || tokenSet["permit"] {
+		return "work_auth"
+	}
+	if tokenSet["sponsor"] || tokenSet["sponsorship"] || tokenSet["visa"] {
+		return "sponsorship"
+	}
+	if (tokenSet["notice"] && tokenSet["period"]) || (tokenSet["start"] && tokenSet["date"]) || tokenSet["availability"] {
+		return "notice_period"
+	}
+	if tokenSet["salary"] || tokenSet["compensation"] || tokenSet["rate"] {
+		return "salary"
+	}
+	if tokenSet["relocate"] || tokenSet["relocation"] {
+		return "relocation"
+	}
+	if tokenSet["remote"] || tokenSet["hybrid"] || tokenSet["onsite"] {
+		return "remote"
+	}
+	if tokenSet["years"] && (tokenSet["experience"] || tokenSet["exp"]) {
+		return "years_of_experience"
+	}
+	if tokenSet["degree"] || tokenSet["education"] || tokenSet["university"] || tokenSet["bachelor"] || tokenSet["master"] {
+		return "education"
+	}
+	if tokenSet["gender"] || tokenSet["race"] || tokenSet["veteran"] || tokenSet["disability"] {
+		return "eeo"
+	}
+
+	// Fallback to normalized field ID
+	cleanID := strings.ToLower(strings.TrimSpace(fieldID))
+	if cleanID != "" {
+		return cleanID
+	}
+	return "custom_" + norm
+}
+
+// PrecompileSchema transforms raw AST/models into an indexed flat lookup table in <2ms.
+func PrecompileSchema(schema *models.FormSchema) (*FlatSchemaLookup, error) {
+	startTime := time.Now()
+	if schema == nil {
+		return nil, fmt.Errorf("form schema is required")
+	}
+
+	lookup := &FlatSchemaLookup{
+		SchemaID:       schema.ID,
+		Provider:       schema.Provider,
+		JobID:          schema.JobID,
+		JobURL:         schema.JobURL,
+		FieldsByID:     make(map[string]PrecompiledField, len(schema.Fields)),
+		FieldsBySemKey: make(map[string]PrecompiledField, len(schema.Fields)),
+		RequiredFields: make([]string, 0, len(schema.Fields)),
+		TotalFields:    len(schema.Fields),
+		CompiledAt:     time.Now().UTC(),
+	}
+
+	for _, f := range schema.Fields {
+		semKey := classifySemanticKey(f.FieldID, f.Label)
+		pf := PrecompiledField{
+			FieldID:        f.FieldID,
+			CanonicalLabel: f.Label,
+			SemanticKey:    semKey,
+			Type:           f.Type,
+			Required:       f.Required,
+			Options:        f.Options,
+		}
+
+		// Pre-compile validation regex if available
+		if f.Type == "email" || semKey == "email" {
+			pf.ValidationRegex = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+		}
+
+		lookup.FieldsByID[f.FieldID] = pf
+		lookup.FieldsBySemKey[semKey] = pf
+		if f.Required {
+			lookup.RequiredFields = append(lookup.RequiredFields, f.FieldID)
+		}
+	}
+
+	lookup.CompilationMicros = time.Since(startTime).Microseconds()
+	return lookup, nil
+}
+
+// computeCosineSimilarity calculates cosine similarity between two word token sets.
+func computeCosineSimilarity(aTokens, bTokens []string) float64 {
+	if len(aTokens) == 0 || len(bTokens) == 0 {
+		return 0.0
+	}
+	freqA := make(map[string]float64)
+	freqB := make(map[string]float64)
+	allTokens := make(map[string]bool)
+
+	for _, t := range aTokens {
+		freqA[t]++
+		allTokens[t] = true
+	}
+	for _, t := range bTokens {
+		freqB[t]++
+		allTokens[t] = true
+	}
+
+	var dot, normA, normB float64
+	for t := range allTokens {
+		vA := freqA[t]
+		vB := freqB[t]
+		dot += vA * vB
+		normA += vA * vA
+		normB += vB * vB
+	}
+
+	if normA == 0 || normB == 0 {
+		return 0.0
+	}
+	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
+}
+
+// ResolveCandidateProfile resolves deterministic profile data & screening answers for bhandarenakul11@gmail.com in <15ms.
+func ResolveCandidateProfile(
+	schema *FlatSchemaLookup,
+	candidate *models.CandidateProfile,
+	resumeBytes []byte,
+	customOverrides map[string]string,
+) (*ResolvedCandidateApplication, error) {
+	startTime := time.Now()
+
+	// Enforce strict email identity: bhandarenakul11@gmail.com
+	targetEmail := EnforcedCandidateEmail
+
+	firstName := "Nakul"
+	lastName := "Bhandare"
+	phone := "+1 (350)-355-6570"
+	city := "San Francisco, CA"
+	linkedin := "https://linkedin.com/in/nakul-bhandare"
+	github := "https://github.com/nakulbhandare"
+	portfolio := "https://nakulbhandare.dev"
+
+	if candidate != nil {
+		if strings.TrimSpace(candidate.FirstName) != "" {
+			firstName = strings.TrimSpace(candidate.FirstName)
+		}
+		if strings.TrimSpace(candidate.LastName) != "" {
+			lastName = strings.TrimSpace(candidate.LastName)
+		}
+		if strings.TrimSpace(candidate.Phone) != "" {
+			phone = strings.TrimSpace(candidate.Phone)
+		}
+		if strings.TrimSpace(candidate.City) != "" {
+			city = strings.TrimSpace(candidate.City)
+		}
+		if strings.TrimSpace(candidate.LinkedInURL) != "" {
+			linkedin = strings.TrimSpace(candidate.LinkedInURL)
+		}
+		if strings.TrimSpace(candidate.GitHubURL) != "" {
+			github = strings.TrimSpace(candidate.GitHubURL)
+		}
+		if strings.TrimSpace(candidate.PortfolioURL) != "" {
+			portfolio = strings.TrimSpace(candidate.PortfolioURL)
+		}
+	}
+	fullName := strings.TrimSpace(firstName + " " + lastName)
+
+	resolved := &ResolvedCandidateApplication{
+		TargetEmail:  targetEmail,
+		FirstName:    firstName,
+		LastName:     lastName,
+		FullName:     fullName,
+		Phone:        phone,
+		City:         city,
+		LinkedInURL:  linkedin,
+		GitHubURL:    github,
+		PortfolioURL: portfolio,
+		ResumeBytes:  resumeBytes,
+		Answers:      make(map[string]string),
+	}
+
+	// Standard taxonomy embeddings vectors
+	taxonomyVectors := map[string][]string{
+		"work_auth":    {"authorized", "authorization", "legally", "eligible", "work", "permit", "us", "citizen"},
+		"sponsorship":  {"require", "visa", "sponsorship", "future", "now", "h1b", "transfer", "need"},
+		"notice_period":{"start", "date", "earliest", "notice", "period", "available", "when"},
+		"years_of_exp": {"years", "experience", "how", "many", "total", "relevant", "software"},
+		"education":    {"degree", "education", "bachelor", "master", "university", "college", "highest"},
+		"relocation":   {"relocate", "relocation", "willing", "move", "area"},
+	}
+
+	if schema != nil {
+		for fieldID, field := range schema.FieldsByID {
+			// Check overrides first
+			if customOverrides != nil {
+				if val, ok := customOverrides[fieldID]; ok && strings.TrimSpace(val) != "" {
+					resolved.Answers[fieldID] = val
+					continue
+				}
+			}
+
+			// Map by semantic key
+			switch field.SemanticKey {
+			case "first_name":
+				resolved.Answers[fieldID] = firstName
+			case "last_name":
+				resolved.Answers[fieldID] = lastName
+			case "name":
+				resolved.Answers[fieldID] = fullName
+			case "email":
+				resolved.Answers[fieldID] = targetEmail
+			case "phone":
+				resolved.Answers[fieldID] = phone
+			case "location":
+				resolved.Answers[fieldID] = city
+			case "linkedin":
+				resolved.Answers[fieldID] = linkedin
+			case "github":
+				resolved.Answers[fieldID] = github
+			case "portfolio":
+				resolved.Answers[fieldID] = portfolio
+			case "work_auth":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "Yes", "Authorized")
+			case "sponsorship":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "No", "Do not require")
+			case "notice_period":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "Immediately", "2 weeks")
+			case "years_of_experience":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "5+", "5-7 years")
+			case "education":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "Bachelor's Degree", "Computer Science")
+			case "relocation":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "Yes", "Willing to relocate")
+			case "remote":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "Yes", "Remote")
+			case "salary":
+				resolved.Answers[fieldID] = "$180,000"
+			case "eeo":
+				resolved.Answers[fieldID] = matchBestOption(field.Options, "Decline to self-identify", "Decline")
+			default:
+				// Fallback to question embedding similarity matching
+				labelTokens := strings.Fields(normalizeToken(field.CanonicalLabel))
+				bestMatch := ""
+				bestScore := 0.0
+
+				for key, vecTokens := range taxonomyVectors {
+					sim := computeCosineSimilarity(labelTokens, vecTokens)
+					if sim > bestScore && sim >= 0.35 {
+						bestScore = sim
+						bestMatch = key
+					}
+				}
+
+				switch bestMatch {
+				case "work_auth":
+					resolved.Answers[fieldID] = matchBestOption(field.Options, "Yes", "Authorized")
+				case "sponsorship":
+					resolved.Answers[fieldID] = matchBestOption(field.Options, "No", "Do not require")
+				case "notice_period":
+					resolved.Answers[fieldID] = matchBestOption(field.Options, "Immediately", "2 weeks")
+				case "years_of_exp":
+					resolved.Answers[fieldID] = matchBestOption(field.Options, "5+", "5")
+				case "education":
+					resolved.Answers[fieldID] = matchBestOption(field.Options, "Bachelor's Degree", "Computer Science")
+				case "relocation":
+					resolved.Answers[fieldID] = matchBestOption(field.Options, "Yes", "Willing")
+				}
+			}
+		}
+	}
+
+	resolved.ResolutionTimeMs = time.Since(startTime).Milliseconds()
+	return resolved, nil
+}
+
+// matchBestOption selects the most appropriate option from candidate list, or returns canonical default.
+func matchBestOption(options []string, preferred, fallback string) string {
+	if len(options) == 0 {
+		return preferred
+	}
+	prefLower := strings.ToLower(preferred)
+	fallLower := strings.ToLower(fallback)
+
+	for _, opt := range options {
+		optLower := strings.ToLower(opt)
+		if strings.Contains(optLower, prefLower) || optLower == prefLower {
+			return opt
+		}
+	}
+	for _, opt := range options {
+		optLower := strings.ToLower(opt)
+		if strings.Contains(optLower, fallLower) {
+			return opt
+		}
+	}
+	return options[0]
+}
+
+// ExecuteTier1 coordinates schema pre-compilation (<2ms), candidate resolution (<15ms),
+// and dispatching to Tier 1 adapters (Greenhouse, Ashby, Lever) returning confirmed submission results.
+func (e *DeterministicSubmissionEngine) ExecuteTier1(
+	ctx context.Context,
+	jobURL string,
+	candidate *models.CandidateProfile,
+	resumeBytes []byte,
+	customOverrides map[string]string,
+) (*ats_adapter.SubmissionResult, error) {
+	if e.adapterRegistry == nil {
+		e.adapterRegistry = ats_adapter.NewDefaultRegistry()
+	}
+
+	adapter, ok := e.adapterRegistry.Match(jobURL)
+	if !ok {
+		return nil, fmt.Errorf("no matching ATS adapter for url: %s", jobURL)
+	}
+
+	// 1. Resolve & Pre-compile Schema (<2ms)
+	schema, err := adapter.ResolveSchema(ctx, jobURL)
+	if err != nil || schema == nil {
+		// Fallback schema based on detected metadata
+		meta, detErr := adapter.Detect(ctx, jobURL)
+		if detErr != nil {
+			return nil, fmt.Errorf("detect ats provider: %w", detErr)
+		}
+		schema = &models.FormSchema{
+			ID:         fmt.Sprintf("schema-%s-%s-%s", meta.Provider, meta.CompanyID, meta.JobID),
+			Provider:   meta.Provider,
+			JobID:      meta.JobID,
+			JobURL:     jobURL,
+			ResolvedAt: time.Now().UTC(),
+			Fields: []models.FormFieldSchema{
+				{FieldID: "first_name", Label: "First Name", Required: true},
+				{FieldID: "last_name", Label: "Last Name", Required: true},
+				{FieldID: "email", Label: "Email", Required: true},
+				{FieldID: "phone", Label: "Phone", Required: false},
+				{FieldID: "resume", Label: "Resume", Required: true},
+			},
+		}
+	}
+
+	flatSchema, err := PrecompileSchema(schema)
+	if err != nil {
+		return nil, fmt.Errorf("precompile schema: %w", err)
+	}
+
+	// 2. Resolve Candidate Profile & Answers (<15ms)
+	resolved, err := ResolveCandidateProfile(flatSchema, candidate, resumeBytes, customOverrides)
+	if err != nil {
+		return nil, fmt.Errorf("resolve candidate profile: %w", err)
+	}
+
+	// Profile with strictly enforced email bhandarenakul11@gmail.com
+	enforcedProfile := &models.CandidateProfile{
+		FirstName:    resolved.FirstName,
+		LastName:     resolved.LastName,
+		Email:        resolved.TargetEmail,
+		Phone:        resolved.Phone,
+		City:         resolved.City,
+		LinkedInURL:  resolved.LinkedInURL,
+		GitHubURL:    resolved.GitHubURL,
+		PortfolioURL: resolved.PortfolioURL,
+	}
+
+	// 3. Dispatch to Tier 1 Adapter
+	if t1, isTier1 := adapter.(ats_adapter.Tier1Adapter); isTier1 {
+		return t1.SubmitTier1(ctx, schema, enforcedProfile, resumeBytes)
+	}
+
+	// Fallback via ATSAdapter.SubmitCandidate
+	req := ats_adapter.SubmissionRequest{
+		JobURL:      jobURL,
+		Candidate:   enforcedProfile,
+		Answers:     resolved.Answers,
+		ResumeBytes: resumeBytes,
+		ResumeName:  "Nakul_Bhandare_Resume.pdf",
+		ResumeType:  "application/pdf",
+	}
+
+	resp, err := adapter.SubmitCandidate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	conf, err := adapter.VerifyConfirmation(ctx, resp)
+	if err != nil || !conf.Confirmed {
+		return nil, fmt.Errorf("tier 1 verification failed: %v", err)
+	}
+
+	return &ats_adapter.SubmissionResult{
+		ReceiptID:       conf.EmployerReceiptID,
+		DurationMs:      resp.DurationMs,
+		Status:          "SUBMITTED_CONFIRMED",
+		TargetEmail:     resolved.TargetEmail,
+		Provider:        adapter.Provider(),
+		ConfirmationURL: resp.ConfirmationURL,
+		CandidateID:     resp.CandidateID,
+		HTTPStatusCode:  resp.HTTPStatusCode,
+		RawResponse:     resp.RawResponse,
+	}, nil
 }

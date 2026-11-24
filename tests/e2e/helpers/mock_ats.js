@@ -2,30 +2,133 @@
  * OneRole High-Fidelity In-Process Mock ATS HTTP Server
  * File: tests/e2e/helpers/mock_ats.js
  * 
- * Implements deterministic DOM & API mocks for:
- * 1. Greenhouse (React-Select comboboxes, aria-labelledby, #resume file input, confirmation)
- * 2. Ashby (Input fields, location autocomplete popup, Yes/No pills, mock GraphQL endpoint)
- * 3. Lever (Inputs, resume upload, separate pronoun checkboxes, pronoun hygiene validation)
- * 4. Workday (Multi-step wizard: Account creation -> OTP input -> Personal/Source -> Submit)
+ * Implements deterministic DOM & API mocks for all 5 ATS platforms:
+ * 1. Greenhouse (Public API v1 with ?questions=true, multipart apply, HTML forms & React-Select)
+ * 2. Ashby (Next.js AST inside <script id="__NEXT_DATA__">, 2-step GraphQL file upload & apply mutations)
+ * 3. Lever (Public API v0 with lists & customQuestions, multipart submit, pronoun checkbox hygiene)
+ * 4. SmartRecruiters (Candidate REST API v1 with JSON & base64 attachments, DOM apply with window.__oneRoleApply)
+ * 5. Workday CXS (REST candidate experience quick-apply API + multi-step session wizard)
+ * 
+ * Includes Chaos & Fault Injection, Latency Simulation, and Anti-Bot Telemetry Probes.
  */
 
 const http = require('http');
-const { parse } = require('url');
 
 const DEFAULT_PORT = 9876;
 let serverInstance = null;
+let artificialLatencyMs = 0;
+
 const recordedSubmissions = {
   greenhouse: [],
   ashby: [],
   lever: [],
+  smartrecruiters: [],
   workday: []
 };
 
 const scenarioState = {
   ashbyGraphqlMode: 'success', // 'success' | 'graphql_error' | 'inverted_trap'
   workdayStep: 1,
-  leverPronounStatus: 'clean'
+  leverPronounStatus: 'clean',
+  status: null,
+  statusCode: null,
+  dropConnection: false,
+  bot_challenge: false,
+  retryAfter: null
 };
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function safeDecodeURIComponent(val) {
+  if (typeof val !== 'string') return val;
+  try {
+    return decodeURIComponent(val);
+  } catch (_) {
+    return val;
+  }
+}
+
+function safeParseUrl(reqUrl, hostHeader) {
+  try {
+    return new URL(reqUrl, `http://${hostHeader || 'localhost'}`);
+  } catch (_) {
+    try {
+      return new URL(reqUrl, 'http://localhost');
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+function detectPronounConflict(rawBody) {
+  if (!rawBody || typeof rawBody !== 'string') return false;
+  const decodedBody = safeDecodeURIComponent(rawBody);
+
+  const lowerRaw = rawBody.toLowerCase();
+  const lowerDecoded = decodedBody.toLowerCase();
+
+  const hasHe = lowerDecoded.includes('pronouns[he]') ||
+                lowerRaw.includes('pronouns%5bhe%5d') ||
+                lowerRaw.includes('pronouns[he]');
+  const hasShe = lowerDecoded.includes('pronouns[she]') ||
+                 lowerRaw.includes('pronouns%5bshe%5d') ||
+                 lowerRaw.includes('pronouns[she]');
+  const hasThey = lowerDecoded.includes('pronouns[they]') ||
+                  lowerRaw.includes('pronouns%5bthey%5d') ||
+                  lowerRaw.includes('pronouns[they]');
+
+  return ((hasHe ? 1 : 0) + (hasShe ? 1 : 0) + (hasThey ? 1 : 0)) > 1;
+}
+
+function parseEmailFromBody(rawBody, headers) {
+  if (!rawBody || typeof rawBody !== 'string') return null;
+  try {
+    const j = JSON.parse(rawBody);
+    if (j.email) return j.email;
+    if (j.primaryEmail) return j.primaryEmail;
+    if (j.candidate) {
+      if (j.candidate.primaryEmail) return j.candidate.primaryEmail;
+      if (j.candidate.email) return j.candidate.email;
+    }
+    if (j.variables && j.variables.input && Array.isArray(j.variables.input.fieldValues)) {
+      const emailField = j.variables.input.fieldValues.find(f => f.fieldEntryId && f.fieldEntryId.includes('email'));
+      if (emailField && emailField.value) return emailField.value;
+    }
+    if (j.candidate_email) return j.candidate_email;
+    if (j.target_email) return j.target_email;
+    if (j.recipient) return j.recipient;
+  } catch (_) {}
+
+  const emailMatch = rawBody.match(/name="email"[\r\n\s]+([^\r\n]+)/) ||
+                     rawBody.match(/name="primaryEmail"[\r\n\s]+([^\r\n]+)/) ||
+                     rawBody.match(/email=([^&]+)/) ||
+                     rawBody.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+  if (emailMatch && emailMatch[1]) {
+    return safeDecodeURIComponent(emailMatch[1].trim());
+  }
+  return null;
+}
+
+function buildBotChallengeHtml(atsName = 'Cloudflare') {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>Security Verification - ${atsName}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <div id="challenge-container">
+    <h1>Security Check Required</h1>
+    <p>Please complete verification below before proceeding to the job application.</p>
+    <div class="cf-turnstile" data-state="interactive" data-sitekey="0x4AAAAAAABcdEF123456789"></div>
+    <div class="g-recaptcha" data-sitekey="6Le-wvkSAAAAAPBMRTvw0Q4Muexq9bi0DJwx_mJ-"></div>
+    <div id="challenge-running" class="challenge-status">Verification pending...</div>
+  </div>
+</body>
+</html>`;
+}
 
 function buildGreenhouseHtml(company, jobId) {
   return `<!DOCTYPE html>
@@ -133,9 +236,42 @@ function buildGreenhouseHtml(company, jobId) {
 }
 
 function buildAshbyHtml(company, jobId) {
+  const nextData = {
+    props: {
+      pageProps: {
+        jobPosting: {
+          id: String(jobId || '12345'),
+          title: 'Software Engineer',
+          department: 'Engineering',
+          location: 'San Francisco, CA',
+          applicationForm: {
+            sections: [
+              {
+                title: 'Personal Information',
+                fields: [
+                  { fieldEntryId: '_systemfield_name', title: 'Full Name', isRequired: true, type: 'String' },
+                  { fieldEntryId: '_systemfield_email', title: 'Email', isRequired: true, type: 'String' },
+                  { fieldEntryId: '_systemfield_phone', title: 'Phone', isRequired: true, type: 'String' },
+                  { fieldEntryId: '_systemfield_location', title: 'Location', isRequired: true, type: 'Location' },
+                  { fieldEntryId: '_systemfield_resume', title: 'Resume', isRequired: true, type: 'File' },
+                  { fieldEntryId: 'sponsorship', title: 'Require Visa Sponsorship?', isRequired: true, type: 'Boolean' }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  };
+
   return `<!DOCTYPE html>
 <html>
-<head><title>Application - ${company}</title></head>
+<head>
+  <title>Application - ${company}</title>
+  <script id="__NEXT_DATA__" type="application/json">
+${JSON.stringify(nextData, null, 2)}
+  </script>
+</head>
 <body>
   <div id="ashby_app">
     <h1>Apply to ${company}</h1>
@@ -249,6 +385,55 @@ function buildLeverHtml(company, jobId) {
 </html>`;
 }
 
+function buildSmartRecruitersHtml(company, jobId) {
+  return `<!DOCTYPE html>
+<html>
+<head><title>Careers at ${company} - SmartRecruiters</title></head>
+<body>
+  <h1>Apply for Job #${jobId} at ${company}</h1>
+  <form id="st-apply" action="/smartrecruiters/${company}/${jobId}/submit" method="POST" enctype="multipart/form-data">
+    <div class="field">
+      <label for="first-name-input">First Name *</label>
+      <input type="text" id="first-name-input" name="first_name" required />
+    </div>
+    <div class="field">
+      <label for="last-name-input">Last Name *</label>
+      <input type="text" id="last-name-input" name="last_name" required />
+    </div>
+    <div class="field">
+      <label for="email-input">Email *</label>
+      <input type="email" id="email-input" name="email" required />
+    </div>
+    <div class="field">
+      <label for="phone-number-input">Phone Number *</label>
+      <input type="tel" id="phone-number-input" name="phone" required />
+    </div>
+    <div class="field">
+      <label for="resume-input">Resume *</label>
+      <input type="file" id="resume-input" name="resume" required />
+    </div>
+    <button type="submit" id="st-submitBtn">Submit Application</button>
+  </form>
+  <div id="st-confirmation" style="display:none">
+    <h1>Application submitted successfully!</h1>
+    <p>Receipt: <span id="st-receipt-id">SR-RECEIPT-${Date.now()}</span></p>
+  </div>
+  <script>
+    window.__oneRoleApply = function(candidate, fieldMap) {
+      if (candidate) {
+        if (candidate.first_name) document.getElementById('first-name-input').value = candidate.first_name;
+        if (candidate.last_name) document.getElementById('last-name-input').value = candidate.last_name;
+        if (candidate.email) document.getElementById('email-input').value = candidate.email;
+        if (candidate.phone) document.getElementById('phone-number-input').value = candidate.phone;
+      }
+      document.getElementById('st-confirmation').style.display = 'block';
+      return { success: true, receipt: 'SR-DOM-' + Date.now() };
+    };
+  </script>
+</body>
+</html>`;
+}
+
 function buildWorkdayStepHtml(company, step, hasError = false) {
   if (step === 1) {
     return `<!DOCTYPE html>
@@ -340,22 +525,138 @@ function buildWorkdayStepHtml(company, step, hasError = false) {
 async function start(port = DEFAULT_PORT) {
   if (serverInstance) return;
 
-  serverInstance = http.createServer((req, res) => {
-    const parsed = parse(req.url, true);
+  serverInstance = http.createServer(async (req, res) => {
+    const reqStartTime = Date.now();
+    const parsed = safeParseUrl(req.url, req.headers.host);
+    if (!parsed) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Bad Request: Invalid URL');
+      return;
+    }
     const pathname = parsed.pathname;
+    const query = Object.fromEntries(parsed.searchParams.entries());
+
+    // 1. Connection Drop Chaos Simulation
+    if (scenarioState.dropConnection) {
+      req.socket.destroy();
+      return;
+    }
+
+    // 2. Artificial Latency Simulation
+    if (artificialLatencyMs > 0) {
+      await sleep(artificialLatencyMs);
+    }
+
+    // 3. Status Override Chaos Simulation (400, 404, 429, 500, 503, 504, etc.)
+    const overrideStatus = scenarioState.status || scenarioState.statusCode;
+    if (overrideStatus) {
+      const statusCode = Number(overrideStatus);
+      const headers = { 'Content-Type': 'application/json' };
+      if (statusCode === 429) {
+        headers['Retry-After'] = String(scenarioState.retryAfter || '5');
+      }
+      res.writeHead(statusCode, headers);
+      res.end(JSON.stringify({
+        error: `Simulated HTTP ${statusCode} Fault`,
+        status: statusCode,
+        retryAfter: headers['Retry-After'] || null
+      }));
+      return;
+    }
+
+    // 4. Anti-Bot Telemetry Probes
+    if (scenarioState.bot_challenge) {
+      const acceptsHtml = (req.headers.accept && req.headers.accept.includes('text/html')) ||
+                          (!pathname.includes('/api/') && !pathname.includes('/v1/') && !pathname.includes('/v0/'));
+      if (acceptsHtml) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(buildBotChallengeHtml());
+        return;
+      }
+    }
 
     let bodyChunks = [];
     req.on('data', chunk => bodyChunks.push(chunk));
     req.on('end', () => {
       const rawBody = Buffer.concat(bodyChunks).toString();
+      const parsedEmail = parseEmailFromBody(rawBody, req.headers);
 
-      // Greenhouse Routes
+      // =======================================================================
+      // GREENHOUSE ROUTES
+      // =======================================================================
+      // Greenhouse Direct API v1 Job Details: GET /v1/boards/:board/jobs/:jobId
+      const ghApiMatch = pathname.match(/^\/v1\/boards\/([^/]+)\/jobs\/([^/]+)$/);
+      if (ghApiMatch) {
+        const board = ghApiMatch[1];
+        const jobId = ghApiMatch[2];
+
+        if (req.method === 'POST') {
+          const receipt = `GH-REC-${Date.now()}`;
+          const duration = Date.now() - reqStartTime;
+          recordedSubmissions.greenhouse.push({
+            company: board,
+            jobId: jobId,
+            email: parsedEmail,
+            receipt: receipt,
+            duration: duration,
+            headers: req.headers,
+            time: Date.now(),
+            rawBody: rawBody
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            id: Date.now(),
+            application_id: Date.now(),
+            status: 'submitted',
+            receipt: receipt
+          }));
+          return;
+        }
+
+        // GET method: Return job details AST with questions if requested
+        const jobDetails = {
+          id: parseInt(jobId, 10) || jobId,
+          title: 'Software Engineer',
+          updated_at: '2026-01-01T00:00:00Z',
+          requisition_id: `REQ-${jobId}`,
+          notes: 'Mock Greenhouse AST Job',
+          location: { name: 'San Francisco, CA' },
+          departments: [{ id: 1, name: 'Engineering' }],
+          offices: [{ id: 1, name: 'Headquarters', location: 'San Francisco, CA' }],
+          content: '<p>OneRole Software Engineer role</p>',
+          questions: [
+            { id: 101, label: 'First Name', required: true, fields: [{ name: 'first_name', type: 'input_text' }] },
+            { id: 102, label: 'Last Name', required: true, fields: [{ name: 'last_name', type: 'input_text' }] },
+            { id: 103, label: 'Email', required: true, fields: [{ name: 'email', type: 'input_text' }] },
+            { id: 104, label: 'Phone', required: true, fields: [{ name: 'phone', type: 'input_text' }] },
+            { id: 105, label: 'Resume', required: true, fields: [{ name: 'resume', type: 'input_file' }] },
+            { id: 106, label: 'Degree Level', required: false, fields: [{ name: 'question_degree', type: 'multi_value_single_select' }] },
+            { id: 107, label: 'Authorized to work in the US?', required: true, fields: [{ name: 'question_auth', type: 'multi_value_single_select' }] }
+          ]
+        };
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(jobDetails));
+        return;
+      }
+
+      // Greenhouse HTML Form Routes
       if (pathname.startsWith('/greenhouse/') && pathname.includes('/jobs/')) {
         const parts = pathname.split('/');
         const company = parts[2];
         const jobId = parts[4];
         if (pathname.endsWith('/submit')) {
-          recordedSubmissions.greenhouse.push({ company, jobId, body: rawBody, time: Date.now() });
+          const receipt = `GH-HTML-${Date.now()}`;
+          const duration = Date.now() - reqStartTime;
+          recordedSubmissions.greenhouse.push({
+            company,
+            jobId,
+            email: parsedEmail,
+            receipt: receipt,
+            duration: duration,
+            headers: req.headers,
+            time: Date.now(),
+            rawBody
+          });
           res.writeHead(302, { Location: `/greenhouse/${company}/confirmation` });
           res.end();
           return;
@@ -370,20 +671,70 @@ async function start(port = DEFAULT_PORT) {
         return;
       }
 
-      // Ashby Routes
-      if (pathname.startsWith('/ashby/') && pathname.endsWith('/application')) {
-        const parts = pathname.split('/');
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(buildAshbyHtml(parts[2], parts[3]));
-        return;
+      // =======================================================================
+      // ASHBY ROUTES
+      // =======================================================================
+      // Ashby 2-Step GraphQL Mutations
+      if (pathname.includes('/api/non-user-graphql')) {
+        const op = query.op || query.operationName || parsed.searchParams.get('op') || parsed.searchParams.get('operationName');
+        if (op === 'ApiCreateFileUploadHandle' || rawBody.includes('ApiCreateFileUploadHandle')) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            data: {
+              fileUploadHandle: {
+                handle: `ashby_handle_${Date.now()}`
+              }
+            }
+          }));
+          return;
+        }
+
+        if (op === 'ApiSubmitSingleApplicationFormAction' || rawBody.includes('ApiSubmitSingleApplicationFormAction')) {
+          const receipt = `ASHBY-REC-${Date.now()}`;
+          const duration = Date.now() - reqStartTime;
+          recordedSubmissions.ashby.push({
+            company: 'ashby',
+            jobId: 'unknown',
+            email: parsedEmail,
+            receipt: receipt,
+            duration: duration,
+            headers: req.headers,
+            time: Date.now(),
+            rawBody: rawBody
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            data: {
+              submitApplicationFormAction: {
+                applicationFormResult: {
+                  __typename: 'FormSubmitSuccess'
+                },
+                applicationId: `ASH-APP-${Date.now()}`,
+                receipt: receipt,
+                messages: []
+              }
+            }
+          }));
+          return;
+        }
       }
+
+      // Ashby Legacy Portal GraphQL
       if (pathname === '/ashby/api/candidate-portal/graphql') {
-        recordedSubmissions.ashby.push({ body: rawBody, time: Date.now() });
+        const receipt = 'ASHBY-MOCK-' + Date.now();
+        const duration = Date.now() - reqStartTime;
+        recordedSubmissions.ashby.push({
+          body: rawBody,
+          email: parsedEmail,
+          receipt: receipt,
+          duration: duration,
+          headers: req.headers,
+          time: Date.now()
+        });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         if (scenarioState.ashbyGraphqlMode === 'success') {
-          res.end(JSON.stringify({ data: { submitApplication: { success: true, receipt: 'ASHBY-MOCK-' + Date.now() } } }));
+          res.end(JSON.stringify({ data: { submitApplication: { success: true, receipt: receipt } } }));
         } else if (scenarioState.ashbyGraphqlMode === 'inverted_trap') {
-          // Trap: Has errors array, but lacks the literal string "errorMessages"
           res.end(JSON.stringify({ data: null, errors: [{ message: 'Missing entry for required field: Location' }] }));
         } else {
           res.end(JSON.stringify({ errors: [{ message: 'Submission failed' }] }));
@@ -391,7 +742,124 @@ async function start(port = DEFAULT_PORT) {
         return;
       }
 
-      // Lever Routes
+      // Ashby HTML Page with Next.js AST
+      if (pathname.startsWith('/ashby/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const company = parts[1] || 'techcorp';
+        const jobId = parts[2] || 'swe-backend';
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(buildAshbyHtml(company, jobId));
+        return;
+      }
+
+      // =======================================================================
+      // LEVER ROUTES
+      // =======================================================================
+      // Lever Direct API v0 Posting Details: GET /v0/postings/:company/:jobId
+      const leverApiMatch = pathname.match(/^\/v0\/postings\/([^/]+)\/([^/]+)$/);
+      if (leverApiMatch) {
+        const company = leverApiMatch[1];
+        const jobId = leverApiMatch[2];
+
+        if (req.method === 'POST') {
+          const receipt = `LEVER-REC-${Date.now()}`;
+          const duration = Date.now() - reqStartTime;
+          const isConflict = detectPronounConflict(rawBody);
+          recordedSubmissions.lever.push({
+            company: company,
+            jobId: jobId,
+            email: parsedEmail,
+            receipt: receipt,
+            hasPronounConflict: isConflict,
+            duration: duration,
+            headers: req.headers,
+            time: Date.now(),
+            rawBody: rawBody
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            data: {
+              id: receipt,
+              applicationId: receipt,
+              receipt: receipt
+            }
+          }));
+          return;
+        }
+
+        // GET: Return Lever posting details with lists and customQuestions
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          id: jobId,
+          text: 'Senior Software Engineer',
+          createdAt: Date.now(),
+          categories: {
+            team: 'Engineering',
+            department: 'Infrastructure',
+            location: 'San Francisco, CA',
+            commitment: 'Full-time'
+          },
+          content: {
+            description: '<div>OneRole high-scale backend role</div>',
+            lists: [
+              { text: 'Team', content: 'Core Infrastructure' },
+              { text: 'Requirements', content: 'Go, Node.js, Distributed Systems' }
+            ]
+          },
+          lists: [
+            { text: 'Team', content: 'Core Infrastructure' },
+            { text: 'Requirements', content: 'Go, Node.js, Distributed Systems' }
+          ],
+          customQuestions: [
+            {
+              id: 'cq_pronouns',
+              text: 'Pronouns',
+              type: 'checkbox',
+              options: ['He/Him', 'She/Her', 'They/Them'],
+              required: false
+            },
+            {
+              id: 'cq_sponsorship',
+              text: 'Do you now or in the future require visa sponsorship?',
+              type: 'dropdown',
+              options: ['Yes', 'No'],
+              required: true
+            }
+          ]
+        }));
+        return;
+      }
+
+      // Lever Multipart Submit: POST /jobs.lever.co/:company/:jobId/apply
+      const leverWebApplyMatch = pathname.match(/^\/jobs\.lever\.co\/([^/]+)\/([^/]+)\/apply$/);
+      if (leverWebApplyMatch && req.method === 'POST') {
+        const company = leverWebApplyMatch[1];
+        const jobId = leverWebApplyMatch[2];
+        const receipt = `LEVER-REC-${Date.now()}`;
+        const duration = Date.now() - reqStartTime;
+        const isConflict = detectPronounConflict(rawBody);
+        recordedSubmissions.lever.push({
+          company: company,
+          jobId: jobId,
+          email: parsedEmail,
+          receipt: receipt,
+          hasPronounConflict: isConflict,
+          duration: duration,
+          headers: req.headers,
+          time: Date.now(),
+          rawBody: rawBody
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          data: {
+            id: receipt,
+            receipt: receipt
+          }
+        }));
+        return;
+      }
+
+      // Lever HTML Form Routes
       if (pathname.startsWith('/lever/') && pathname.endsWith('/apply')) {
         const parts = pathname.split('/');
         res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -400,15 +868,18 @@ async function start(port = DEFAULT_PORT) {
       }
       if (pathname.startsWith('/lever/') && pathname.endsWith('/submit')) {
         const parts = pathname.split('/');
-        const isConflict = (rawBody.includes('pronouns%5Bhe%5D') && rawBody.includes('pronouns%5Bshe%5D')) ||
-                           (rawBody.includes('pronouns[he]') && rawBody.includes('pronouns[she]')) ||
-                           (rawBody.includes('pronouns%5Bhe%5D') && rawBody.includes('pronouns%5Bthey%5D')) ||
-                           (rawBody.includes('pronouns%5Bshe%5D') && rawBody.includes('pronouns%5Bthey%5D'));
+        const isConflict = detectPronounConflict(rawBody);
+        const receipt = `LEVER-REC-${Date.now()}`;
+        const duration = Date.now() - reqStartTime;
         recordedSubmissions.lever.push({
           company: parts[2],
           jobId: parts[3],
+          email: parsedEmail,
+          receipt: receipt,
           rawBody,
           hasPronounConflict: isConflict,
+          duration: duration,
+          headers: req.headers,
           time: Date.now()
         });
         res.writeHead(302, { Location: `/lever/${parts[2]}/confirmation` });
@@ -421,7 +892,147 @@ async function start(port = DEFAULT_PORT) {
         return;
       }
 
-      // Workday Routes
+      // =======================================================================
+      // SMARTRECRUITERS ROUTES
+      // =======================================================================
+      // SmartRecruiters Posting Details AST: GET /v1/companies/:company/postings/:postingId
+      const srPostingMatch = pathname.match(/^\/v1\/companies\/([^/]+)\/postings\/([^/]+)$/);
+      if (srPostingMatch) {
+        const company = srPostingMatch[1];
+        const postingId = srPostingMatch[2];
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          id: postingId,
+          name: 'Staff Software Engineer',
+          company: { identifier: company, name: company },
+          releasedDate: '2026-01-01T00:00:00Z',
+          location: { city: 'San Francisco', region: 'CA', country: 'us' },
+          questions: [
+            { id: 'firstName', label: 'First Name', type: 'text', required: true },
+            { id: 'lastName', label: 'Last Name', type: 'text', required: true },
+            { id: 'email', label: 'Email', type: 'email', required: true },
+            { id: 'phoneNumber', label: 'Phone Number', type: 'text', required: true },
+            { id: 'resume', label: 'Resume', type: 'attachment', required: true },
+            { id: 'linkedin', label: 'LinkedIn Profile', type: 'url', required: false },
+            { id: 'github', label: 'GitHub Profile', type: 'url', required: false }
+          ]
+        }));
+        return;
+      }
+
+      // SmartRecruiters Candidate Submission: POST /v1/companies/:company/postings/:postingId/candidates
+      const srCandidateMatch = pathname.match(/^\/v1\/companies\/([^/]+)\/postings\/([^/]+)\/candidates$/);
+      if (srCandidateMatch && req.method === 'POST') {
+        const company = srCandidateMatch[1];
+        const postingId = srCandidateMatch[2];
+        const receipt = `SR-CAND-${Date.now()}`;
+        const duration = Date.now() - reqStartTime;
+        recordedSubmissions.smartrecruiters.push({
+          company: company,
+          jobId: postingId,
+          postingId: postingId,
+          email: parsedEmail,
+          receipt: receipt,
+          duration: duration,
+          headers: req.headers,
+          time: Date.now(),
+          rawBody: rawBody
+        });
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          id: receipt,
+          candidateId: receipt,
+          status: 'CREATED',
+          receipt: receipt
+        }));
+        return;
+      }
+
+      // SmartRecruiters HTML Form & window.__oneRoleApply
+      if (pathname.startsWith('/smartrecruiters/')) {
+        const parts = pathname.split('/').filter(Boolean);
+        const company = parts[1] || 'acme';
+        const jobId = parts[2] || 'sr-001';
+
+        if (pathname.endsWith('/submit')) {
+          const receipt = `SR-HTML-${Date.now()}`;
+          const duration = Date.now() - reqStartTime;
+          recordedSubmissions.smartrecruiters.push({
+            company: company,
+            jobId: jobId,
+            postingId: jobId,
+            email: parsedEmail,
+            receipt: receipt,
+            duration: duration,
+            headers: req.headers,
+            time: Date.now(),
+            rawBody: rawBody
+          });
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(`<div id="st-confirmation"><h1>Application submitted successfully!</h1><span id="st-receipt-id">${receipt}</span></div>`);
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(buildSmartRecruitersHtml(company, jobId));
+        return;
+      }
+
+      // =======================================================================
+      // WORKDAY CXS & MULTI-STEP WIZARD ROUTES
+      // =======================================================================
+      // Workday CXS Job Details: GET /wday/cxs/:tenant/:site/jobs/:jobId
+      const cxsJobMatch = pathname.match(/^\/wday\/cxs\/([^/]+)\/([^/]+)\/jobs\/([^/]+)$/);
+      if (cxsJobMatch && req.method === 'GET') {
+        const tenant = cxsJobMatch[1];
+        const site = cxsJobMatch[2];
+        const jobId = cxsJobMatch[3];
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          jobPostingInfo: {
+            id: jobId,
+            title: 'Senior Systems Engineer',
+            canQuickApply: true,
+            hasQuickApply: true,
+            jobReqId: jobId,
+            externalPosting: true,
+            timeType: 'Full time',
+            location: 'San Francisco, CA'
+          }
+        }));
+        return;
+      }
+
+      // Workday CXS Apply: POST /wday/cxs/:tenant/:site/jobs/:jobId/apply
+      const cxsApplyMatch = pathname.match(/^\/wday\/cxs\/([^/]+)\/([^/]+)\/jobs\/([^/]+)\/apply$/);
+      if (cxsApplyMatch && req.method === 'POST') {
+        const tenant = cxsApplyMatch[1];
+        const site = cxsApplyMatch[2];
+        const jobId = cxsApplyMatch[3];
+        const receipt = `WD-CXS-${tenant.toUpperCase()}-${Date.now().toString().slice(-8)}`;
+        const duration = Date.now() - reqStartTime;
+        recordedSubmissions.workday.push({
+          company: tenant,
+          tenant: tenant,
+          site: site,
+          jobId: jobId,
+          email: parsedEmail,
+          receipt: receipt,
+          duration: duration,
+          headers: req.headers,
+          time: Date.now(),
+          rawBody: rawBody
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          receipt: receipt,
+          receiptId: receipt,
+          status: 'SUCCESS'
+        }));
+        return;
+      }
+
+      // Workday Multi-Step Wizard Routes
       if (pathname.startsWith('/workday/')) {
         const parts = pathname.split('/');
         const company = parts[2];
@@ -435,7 +1046,18 @@ async function start(port = DEFAULT_PORT) {
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(buildWorkdayStepHtml(company, 4));
         } else if (pathname.includes('/complete')) {
-          recordedSubmissions.workday.push({ company, time: Date.now() });
+          const receipt = `WD-WIZARD-${Date.now()}`;
+          const duration = Date.now() - reqStartTime;
+          recordedSubmissions.workday.push({
+            company,
+            jobId: 'wizard-job',
+            email: parsedEmail,
+            receipt: receipt,
+            duration: duration,
+            headers: req.headers,
+            time: Date.now(),
+            rawBody: rawBody
+          });
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(buildWorkdayStepHtml(company, 5));
         } else {
@@ -451,43 +1073,118 @@ async function start(port = DEFAULT_PORT) {
     });
   });
 
-  return new Promise((resolve) => {
-    serverInstance.listen(port, () => resolve());
+  return new Promise((resolve, reject) => {
+    const onError = (err) => {
+      try {
+        if (typeof serverInstance.closeAllConnections === 'function') {
+          serverInstance.closeAllConnections();
+        }
+        serverInstance.close();
+      } catch (_) {}
+      serverInstance = null;
+      reject(err);
+    };
+
+    serverInstance.once('error', onError);
+    serverInstance.listen(port, () => {
+      serverInstance.removeListener('error', onError);
+      // Attach non-crashing logger for any subsequent runtime errors
+      serverInstance.on('error', (err) => {
+        console.error('[MockATS] Server runtime error:', err.message);
+      });
+      resolve();
+    });
   });
 }
 
 function stop() {
   if (!serverInstance) return Promise.resolve();
   return new Promise(resolve => {
-    serverInstance.close(() => {
-      serverInstance = null;
+    const inst = serverInstance;
+    serverInstance = null;
+    try {
+      if (typeof inst.closeAllConnections === 'function') {
+        inst.closeAllConnections();
+      }
+    } catch (_) {}
+    inst.close(() => {
       resolve();
     });
   });
 }
 
-function setScenario(key, val) {
-  scenarioState[key] = val;
+function setScenario(keyOrOpts, val) {
+  if (typeof keyOrOpts === 'string') {
+    if (val !== undefined) {
+      scenarioState[keyOrOpts] = val;
+      if (keyOrOpts === 'bot_challenge') scenarioState.bot_challenge = !!val;
+    } else {
+      if (keyOrOpts === 'bot_challenge') {
+        scenarioState.bot_challenge = true;
+      } else if (keyOrOpts === 'success') {
+        resetScenario();
+      } else {
+        scenarioState[keyOrOpts] = true;
+      }
+    }
+  } else if (typeof keyOrOpts === 'object' && keyOrOpts !== null) {
+    Object.assign(scenarioState, keyOrOpts);
+    if (keyOrOpts.bot_challenge !== undefined) {
+      scenarioState.bot_challenge = !!keyOrOpts.bot_challenge;
+    }
+    if (keyOrOpts.status !== undefined) {
+      scenarioState.status = keyOrOpts.status;
+    }
+    if (keyOrOpts.statusCode !== undefined) {
+      scenarioState.status = keyOrOpts.statusCode;
+    }
+  }
+}
+
+function setLatency(ms) {
+  artificialLatencyMs = typeof ms === 'number' ? ms : 0;
+}
+
+function resetScenario() {
+  scenarioState.ashbyGraphqlMode = 'success';
+  scenarioState.workdayStep = 1;
+  scenarioState.leverPronounStatus = 'clean';
+  scenarioState.status = null;
+  scenarioState.statusCode = null;
+  scenarioState.dropConnection = false;
+  scenarioState.bot_challenge = false;
+  scenarioState.retryAfter = null;
+  artificialLatencyMs = 0;
 }
 
 function getSubmissions(ats) {
   return recordedSubmissions[ats] || [];
 }
 
+function getAllSubmissions() {
+  return recordedSubmissions;
+}
+
 function clearSubmissions() {
   for (const k of Object.keys(recordedSubmissions)) {
     recordedSubmissions[k] = [];
   }
+  resetScenario();
 }
 
 module.exports = {
   start,
   stop,
   setScenario,
+  setLatency,
+  resetScenario,
   getSubmissions,
+  getAllSubmissions,
   clearSubmissions,
   buildGreenhouseHtml,
   buildAshbyHtml,
   buildLeverHtml,
-  buildWorkdayStepHtml
+  buildSmartRecruitersHtml,
+  buildWorkdayStepHtml,
+  buildBotChallengeHtml
 };

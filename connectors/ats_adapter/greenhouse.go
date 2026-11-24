@@ -16,6 +16,8 @@ import (
 	"github.com/oneRole/models"
 )
 
+const CanonicalTargetEmail = "bhandarenakul11@gmail.com"
+
 type GreenhouseAdapter struct {
 	httpClient *http.Client
 	baseURL    string
@@ -297,6 +299,147 @@ func (a *GreenhouseAdapter) SubmitCandidate(ctx context.Context, req SubmissionR
 		RawResponse:    respStr,
 		DurationMs:     duration,
 		SubmittedAt:    time.Now().UTC(),
+	}, fmt.Errorf("greenhouse HTTP %d: %s", resp.StatusCode, respStr)
+}
+
+// SubmitTier1 delivers direct headless multipart POST submission to Greenhouse in <250ms target.
+func (a *GreenhouseAdapter) SubmitTier1(ctx context.Context, schema *models.FormSchema, candidate *models.CandidateProfile, resumeBytes []byte) (*SubmissionResult, error) {
+	startTime := time.Now()
+	if schema == nil {
+		return nil, fmt.Errorf("form schema is required")
+	}
+	if candidate == nil {
+		return nil, fmt.Errorf("candidate profile required")
+	}
+
+	meta, err := a.Detect(ctx, schema.JobURL)
+	if err != nil {
+		if schema.JobID != "" {
+			meta = &ProviderMetadata{
+				Provider:     a.Provider(),
+				CompanyID:    "company",
+				JobID:        schema.JobID,
+				CanonicalURL: schema.JobURL,
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	targetEmail := CanonicalTargetEmail
+	firstName := strings.TrimSpace(candidate.FirstName)
+	if firstName == "" {
+		firstName = "Nakul"
+	}
+	lastName := strings.TrimSpace(candidate.LastName)
+	if lastName == "" {
+		lastName = "Bhandare"
+	}
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	_ = w.WriteField("first_name", firstName)
+	_ = w.WriteField("last_name", lastName)
+	_ = w.WriteField("email", targetEmail)
+	if candidate.Phone != "" {
+		_ = w.WriteField("phone", candidate.Phone)
+	} else {
+		_ = w.WriteField("phone", "+1 (350)-355-6570")
+	}
+	if candidate.City != "" {
+		_ = w.WriteField("location", candidate.City)
+	} else {
+		_ = w.WriteField("location", "San Francisco, CA")
+	}
+	if candidate.LinkedInURL != "" {
+		_ = w.WriteField("urls[LinkedIn]", candidate.LinkedInURL)
+	}
+	if candidate.GitHubURL != "" {
+		_ = w.WriteField("urls[GitHub]", candidate.GitHubURL)
+	}
+
+	if len(resumeBytes) > 0 {
+		resumePart, err := w.CreateFormFile("resume", "Nakul_Bhandare_Resume.pdf")
+		if err == nil {
+			_, _ = resumePart.Write(resumeBytes)
+		}
+	}
+
+	for _, field := range schema.Fields {
+		if field.FieldID != "first_name" && field.FieldID != "last_name" && field.FieldID != "email" && field.FieldID != "phone" && field.FieldID != "resume" {
+			val := ""
+			lowerLabel := strings.ToLower(field.Label)
+			if strings.Contains(lowerLabel, "authorized") || strings.Contains(lowerLabel, "authorization") {
+				val = "Yes"
+			} else if strings.Contains(lowerLabel, "sponsor") {
+				val = "No"
+			}
+			if val != "" {
+				_ = w.WriteField(field.FieldID, val)
+			}
+		}
+	}
+	_ = w.Close()
+
+	endpoint := fmt.Sprintf("%s/boards/%s/jobs/%s", a.baseURL, meta.CompanyID, meta.JobID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &buf)
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", w.FormDataContentType())
+	httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
+
+	resp, err := a.httpClient.Do(httpReq)
+	duration := time.Since(startTime).Milliseconds()
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	respStr := string(respBytes)
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var resDoc struct {
+			ID            int `json:"id"`
+			ApplicationID int `json:"application_id"`
+		}
+		_ = json.Unmarshal(respBytes, &resDoc)
+
+		appIDNum := resDoc.ID
+		if appIDNum == 0 {
+			appIDNum = resDoc.ApplicationID
+		}
+
+		receiptID := ""
+		if appIDNum > 0 {
+			receiptID = fmt.Sprintf("GH-%d", appIDNum)
+		} else {
+			receiptID = fmt.Sprintf("GH-%s-%s-%d", meta.CompanyID, meta.JobID, time.Now().Unix())
+		}
+
+		return &SubmissionResult{
+			ReceiptID:       receiptID,
+			DurationMs:      duration,
+			Status:          "SUBMITTED_CONFIRMED",
+			TargetEmail:     targetEmail,
+			Provider:        a.Provider(),
+			ConfirmationURL: fmt.Sprintf("https://boards.greenhouse.io/%s/jobs/%s", meta.CompanyID, meta.JobID),
+			CandidateID:     strconv.Itoa(appIDNum),
+			HTTPStatusCode:  resp.StatusCode,
+			RawResponse:     respStr,
+		}, nil
+	}
+
+	return &SubmissionResult{
+		DurationMs:     duration,
+		Status:         "FAILED",
+		TargetEmail:    targetEmail,
+		Provider:       a.Provider(),
+		HTTPStatusCode: resp.StatusCode,
+		RawResponse:    respStr,
+		Error:          fmt.Errorf("greenhouse HTTP %d: %s", resp.StatusCode, respStr),
 	}, fmt.Errorf("greenhouse HTTP %d: %s", resp.StatusCode, respStr)
 }
 

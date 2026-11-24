@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * OneRole Unified E2E Test Suite Runner
- * CLI: node tests/e2e/runner.js [--tier=1|2|3|4] [--filter=<regex>] [--bail] [--json]
+ * CLI: node tests/e2e/runner.js [--tier=1|2|3|4] [--all] [--filter=<regex>] [--timeout=<ms>] [--bail] [--verbose] [--json]
  * Exit Code: 0 on 100% pass and thresholds met; non-zero on failure.
  */
 
@@ -10,10 +10,10 @@ const setup = require('./helpers/setup');
 const mockAts = require('./helpers/mock_ats');
 
 const SUITES = [
-  { tier: 1, name: 'Tier 1: Feature Coverage', file: './tier1_feature_test.js', minThreshold: 40 },
-  { tier: 2, name: 'Tier 2: Boundary & Corner Cases', file: './tier2_boundary_test.js', minThreshold: 40 },
-  { tier: 3, name: 'Tier 3: Pairwise Combinations', file: './tier3_combination_test.js', minThreshold: 10 },
-  { tier: 4, name: 'Tier 4: Real-World Scenarios', file: './tier4_realworld_test.js', minThreshold: 5 }
+  { tier: 1, name: 'Tier 1: Feature Coverage', file: './tier1_feature_test.js', minThreshold: 50 },
+  { tier: 2, name: 'Tier 2: Boundary & Corner Cases', file: './tier2_boundary_test.js', minThreshold: 50 },
+  { tier: 3, name: 'Tier 3: Pairwise Combinations', file: './tier3_combination_test.js', minThreshold: 15 },
+  { tier: 4, name: 'Tier 4: Real-World Scenarios', file: './tier4_realworld_test.js', minThreshold: 8 }
 ];
 
 // CLI Argument Parsing
@@ -28,14 +28,28 @@ function parseArgs() {
     timeout: 30000
   };
 
-  for (const arg of args) {
-    if (arg.startsWith('--tier=') || arg.startsWith('-t=')) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--all' || arg === '-a') {
+      options.tier = null;
+    } else if (arg.startsWith('--tier=') || arg.startsWith('-t=')) {
       options.tier = parseInt(arg.split('=')[1], 10);
     } else if (arg === '-t' || arg === '--tier') {
-      const idx = args.indexOf(arg);
-      if (idx !== -1 && args[idx + 1]) options.tier = parseInt(args[idx + 1], 10);
+      if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+        options.tier = parseInt(args[++i], 10);
+      }
     } else if (arg.startsWith('--filter=')) {
       options.filter = new RegExp(arg.split('=')[1], 'i');
+    } else if (arg === '--filter' || arg === '-f') {
+      if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+        options.filter = new RegExp(args[++i], 'i');
+      }
+    } else if (arg.startsWith('--timeout=')) {
+      options.timeout = parseInt(arg.split('=')[1], 10);
+    } else if (arg === '--timeout') {
+      if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+        options.timeout = parseInt(args[++i], 10);
+      }
     } else if (arg === '--bail' || arg === '-b') {
       options.bail = true;
     } else if (arg === '--json') {
@@ -59,6 +73,16 @@ class TestContext {
     this.skipped = 0;
     this.failures = [];
     this.startTime = Date.now();
+    this.beforeEachHooks = [];
+    this.afterEachHooks = [];
+  }
+
+  beforeEach(fn) {
+    if (typeof fn === 'function') this.beforeEachHooks.push(fn);
+  }
+
+  afterEach(fn) {
+    if (typeof fn === 'function') this.afterEachHooks.push(fn);
   }
 
   async test(name, fn) {
@@ -72,8 +96,21 @@ class TestContext {
     }
 
     const start = Date.now();
+    const timeoutMs = this.options.timeout || 30000;
+    let timer;
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Test timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+
     try {
-      await fn();
+      for (const hook of this.beforeEachHooks) {
+        await hook();
+      }
+
+      await Promise.race([
+        Promise.resolve().then(() => fn()),
+        timeoutPromise
+      ]);
       const duration = Date.now() - start;
       this.passed++;
       this.tests.push({ name, status: 'pass', duration });
@@ -88,8 +125,38 @@ class TestContext {
       this.failures.push(failure);
       if (!this.options.json) {
         console.error(`    ❌ [FAIL] ${name} (${duration}ms): ${err.message}`);
+        if (this.options.verbose && err.stack) {
+          console.error(`       Stack Trace:\n${err.stack.split('\n').map(l => '         ' + l).join('\n')}`);
+        }
       }
+    } finally {
+      clearTimeout(timer);
+      for (const hook of this.afterEachHooks) {
+        try {
+          await hook();
+        } catch (hErr) {
+          if (!this.options.json) console.error(`    ⚠️  [afterEach error]: ${hErr.message}`);
+        }
+      }
+      try {
+        if (typeof mockAts.clearSubmissions === 'function') {
+          mockAts.clearSubmissions();
+        } else if (typeof mockAts.resetScenario === 'function') {
+          mockAts.resetScenario();
+        }
+      } catch (_) {}
     }
+  }
+
+  async benchmark(name, maxDurationMs, fn) {
+    return this.test(`[Benchmark] ${name}`, async () => {
+      const bStart = Date.now();
+      await fn();
+      const bDuration = Date.now() - bStart;
+      if (bDuration > maxDurationMs) {
+        throw new Error(`Latency benchmark '${name}' exceeded threshold: ${bDuration}ms > ${maxDurationMs}ms`);
+      }
+    });
   }
 }
 
@@ -102,7 +169,7 @@ async function runMasterSuite() {
     console.log('🚀 ONEROLE E2E VERIFICATION TEST RUNNER');
     console.log('================================================================================');
     console.log(`Execution Mode: ${options.tier ? 'Tier ' + options.tier : 'All Tiers (1-4)'}`);
-    console.log(`Filter: ${options.filter ? options.filter : 'None'} | Bail: ${options.bail}`);
+    console.log(`Filter: ${options.filter ? options.filter : 'None'} | Bail: ${options.bail} | Timeout: ${options.timeout}ms | Verbose: ${options.verbose}`);
     console.log('--------------------------------------------------------------------------------\n');
   }
 
@@ -110,12 +177,12 @@ async function runMasterSuite() {
   const health = await setup.healthCheck();
   if (!options.json) {
     console.log('--- Pre-Flight Environment Status ---');
-    console.log(`  MongoDB (27017):     ${health.mongodb ? 'ONLINE' : 'OFFLINE'}`);
+    console.log(`  MongoDB (27017):       ${health.mongodb ? 'ONLINE' : 'OFFLINE'}`);
     console.log(`  NATS JetStream (4222): ${health.nats ? 'ONLINE' : 'OFFLINE'}`);
-    console.log(`  Backend API (8088):   ${health.backend ? 'ONLINE' : 'OFFLINE'}`);
+    console.log(`  Backend API (8088):    ${health.backend ? 'ONLINE' : 'OFFLINE'}`);
     console.log(`  UI Microservice (8082): ${health.ui ? 'ONLINE' : 'OFFLINE'}`);
-    console.log(`  Worker Daemon (3001): ${health.worker ? 'ONLINE' : 'OFFLINE'}`);
-    console.log(`  Chrome Binary:       ${health.chrome ? 'FOUND' : 'MISSING'}\n`);
+    console.log(`  Worker Daemon (3001):  ${health.worker ? 'ONLINE' : 'OFFLINE'}`);
+    console.log(`  Chrome Binary:         ${health.chrome ? 'FOUND' : 'MISSING'}\n`);
   }
 
   // Start Mock ATS Server on Port 9876
@@ -149,20 +216,25 @@ async function runMasterSuite() {
           failed: 1,
           total: 1,
           thresholdMet: false,
-          failures: [{ name: 'Load Suite', error: loadErr.message }]
+          failures: [{ name: 'Load Suite', error: loadErr.message, stack: loadErr.stack }]
         });
         continue;
       }
 
+      mockAts.clearSubmissions();
       const ctx = new TestContext(suiteDef.name, suiteDef.tier, options);
-      if (typeof suiteModule.runSuite === 'function') {
-        await suiteModule.runSuite(ctx);
+      try {
+        if (typeof suiteModule.runSuite === 'function') {
+          await suiteModule.runSuite(ctx);
+        }
+      } finally {
+        mockAts.clearSubmissions();
       }
 
       ctx.totalDuration = Date.now() - ctx.startTime;
       ctx.total = ctx.passed + ctx.failed;
       // If filtering, don't fail threshold check if all executed tests passed
-      ctx.thresholdMet = options.filter ? (ctx.failed === 0) : (ctx.total >= suiteDef.minThreshold);
+      ctx.thresholdMet = options.filter ? (ctx.failed === 0) : (ctx.passed >= suiteDef.minThreshold && ctx.failed === 0);
 
       suiteResults.push(ctx);
 
@@ -221,6 +293,9 @@ async function runMasterSuite() {
       for (const s of suiteResults) {
         for (const f of s.failures) {
           console.log(`   - [Tier ${s.tier}] ${f.name}: ${f.error}`);
+          if (options.verbose && f.stack) {
+            console.log(`     ${f.stack.split('\n').join('\n     ')}`);
+          }
         }
       }
     } else if (allThresholdsMet) {
@@ -243,4 +318,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runMasterSuite, SUITES, parseArgs };
+module.exports = { runMasterSuite, SUITES, parseArgs, TestContext };

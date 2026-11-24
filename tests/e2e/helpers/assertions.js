@@ -109,6 +109,80 @@ function assertErrorClassification(error, expectedType = 'retryable') {
   }
 }
 
+function assertLatency(durationMs, maxThresholdMs, metricName = 'Operation') {
+  assert.strictEqual(typeof durationMs, 'number', `durationMs must be a number for ${metricName}, got ${typeof durationMs}`);
+  assert.strictEqual(typeof maxThresholdMs, 'number', `maxThresholdMs must be a number for ${metricName}, got ${typeof maxThresholdMs}`);
+  assert.ok(
+    durationMs <= maxThresholdMs,
+    `Latency benchmark exceeded for ${metricName}: duration ${durationMs}ms > max threshold ${maxThresholdMs}ms`
+  );
+}
+
+function assertZeroBotShield(applicationDocOrEvents, contextMsg = '') {
+  assert.ok(applicationDocOrEvents, `Target document or events must not be null/undefined: ${contextMsg}`);
+
+  const items = Array.isArray(applicationDocOrEvents) ? applicationDocOrEvents : [applicationDocOrEvents];
+
+  for (const item of items) {
+    if (!item) continue;
+
+    // Check status
+    if (typeof item.status !== 'undefined') {
+      assert.notStrictEqual(
+        item.status,
+        'requires_manual_action',
+        `Bot Shield violation: status is 'requires_manual_action' (Action Required): ${contextMsg}`
+      );
+      assert.notStrictEqual(
+        item.status,
+        'ACTION_REQUIRED',
+        `Bot Shield violation: status is 'ACTION_REQUIRED': ${contextMsg}`
+      );
+    }
+
+    // Check pause_reason
+    if (typeof item.pause_reason !== 'undefined') {
+      assert.notStrictEqual(
+        item.pause_reason,
+        'captcha_verification_required',
+        `Bot Shield violation: pause_reason is 'captcha_verification_required': ${contextMsg}`
+      );
+    }
+
+    // Check boolean flags if present
+    if (typeof item.bot_shield_triggered !== 'undefined') {
+      assert.strictEqual(
+        item.bot_shield_triggered,
+        false,
+        `Bot Shield violation: bot_shield_triggered is true: ${contextMsg}`
+      );
+    }
+    if (typeof item.BotShieldTriggered !== 'undefined') {
+      assert.strictEqual(
+        item.BotShieldTriggered,
+        false,
+        `Bot Shield violation: BotShieldTriggered is true: ${contextMsg}`
+      );
+    }
+
+    // Check candidate email
+    const candidateEmail = item.candidate_email ||
+      (item.candidate && (item.candidate.email || item.candidate.primaryEmail)) ||
+      item.email ||
+      item.recipient ||
+      item.target_email ||
+      item.TargetEmail;
+
+    if (candidateEmail) {
+      assert.strictEqual(
+        candidateEmail,
+        'bhandarenakul11@gmail.com',
+        `Bot Shield candidate email mismatch: expected 'bhandarenakul11@gmail.com', got '${candidateEmail}': ${contextMsg}`
+      );
+    }
+  }
+}
+
 module.exports = {
   assertCandidateProfile,
   assertResumePdfIntegrity,
@@ -117,5 +191,7 @@ module.exports = {
   assertMongoApplicationLifecycle,
   assertEmailNotificationDispatched,
   assertPronounHygiene,
-  assertErrorClassification
+  assertErrorClassification,
+  assertLatency,
+  assertZeroBotShield
 };

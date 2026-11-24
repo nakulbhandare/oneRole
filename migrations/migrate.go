@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const CurrentVersion = 1
+const CurrentVersion = 2
 
 // Apply creates collections and sets up all required indexes in MongoDB.
 func Apply(ctx context.Context, database *mongo.Database) error {
@@ -260,6 +260,52 @@ func Apply(ctx context.Context, database *mongo.Database) error {
 		"outbox_events": {
 			{
 				Keys: bson.D{{Key: "status", Value: 1}, {Key: "lease_expires_at", Value: 1}, {Key: "created_at", Value: 1}},
+			},
+		},
+		"ats_company_configs": {
+			{
+				Keys:    bson.D{{Key: "provider", Value: 1}, {Key: "company_id", Value: 1}},
+				Options: options.Index().SetUnique(true),
+			},
+			{
+				Keys: bson.D{{Key: "provider", Value: 1}},
+			},
+			{
+				Keys: bson.D{{Key: "is_active", Value: 1}},
+			},
+		},
+		"job_form_schemas": {
+			{
+				Keys:    bson.D{{Key: "provider", Value: 1}, {Key: "company_id", Value: 1}, {Key: "job_id", Value: 1}},
+				Options: options.Index().SetUnique(true),
+			},
+			{
+				Keys: bson.D{{Key: "provider", Value: 1}, {Key: "job_id", Value: 1}},
+			},
+			{
+				Keys: bson.D{{Key: "resolved_at", Value: -1}},
+			},
+			{
+				Keys:    bson.D{{Key: "expires_at", Value: 1}},
+				Options: options.Index().SetExpireAfterSeconds(0),
+			},
+		},
+		"form_question_embeddings": {
+			{
+				Keys:    bson.D{{Key: "question_hash", Value: 1}},
+				Options: options.Index().SetUnique(true),
+			},
+			{
+				Keys: bson.D{{Key: "canonical_label", Value: 1}},
+			},
+			{
+				Keys: bson.D{{Key: "category", Value: 1}},
+			},
+			{
+				Keys: bson.D{{Key: "candidate_attribute_path", Value: 1}},
+			},
+			{
+				Keys: bson.D{{Key: "question_patterns", Value: 1}},
 			},
 		},
 	}

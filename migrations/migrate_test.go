@@ -6,8 +6,8 @@ import (
 )
 
 func TestMigrationCurrentVersion(t *testing.T) {
-	if CurrentVersion <= 0 {
-		t.Fatalf("expected CurrentVersion > 0, got %d", CurrentVersion)
+	if CurrentVersion != 2 {
+		t.Fatalf("expected CurrentVersion == 2, got %d", CurrentVersion)
 	}
 }
 

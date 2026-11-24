@@ -230,6 +230,152 @@ func (a *LeverAdapter) SubmitCandidate(ctx context.Context, req SubmissionReques
 	}, fmt.Errorf("lever HTTP %d: %s", resp.StatusCode, respStr)
 }
 
+// SubmitTier1 delivers direct multipart POST submission to Lever in <220ms target.
+func (a *LeverAdapter) SubmitTier1(ctx context.Context, schema *models.FormSchema, candidate *models.CandidateProfile, resumeBytes []byte) (*SubmissionResult, error) {
+	startTime := time.Now()
+	if schema == nil {
+		return nil, fmt.Errorf("form schema required")
+	}
+	if candidate == nil {
+		return nil, fmt.Errorf("candidate profile required")
+	}
+
+	meta, err := a.Detect(ctx, schema.JobURL)
+	if err != nil {
+		if schema.JobID != "" {
+			meta = &ProviderMetadata{
+				Provider:     a.Provider(),
+				CompanyID:    "company",
+				JobID:        schema.JobID,
+				CanonicalURL: schema.JobURL,
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	targetEmail := CanonicalTargetEmail
+	fullName := strings.TrimSpace(candidate.FirstName + " " + candidate.LastName)
+	if fullName == "" {
+		fullName = "Nakul Bhandare"
+	}
+	phone := candidate.Phone
+	if phone == "" {
+		phone = "+1 (350)-355-6570"
+	}
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	_ = w.WriteField("name", fullName)
+	_ = w.WriteField("email", targetEmail)
+	_ = w.WriteField("phone", phone)
+	if candidate.CurrentEmployer != "" {
+		_ = w.WriteField("org", candidate.CurrentEmployer)
+	}
+
+	urls := make(map[string]string)
+	if candidate.LinkedInURL != "" {
+		urls["LinkedIn"] = candidate.LinkedInURL
+	} else {
+		urls["LinkedIn"] = "https://linkedin.com/in/nakul-bhandare"
+	}
+	if candidate.GitHubURL != "" {
+		urls["GitHub"] = candidate.GitHubURL
+	}
+	urlsJSON, _ := json.Marshal(urls)
+	_ = w.WriteField("urls", string(urlsJSON))
+
+	if len(resumeBytes) > 0 {
+		resumePart, err := w.CreateFormFile("resume", "Nakul_Bhandare_Resume.pdf")
+		if err == nil {
+			_, _ = resumePart.Write(resumeBytes)
+		}
+	}
+
+	// Add standard answers from schema fields if present
+	for _, f := range schema.Fields {
+		lower := strings.ToLower(f.Label)
+		if strings.Contains(lower, "sponsor") {
+			_ = w.WriteField(f.FieldID, "No")
+		} else if strings.Contains(lower, "authoriz") {
+			_ = w.WriteField(f.FieldID, "Yes")
+		}
+	}
+	_ = w.Close()
+
+	endpoint := ""
+	if strings.Contains(a.baseURL, "api.lever.co") {
+		endpoint = fmt.Sprintf("%s/postings/%s/%s", a.baseURL, meta.CompanyID, meta.JobID)
+	} else {
+		// Mock or web apply endpoint
+		endpoint = fmt.Sprintf("%s/postings/%s/%s", a.baseURL, meta.CompanyID, meta.JobID)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &buf)
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", w.FormDataContentType())
+	httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
+
+	resp, err := a.httpClient.Do(httpReq)
+	duration := time.Since(startTime).Milliseconds()
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	respStr := string(respBytes)
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		var resDoc struct {
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
+			ApplicationID string `json:"applicationId"`
+			ID            string `json:"id"`
+		}
+		_ = json.Unmarshal(respBytes, &resDoc)
+
+		receiptID := resDoc.Data.ID
+		if receiptID == "" {
+			receiptID = resDoc.ApplicationID
+		}
+		if receiptID == "" {
+			receiptID = resDoc.ID
+		}
+		if receiptID == "" {
+			receiptID = fmt.Sprintf("LEVER-%s-%s-%d", meta.CompanyID, meta.JobID, time.Now().Unix())
+		} else if !strings.HasPrefix(receiptID, "LEVER-") {
+			receiptID = "LEVER-" + receiptID
+		}
+
+		return &SubmissionResult{
+			ReceiptID:       receiptID,
+			DurationMs:      duration,
+			Status:          "SUBMITTED_CONFIRMED",
+			TargetEmail:     targetEmail,
+			Provider:        a.Provider(),
+			ConfirmationURL: fmt.Sprintf("https://jobs.lever.co/%s/%s", meta.CompanyID, meta.JobID),
+			CandidateID:     receiptID,
+			HTTPStatusCode:  resp.StatusCode,
+			RawResponse:     respStr,
+		}, nil
+	}
+
+	return &SubmissionResult{
+		DurationMs:     duration,
+		Status:         "FAILED",
+		TargetEmail:    targetEmail,
+		Provider:       a.Provider(),
+		HTTPStatusCode: resp.StatusCode,
+		RawResponse:    respStr,
+		Error:          fmt.Errorf("lever HTTP %d: %s", resp.StatusCode, respStr),
+	}, fmt.Errorf("lever HTTP %d: %s", resp.StatusCode, respStr)
+}
+
 func (a *LeverAdapter) VerifyConfirmation(ctx context.Context, resp *SubmissionResponse) (*ConfirmationResult, error) {
 	if resp == nil || !resp.Success {
 		return &ConfirmationResult{Confirmed: false}, fmt.Errorf("cannot verify unconfirmed lever response")

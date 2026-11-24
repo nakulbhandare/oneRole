@@ -63,6 +63,14 @@ type AdapterRegistry struct {
 	semaphores   map[string]chan struct{}
 }
 
+func NewEmptyRegistry() *AdapterRegistry {
+	return &AdapterRegistry{
+		adapters:     make([]ATSAdapter, 0),
+		rateLimiters: make(map[string]*TokenBucket),
+		semaphores:   make(map[string]chan struct{}),
+	}
+}
+
 func NewDefaultRegistry() *AdapterRegistry {
 	r := &AdapterRegistry{
 		adapters:     make([]ATSAdapter, 0),

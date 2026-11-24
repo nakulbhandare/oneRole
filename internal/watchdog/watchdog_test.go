@@ -24,3 +24,20 @@ func TestWatchdogInitialization(t *testing.T) {
 		t.Fatalf("expected 0 reconciled with nil DB, got %d", reconciled)
 	}
 }
+
+func TestWatchdogStartStop(t *testing.T) {
+	cfg := Config{
+		CheckInterval:     10 * time.Millisecond,
+		ExecutionDeadline: 50 * time.Millisecond,
+	}
+	w := NewWatchdog(nil, cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	w.Start(ctx)
+	time.Sleep(25 * time.Millisecond)
+	w.Stop()
+
+	// Double stop should be safe and idempotent
+	w.Stop()
+}
