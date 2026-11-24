@@ -1153,8 +1153,8 @@ async function executeGenericWorkflow(page, url, candidate, resumePath) {
 async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
   let finalState = null;
 
-  // Poll for up to 8 seconds for the ATS submission to confirm or show error/challenge
-  for (let attempt = 0; attempt < 8; attempt++) {
+  // Poll for up to 15 seconds for the ATS submission to confirm or show error/challenge
+  for (let attempt = 0; attempt < 15; attempt++) {
     // 1. Immediately prioritize server-side bot challenge interception
     const asyncCaptcha = feedbackContext.getInterceptedCaptcha ? feedbackContext.getInterceptedCaptcha() : null;
     if (asyncCaptcha) {
@@ -1217,7 +1217,7 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
     }
 
     // Check if an active, interactive challenge has appeared on screen (only after 5s to allow in-flight transit)
-    if (i >= 5) {
+    if (attempt >= 5) {
       const interactiveChallenge = await checkInteractiveChallenge(page).catch(() => null);
       if (interactiveChallenge) {
         throw new CaptchaGateError(`Anti-bot gate detected: ${interactiveChallenge}`, interactiveChallenge);
