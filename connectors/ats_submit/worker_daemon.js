@@ -600,7 +600,13 @@ async function start() {
         msg.ack(); // Safely transitioned to manual assist mode
         return;
       } else if (err.message && err.message.toLowerCase().includes('submission was not confirmed')) {
-        console.warn(`[Worker] ACTION REQUIRED (submission_verification_required) for ${application_id}: ${err.message}`);
+        if (deliveryCount < MAX_RETRIES) {
+          const backoffDelay = calculateBackoffDelay(deliveryCount);
+          console.warn(`[Worker] Unconfirmed submission for ${application_id} (Attempt ${deliveryCount}/${MAX_RETRIES}): ${err.message}. Scheduling retry in ${backoffDelay}ms`);
+          msg.nak(backoffDelay);
+          return;
+        }
+        console.warn(`[Worker] ACTION REQUIRED (submission_verification_required) for ${application_id} after ${deliveryCount} attempts: ${err.message}`);
         await appsColl.updateOne({ _id: application_id, status: { $ne: 'submitted' } }, {
           $set: {
             status: 'requires_manual_action',

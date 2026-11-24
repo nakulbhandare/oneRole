@@ -438,11 +438,11 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
     }, { targetText: text, inputId: cleanId });
 
     if (option) {
-      const optEl = await page.$(`#${option}`);
+      const optEl = await page.$(`[id="${option}"]`);
       if (optEl) await optEl.click().catch(() => {});
     } else {
       await page.keyboard.press('ArrowDown').catch(() => {});
-      await sleep(100);
+      await sleep(150);
       await page.keyboard.press('Enter').catch(() => {});
     }
     await sleep(300);
@@ -588,23 +588,13 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     // Remove required constraint on dummy React-Select hidden inputs
     document.querySelectorAll('input.remix-css-1a0ro4n-requiredInput, input[required][aria-hidden="true"]').forEach(input => {
       input.removeAttribute('required');
-      if (!input.value) input.value = 'United States';
-    });
-
-    // Check all compliance & privacy acknowledgment checkboxes
-    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      const container = cb.closest('.field, .form-field, fieldset, label') || cb.parentElement;
-      const text = (container ? container.innerText : '').toLowerCase();
-      if (text.includes('acknowledge') || text.includes('privacy') || text.includes('agree') || text.includes('consent') || cb.required) {
-        cb.checked = true;
-        cb.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      if (!input.value) input.value = '1';
     });
 
     // Standard screening questions (Work Auth, Sponsorship, Notice Period)
-    document.querySelectorAll('.field, .form-field, [data-field]').forEach(f => {
+    document.querySelectorAll('.field, .form-field, .field-wrapper, [data-field]').forEach(f => {
       const text = (f.innerText || '').toLowerCase();
-      if (text.includes('authorized to work') || text.includes('legal right to work')) {
+      if (text.includes('authorized to work') || text.includes('legal right to work') || text.includes('u.s. person')) {
         const sel = f.querySelector('select');
         if (sel) {
           const opt = Array.from(sel.options).find(o => /yes/i.test(o.text || o.value));
@@ -614,7 +604,7 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
           }
         }
       }
-      if (text.includes('sponsorship') || text.includes('visa')) {
+      if (text.includes('sponsorship') || text.includes('visa') || text.includes('outside business') || text.includes('family member') || text.includes('relative')) {
         const sel = f.querySelector('select');
         if (sel) {
           const opt = Array.from(sel.options).find(o => /no/i.test(o.text || o.value));
@@ -627,25 +617,44 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
     });
   }, { linkedin, github });
 
+  // 6b. Check all compliance & privacy acknowledgment checkboxes via native Playwright
+  try {
+    const ghCheckboxes = await page.$$('input[type="checkbox"]');
+    for (const cb of ghCheckboxes) {
+      const isChecked = await cb.isChecked().catch(() => false);
+      if (!isChecked) {
+        await cb.check({ force: true }).catch(async () => {
+          await cb.click({ force: true }).catch(() => {});
+        });
+        console.log('[ATS Greenhouse] Checked compliance/privacy checkbox');
+        await sleep(150);
+      }
+    }
+  } catch (cbErr) {
+    console.warn(`[ATS Greenhouse] Checkbox interaction warning: ${cbErr.message}`);
+  }
+
   // 7. Handle any interactive React-Select questions on Greenhouse (relocation, sponsorship, authorization, EEOC)
   const reactSelectQuestions = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('input.select__input[role="combobox"], input[id*="question_"].select__input')).map(inp => ({
+    return Array.from(document.querySelectorAll('input.select__input[role="combobox"], input[id*="question_"].select__input, input[role="combobox"]')).map(inp => ({
       id: inp.id,
-      label: (inp.closest('.field, .form-field, .field-wrapper, label') || inp.parentElement)?.innerText || inp.getAttribute('aria-label') || ''
+      label: (inp.closest('.field, .form-field, .field-wrapper, .select__container, label') || inp.parentElement)?.innerText || inp.getAttribute('aria-label') || ''
     })).filter(q => q.id && q.id !== 'country' && q.id !== 'candidate-location');
   });
 
   for (const q of reactSelectQuestions) {
     const labelLower = q.label.toLowerCase();
     let targetOption = 'Yes';
-    if (labelLower.includes('gender') || labelLower.includes('race') || labelLower.includes('veteran') || labelLower.includes('disability') || labelLower.includes('hispanic') || labelLower.includes('latino') || labelLower.includes('identity')) {
+    if (labelLower.includes('gender') || labelLower.includes('race') || labelLower.includes('veteran') || labelLower.includes('disability') || labelLower.includes('hispanic') || labelLower.includes('latino') || labelLower.includes('ethnicity') || labelLower.includes('identity')) {
       targetOption = "I don't wish to answer";
-    } else if (labelLower.includes('live') || labelLower.includes('relocate') || labelLower.includes('reside')) {
-      targetOption = 'currently live';
-    } else if (labelLower.includes('sponsorship') || labelLower.includes('visa') || labelLower.includes('ever worked')) {
+    } else if (labelLower.includes('sponsorship') || labelLower.includes('visa') || labelLower.includes('family member') || labelLower.includes('relative') || labelLower.includes('personal relationship') || labelLower.includes('outside business') || labelLower.includes('employed by') || labelLower.includes('ever worked') || labelLower.includes('felony') || labelLower.includes('convicted')) {
       targetOption = 'No';
+    } else if (labelLower.includes('authorized') || labelLower.includes('u.s. person') || labelLower.includes('citizen') || labelLower.includes('clearance') || labelLower.includes('poly') || labelLower.includes('eligible') || labelLower.includes('agree')) {
+      targetOption = 'Yes';
+    } else if (labelLower.includes('relocate') || (labelLower.includes('reside') && !labelLower.includes('family')) || (labelLower.includes('currently live') && !labelLower.includes('household'))) {
+      targetOption = 'currently live';
     }
-    await fillGreenhouseReactSelect(page, `input#${q.id}`, targetOption);
+    await fillGreenhouseReactSelect(page, `input[id="${q.id}"]`, targetOption);
   }
 
   // 8. Submit Greenhouse Form
@@ -769,12 +778,15 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
 
   // 2. Primary Location Autocomplete (Critical for Ashby / OpenAI)
   try {
-    const locInput = await page.$('input[placeholder*="location" i], div[data-qa*="location" i] input, div[class*="fieldEntry"]:has(label:has-text("Location")) input, input[name="_systemfield_location"], input[id*="location"]');
+    const locInput = await page.$('.ashby-application-form-input-autocomplete input, input[placeholder*="Start typing" i], input[placeholder*="location" i], div[class*="field-entry"]:has-text("located") input, div[class*="fieldEntry"]:has-text("located") input, div[class*="field-entry"]:has-text("Location") input, div[class*="fieldEntry"]:has-text("Location") input, input[name="_systemfield_location"], input[id*="location"]');
     if (locInput) {
       await locInput.click({ clickCount: 3 }).catch(() => {});
       await page.keyboard.press('Backspace').catch(() => {});
-      await locInput.type('San Francisco, CA', { delay: 40 }).catch(() => {});
-      await sleep(1000);
+      await sleep(200);
+      await locInput.type('San Francisco', { delay: 50 }).catch(() => {});
+      console.log('[ATS Ashby] Typed location search: San Francisco');
+      // Allow debounced GraphQL autocomplete to fetch suggestions
+      await sleep(1500);
       const popupOption = await page.$('.ashby-application-form-input-autocomplete-popup-result, div[class*="autocomplete-popup-result" i], [role="option"], div[class*="suggestion" i]').catch(() => null);
       if (popupOption) {
         await popupOption.click().catch(() => {});
@@ -782,8 +794,9 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
         await sleep(500);
       } else {
         await page.keyboard.press('ArrowDown').catch(() => {});
-        await sleep(200);
+        await sleep(250);
         await page.keyboard.press('Enter').catch(() => {});
+        console.log('[ATS Ashby] Selected autocomplete location via Enter key');
         await sleep(500);
       }
     }
@@ -829,10 +842,38 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
     console.warn(`[ATS Ashby] Date input warning: ${dateErr.message}`);
   }
 
-  // 6. Radio Buttons, Yes/No Pills, Checkboxes, and Custom Questions
+  // 6. Handle Ashby Checkboxes and Agreement Acknowledgements natively via Playwright (Arbitration, Certification, Truthfulness, Consent)
+  try {
+    const ashbyCheckboxes = await page.$$('input[type="checkbox"]');
+    for (const cb of ashbyCheckboxes) {
+      const isChecked = await cb.isChecked().catch(() => false);
+      if (!isChecked) {
+        const text = await cb.evaluate(el => {
+          const wrapper = el.closest('div[class*="fieldEntry"], div[class*="field-entry"], .ashby-application-form-field-entry') || el.parentElement?.parentElement;
+          const label = el.id ? document.querySelector(`label[for="${el.id}"]`) : el.closest('label');
+          return ((label ? label.innerText : '') + ' ' + (wrapper ? wrapper.innerText : '')).toLowerCase();
+        }).catch(() => '');
+
+        if (text.includes('arbitration') || text.includes('certif') || text.includes('truthful') ||
+            text.includes('confirm') || text.includes('read') || text.includes('agree') ||
+            text.includes('consent') || text.includes('acknowledge') || text.includes('terms') ||
+            text.includes('*') || text.includes('understand') || text.includes('personally')) {
+          await cb.check({ force: true }).catch(async () => {
+            await cb.click({ force: true }).catch(() => {});
+          });
+          console.log(`[ATS Ashby] Checked compliance/arbitration checkbox: ${text.slice(0, 60)}...`);
+          await sleep(150);
+        }
+      }
+    }
+  } catch (cbErr) {
+    console.warn(`[ATS Ashby] Checkbox interaction warning: ${cbErr.message}`);
+  }
+
+  // 7. Radio Buttons, Yes/No Pills, and Custom Questions
   await page.evaluate(() => {
     // A. Handle Boolean Button Containers (Yes / No)
-    document.querySelectorAll('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], .application-question, div[class*="question"]').forEach(entry => {
+    document.querySelectorAll('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], div[class*="field-entry"], .application-question, div[class*="question"]').forEach(entry => {
       const text = (entry.innerText || '').toLowerCase();
       const buttons = Array.from(entry.querySelectorAll('button'));
       const yesBtn = buttons.find(b => (b.innerText || '').trim().toLowerCase() === 'yes' || b.getAttribute('data-option') === 'yes');
@@ -862,7 +903,7 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
     });
 
     // B. Handle Traditional Radio Inputs (EEOC, Demographics, Screening)
-    document.querySelectorAll('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], .application-question').forEach(entry => {
+    document.querySelectorAll('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], div[class*="field-entry"], .application-question').forEach(entry => {
       const text = (entry.innerText || '').toLowerCase();
       const radios = Array.from(entry.querySelectorAll('input[type="radio"]'));
       if (radios.length > 0) {
@@ -888,23 +929,10 @@ async function executeAshbyWorkflow(page, url, candidate, resumePath) {
       }
     });
 
-    // C. Handle Checkboxes (Arbitration, Certification, Truthfulness, Terms)
-    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      const parent = cb.closest('label') || cb.closest('div[class*="fieldEntry"]') || cb.parentElement;
-      const text = (parent ? parent.innerText : '').toLowerCase();
-      if (text.includes('consent') || text.includes('agree') || text.includes('terms') || 
-          text.includes('certif') || text.includes('truthful') || text.includes('arbitration') || 
-          text.includes('read') || text.includes('acknowledge') || cb.required || cb.getAttribute('aria-required') === 'true') {
-        if (!cb.checked) {
-          cb.click();
-        }
-      }
-    });
-
-    // D. Handle Textareas and Custom Free-Text Inputs on Ashby
+    // C. Handle Textareas and Custom Free-Text Inputs on Ashby
     document.querySelectorAll('textarea, input[type="text"]').forEach(inp => {
       if (inp.value && inp.value.trim().length > 0) return;
-      const parent = inp.closest('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], .application-question') || inp.parentElement;
+      const parent = inp.closest('div[class*="fieldEntry"], div[data-qa*="fieldEntry"], div[class*="field-entry"], .application-question') || inp.parentElement;
       const label = ((parent ? parent.innerText : '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (inp.placeholder || '')).toLowerCase();
 
       function setNativeVal(element, val) {
