@@ -14,12 +14,73 @@ import (
 )
 
 var (
-	otpContextRegex = regexp.MustCompile(`(?i)(?:verification\s+code|security\s+code|passcode|one-time\s+password|otp|pin|enter\s+code)[:\s*]+([A-Z0-9]{4,8})\b`)
+	otpContextRegex  = regexp.MustCompile(`(?i)(?:verification\s+code|security\s+code|passcode|one-time\s+password|otp|pin|enter\s+code)(?:\s+(?:is|field))?[:\s*]+([A-Za-z0-9]{4,10})\b`)
 	otpNumeric6Regex = regexp.MustCompile(`\b\d{6}\b`)
 	otpNumeric4Regex = regexp.MustCompile(`\b\d{4}\b`)
-	otpAlphaNumRegex = regexp.MustCompile(`\b[A-Z0-9]{6,8}\b`)
+	otpMixedCode     = regexp.MustCompile(`\b(?:[A-Za-z0-9]*\d[A-Za-z0-9]*)\b`)
+	htmlTagRegex     = regexp.MustCompile(`<[^>]+>`)
 	linkRegex        = regexp.MustCompile(`https?://[^\s"'<>]+(?:verify|confirm|activate|token|code|login)[^\s"'<>]*`)
 )
+
+func extractOTPCode(subject, rawBody string) string {
+	cleanBody := htmlTagRegex.ReplaceAllString(rawBody, " ")
+	cleanBody = strings.Join(strings.Fields(cleanBody), " ")
+
+	stopwords := map[string]bool{
+		"field": true, "code": true, "below": true, "above": true, "here": true,
+		"into": true, "form": true, "your": true, "this": true, "that": true,
+		"application": true, "email": true, "page": true, "greenhouse": true,
+	}
+	isValidCode := func(c string) bool {
+		lc := strings.ToLower(strings.TrimSpace(c))
+		if len(lc) < 4 || len(lc) > 10 || stopwords[lc] {
+			return false
+		}
+		// Must contain at least one digit OR be mixed uppercase+lowercase 6-8 chars (like Greenhouse's 8-char tokens)
+		hasDigit, hasUpper, hasLower := false, false, false
+		for _, r := range c {
+			if r >= '0' && r <= '9' {
+				hasDigit = true
+			} else if r >= 'A' && r <= 'Z' {
+				hasUpper = true
+			} else if r >= 'a' && r <= 'z' {
+				hasLower = true
+			}
+		}
+		return hasDigit || (hasUpper && hasLower && len(c) >= 6)
+	}
+
+	for _, text := range []string{cleanBody, subject} {
+		for _, m := range otpContextRegex.FindAllStringSubmatch(text, -1) {
+			if len(m) > 1 && isValidCode(m[1]) {
+				return m[1]
+			}
+		}
+	}
+	// Greenhouse specific: "security code" followed shortly by an 8-char alphanumeric code
+	if idx := strings.Index(strings.ToLower(cleanBody), "security code"); idx != -1 {
+		window := cleanBody[idx:]
+		if len(window) > 300 {
+			window = window[:300]
+		}
+		for _, tok := range strings.Fields(window) {
+			tok = strings.Trim(tok, ".,:;!?\"'()")
+			if len(tok) == 8 && isValidCode(tok) {
+				return tok
+			}
+		}
+	}
+	if c := otpNumeric6Regex.FindString(cleanBody); c != "" {
+		return c
+	}
+	if c := otpNumeric6Regex.FindString(subject); c != "" {
+		return c
+	}
+	if c := otpNumeric4Regex.FindString(cleanBody); c != "" {
+		return c
+	}
+	return ""
+}
 
 // VerificationPayload holds the extracted OTP code and/or magic link from an employer email.
 type VerificationPayload struct {
@@ -114,20 +175,7 @@ func (r *Registry) DeliverIncoming(recipientEmail, senderDomain, subject, body s
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	var code string
-	if m := otpContextRegex.FindStringSubmatch(body); len(m) > 1 {
-		code = m[1]
-	} else if m := otpContextRegex.FindStringSubmatch(subject); len(m) > 1 {
-		code = m[1]
-	} else if c := otpNumeric6Regex.FindString(body); c != "" {
-		code = c
-	} else if c := otpNumeric6Regex.FindString(subject); c != "" {
-		code = c
-	} else if c := otpNumeric4Regex.FindString(body); c != "" {
-		code = c
-	} else if c := otpAlphaNumRegex.FindString(body); c != "" {
-		code = c
-	}
+	code := extractOTPCode(subject, body)
 
 	link := linkRegex.FindString(body)
 
