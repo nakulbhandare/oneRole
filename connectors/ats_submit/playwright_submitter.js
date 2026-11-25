@@ -789,22 +789,23 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
     const input = await page.$(inputSelector);
     if (!input) return;
     const cleanId = await input.getAttribute('id').catch(() => '');
+    await input.scrollIntoViewIfNeeded().catch(() => {});
     await input.focus().catch(() => {});
-    await input.click().catch(() => {});
-    await sleep(200);
+    await input.click({ timeout: 2500, force: true }).catch(() => {});
+    await sleep(150);
 
     if (input.pressSequentially) {
-      await input.pressSequentially(text, { delay: 40 }).catch(() => {});
+      await input.pressSequentially(text, { delay: 30 }).catch(() => {});
     } else if (input.fill) {
       await input.fill(text).catch(() => {});
     } else {
-      await page.keyboard.type(text, { delay: 30 }).catch(() => {});
+      await page.keyboard.type(text, { delay: 25 }).catch(() => {});
     }
-    await sleep(600);
+    await sleep(450);
 
     // Wait for async option to appear in DOM
     const optSelector = cleanId ? `[id*="${cleanId}-option-0"], [id*="${cleanId}-option-"]` : '.select__option, [id*="-option-"], [class*="option"]';
-    await page.waitForSelector(optSelector, { timeout: 4000 }).catch(() => {});
+    await page.waitForSelector(optSelector, { timeout: 3000 }).catch(() => {});
 
     // Look for matching options in the DOM listbox
     const option = await page.evaluate(({ targetText, inputId }) => {
@@ -820,13 +821,13 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
 
     if (option) {
       const optEl = await page.$(`[id="${option}"]`);
-      if (optEl) await optEl.click().catch(() => {});
+      if (optEl) await optEl.click({ timeout: 2500, force: true }).catch(() => {});
     } else {
       await page.keyboard.press('ArrowDown').catch(() => {});
-      await sleep(150);
+      await sleep(100);
       await page.keyboard.press('Enter').catch(() => {});
     }
-    await sleep(300);
+    await sleep(200);
   } catch (e) {
     console.warn(`[React-Select] Error selecting ${inputSelector}: ${e.message}`);
   }
