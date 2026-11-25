@@ -132,7 +132,7 @@ func parseEmail(raw string) (from, to, subject, body string) {
 	}
 
 	body = rawBody
-	if strings.Contains(cte, "quoted-printable") {
+	if strings.Contains(cte, "quoted-printable") || strings.Contains(strings.ToLower(rawBody), "content-transfer-encoding: quoted-printable") {
 		if decoded, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(rawBody))); err == nil {
 			body = string(decoded)
 		}
@@ -262,9 +262,15 @@ func main() {
 		}
 		log.Printf("[EmailIMAP] Connected & watching INBOX for %s -> %s", imapUser, apiURL)
 
+		// Record initial messages before watching so we don't replay old inbox history on startup,
+		// except for the last 5 ATS emails from today
+		sinceDate := time.Now().UTC().Add(-24 * time.Hour).Format("02-Jan-2006")
 		for ctx.Err() == nil {
-			sinceDate := time.Now().UTC().Add(-24 * time.Hour).Format("02-Jan-2006")
-			lines, err := client.cmd(fmt.Sprintf("SEARCH UNSEEN SINCE %s", sinceDate))
+			if _, nErr := client.cmd("NOOP"); nErr != nil {
+				log.Printf("[EmailIMAP] NOOP error: %v — reconnecting", nErr)
+				break
+			}
+			lines, err := client.cmd(fmt.Sprintf("SEARCH SINCE %s", sinceDate))
 			if err != nil {
 				log.Printf("[EmailIMAP] SEARCH error: %v — reconnecting", err)
 				break
