@@ -451,7 +451,14 @@ function detectAtsProvider(url, htmlContent = '') {
     lowerUrl.includes('greenhouse.io') ||
     lowerUrl.includes('gh_jid=') ||
     lowerUrl.includes('gh_src') ||
+    lowerUrl.includes('job-gh-') ||
     lowerUrl.includes('/careers/job?') ||
+    lowerUrl.includes('/careers/jobs/') ||
+    (lowerUrl.includes('mongodb.com') && lowerUrl.includes('/jobs/')) ||
+    (lowerUrl.includes('okta.com') && lowerUrl.includes('/jobs/')) ||
+    (lowerUrl.includes('coinbase.com') && lowerUrl.includes('/careers/')) ||
+    (lowerUrl.includes('figma.com') && lowerUrl.includes('/careers/')) ||
+    (lowerUrl.includes('stripe.com') && lowerUrl.includes('/jobs/')) ||
     lowerHtml.includes('greenhouse.io') ||
     lowerHtml.includes('data-mapped="greenhouse"') ||
     lowerHtml.includes('grnhse_iframe')
@@ -1698,7 +1705,7 @@ async function executeSmartRecruitersWorkflow(page, url, candidate = {}, resumeP
  * ATS WORKFLOW 6: GENERIC RESILIENT WORKFLOW
  * ============================================================================
  */
-async function executeGenericWorkflow(page, url, candidate, resumePath, provider = 'generic') {
+async function executeGenericWorkflow(page, url, candidate, resumePath, provider = 'generic', waitForPushOTP = null) {
   console.log(`[ATS ${provider.toUpperCase()}] Executing universal multi-step ATS workflow (${url})...`);
   let res;
   try {
@@ -1711,18 +1718,21 @@ async function executeGenericWorkflow(page, url, candidate, resumePath, provider
   }
   await checkBotChallenges(page, res ? res.status() : 200);
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+  await dismissCookieBannersAndOverlays(page);
 
-  // Dismiss cookie banners safely
-  await page.evaluate(() => {
-    const btns = Array.from(document.querySelectorAll('button, a[role="button"]'));
-    for (const b of btns) {
-      const t = (b.innerText || '').trim().toLowerCase();
-      if (t === 'accept all' || t === 'accept cookies' || t === 'i agree' || t === 'got it' || t === 'allow all') {
-        b.click();
-        break;
-      }
-    }
-  }).catch(() => {});
+  // Check if loaded page has embedded Greenhouse or other dedicated ATS
+  const isGreenhousePage = await page.evaluate(() => {
+    return !!(
+      document.querySelector('#grnhse_app, form#application_form, [data-mapped="greenhouse"], iframe[src*="greenhouse.io"], script[src*="greenhouse.io"]') ||
+      window.location.href.includes('greenhouse.io') ||
+      (document.body && document.body.innerHTML.includes('grnhse_app'))
+    );
+  }).catch(() => false);
+
+  if (isGreenhousePage) {
+    console.log(`[ATS Engine] Detected embedded Greenhouse form on page (${url}); delegating to dedicated Greenhouse workflow!`);
+    return executeGreenhouseWorkflow(page, url, candidate, resumePath, waitForPushOTP);
+  }
 
   // Provider-specific / universal Apply CTA click
   if (provider === 'recruitee' && !url.includes('/c/new')) {
@@ -2054,7 +2064,7 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
  * Main Entry Point: Submit Job Application with Chromium Engine
  * Uses pre-warmed context pool with genuine device fingerprints and single-tick JS injection.
  */
-async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resumePath: optResumePath, waitForPushOTP }) {
+async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resumePath: optResumePath, waitForPushOTP, provider: optProvider }) {
   if (!url || !candidate) {
     throw new Error('url and candidate are required');
   }
@@ -2073,7 +2083,7 @@ async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resu
                      '/app/oneRole_UI/public/Nakul_Bhandare_Resume.pdf';
 
   try {
-    const provider = detectAtsProvider(url);
+    const provider = optProvider || detectAtsProvider(url);
     console.log(`[Chromium Engine] Target ATS Provider detected: ${provider.toUpperCase()} (${url})`);
 
     let result;
@@ -2088,7 +2098,7 @@ async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resu
     } else if (provider === 'workday') {
       result = await executeWorkdayWorkflow(page, url, candidate, resumePath);
     } else {
-      result = await executeGenericWorkflow(page, url, candidate, resumePath, provider);
+      result = await executeGenericWorkflow(page, url, candidate, resumePath, provider, waitForPushOTP);
     }
 
     result.duration_ms = Date.now() - startTime;

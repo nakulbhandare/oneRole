@@ -465,6 +465,7 @@ async function start() {
               submitFn = submitApplication;
             }
 
+            const resolvedProvider = (job_id && job_id.startsWith('job-gh-')) ? 'greenhouse' : ((data && data.provider) || (candidate && candidate.provider));
             result = await Promise.race([
               submitFn({
                 url: targetJobUrl,
@@ -472,7 +473,8 @@ async function start() {
                 dryRun: false,
                 assistMode: false,
                 pipe: true,
-                waitForPushOTP
+                waitForPushOTP,
+                provider: resolvedProvider
               }),
               timeoutPromise
             ]);
