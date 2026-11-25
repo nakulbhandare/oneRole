@@ -788,20 +788,21 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
   try {
     const input = await page.$(inputSelector);
     if (!input) return;
+    if (!(await input.isVisible().catch(() => false))) return;
     const cleanId = await input.getAttribute('id').catch(() => '');
-    await input.scrollIntoViewIfNeeded().catch(() => {});
+    await input.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
     await input.focus().catch(() => {});
-    await input.click({ timeout: 2500, force: true }).catch(() => {});
-    await sleep(150);
+    await input.click({ timeout: 2000, force: true }).catch(() => {});
+    await sleep(120);
 
     if (input.pressSequentially) {
-      await input.pressSequentially(text, { delay: 30 }).catch(() => {});
+      await input.pressSequentially(text, { delay: 25, timeout: 2500 }).catch(() => {});
     } else if (input.fill) {
-      await input.fill(text).catch(() => {});
+      await input.fill(text, { timeout: 2500 }).catch(() => {});
     } else {
       await page.keyboard.type(text, { delay: 25 }).catch(() => {});
     }
-    await sleep(450);
+    await sleep(350);
 
     // Wait for async option to appear in DOM
     const optSelector = cleanId ? `[id*="${cleanId}-option-0"], [id*="${cleanId}-option-"]` : '.select__option, [id*="-option-"], [class*="option"]';
