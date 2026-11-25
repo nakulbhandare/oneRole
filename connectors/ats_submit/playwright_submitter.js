@@ -1119,6 +1119,108 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
     console.warn(`[ATS Greenhouse] Checkbox interaction warning: ${cbErr.message}`);
   }
 
+  // 7. Employment History auto-fill (Required by Coinbase and modern boards)
+  try {
+    const hasEmp = await page.$('.employment--container, .employment-form, #company-name-0, input[id^="company-name-"]').catch(() => null);
+    if (hasEmp) {
+      console.log('[ATS Greenhouse] Detected mandatory employment history section; populating candidate experience...');
+      
+      const compInp = await page.$('#company-name-0, input[id^="company-name-"]');
+      if (compInp) {
+        await compInp.scrollIntoViewIfNeeded().catch(() => {});
+        await compInp.click({ force: true }).catch(() => {});
+        await compInp.fill('OneRole').catch(() => {});
+      }
+
+      const titleInp = await page.$('#title-0, input[id^="title-"]');
+      if (titleInp) {
+        await titleInp.click({ force: true }).catch(() => {});
+        await titleInp.fill('Staff Software Engineer').catch(() => {});
+      }
+
+      // Start date month (React-Select)
+      const startMonthCtrl = await page.locator('#start-date-month-0').locator('xpath=ancestor::div[contains(@class, "select__control")][1]').first();
+      if (await startMonthCtrl.count() > 0) {
+        await startMonthCtrl.click({ force: true }).catch(() => {});
+        await sleep(150);
+        await page.keyboard.type('June', { delay: 10 }).catch(() => {});
+        await sleep(200);
+        await page.keyboard.press('Enter').catch(() => {});
+      }
+
+      // Start date year
+      const startYearInp = await page.$('#start-date-year-0, input[id^="start-date-year-"]');
+      if (startYearInp) {
+        await startYearInp.click({ force: true }).catch(() => {});
+        await startYearInp.fill('2023').catch(() => {});
+      }
+
+      // End date month
+      const endMonthCtrl = await page.locator('#end-date-month-0').locator('xpath=ancestor::div[contains(@class, "select__control")][1]').first();
+      if (await endMonthCtrl.count() > 0) {
+        await endMonthCtrl.click({ force: true }).catch(() => {});
+        await sleep(150);
+        await page.keyboard.type('August', { delay: 10 }).catch(() => {});
+        await sleep(200);
+        await page.keyboard.press('Enter').catch(() => {});
+      }
+
+      // End date year
+      const endYearInp = await page.$('#end-date-year-0, input[id^="end-date-year-"]');
+      if (endYearInp) {
+        await endYearInp.click({ force: true }).catch(() => {});
+        await endYearInp.fill('2024').catch(() => {});
+      }
+
+      // Current role checkbox
+      const currentRoleCb = await page.$('#current-role-0_1, input[id*="current-role"]');
+      if (currentRoleCb) {
+        await currentRoleCb.check({ force: true }).catch(async () => {
+          await currentRoleCb.click({ force: true }).catch(() => {});
+        });
+      }
+    }
+  } catch (empErr) {
+    console.warn(`[ATS Greenhouse] Employment history auto-fill warning: ${empErr.message}`);
+  }
+
+  // 7b. Education History auto-fill (Required by Coinbase)
+  try {
+    const hasEdu = await page.$('.education--container, .education--form, #school--0, [id^="school--"]').catch(() => null);
+    if (hasEdu) {
+      console.log('[ATS Greenhouse] Detected education history section; populating candidate education...');
+      
+      const schoolCtrl = await page.locator('#school--0').locator('xpath=ancestor::div[contains(@class, "select__control")][1]').first();
+      if (await schoolCtrl.count() > 0) {
+        await schoolCtrl.click({ force: true }).catch(() => {});
+        await sleep(150);
+        await page.keyboard.type('University of the Pacific', { delay: 10 }).catch(() => {});
+        await sleep(400);
+        await page.keyboard.press('Enter').catch(() => {});
+      }
+
+      const degreeCtrl = await page.locator('#degree--0').locator('xpath=ancestor::div[contains(@class, "select__control")][1]').first();
+      if (await degreeCtrl.count() > 0) {
+        await degreeCtrl.click({ force: true }).catch(() => {});
+        await sleep(150);
+        await page.keyboard.type('Bachelor', { delay: 10 }).catch(() => {});
+        await sleep(400);
+        await page.keyboard.press('Enter').catch(() => {});
+      }
+
+      const discCtrl = await page.locator('#discipline--0').locator('xpath=ancestor::div[contains(@class, "select__control")][1]').first();
+      if (await discCtrl.count() > 0) {
+        await discCtrl.click({ force: true }).catch(() => {});
+        await sleep(150);
+        await page.keyboard.type('Computer Science', { delay: 10 }).catch(() => {});
+        await sleep(400);
+        await page.keyboard.press('Enter').catch(() => {});
+      }
+    }
+  } catch (eduErr) {
+    console.warn(`[ATS Greenhouse] Education history auto-fill warning: ${eduErr.message}`);
+  }
+
   // Remove novalidate and dummy required attributes
   await page.evaluate(() => {
     document.querySelectorAll('form').forEach(f => f.setAttribute('novalidate', 'true'));
@@ -1139,11 +1241,14 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
     await humanizedMouseMove(page, sBox.x + sBox.width / 2, sBox.y + sBox.height / 2);
     await sleep(200);
   }
+  const tSubmit = Date.now();
   await submitBtn.click({ force: true, timeout: 10000 }).catch(async () => {
     console.warn('[ATS Greenhouse] Direct click failed or intercepted; dispatching native DOM click...');
     await page.evaluate(b => b.click(), submitBtn).catch(() => {});
   });
-  await sleep(3500);
+  
+  // Non-blocking wait for security code challenge or confirmation (eliminates blind sleep race condition)
+  await page.waitForSelector('#email-verification, input[id^="security-input-"], [class*="confirmation"], [class*="submitted"]', { timeout: 3500 }).catch(() => null);
 
   // 8b. Greenhouse Email Security Code (HTTP 428 / security_code_recipient) auto-resolution
   const secSelectors = '#email-verification, input[id^="security-input-"], input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i], input[placeholder*="security code" i], input[autocomplete="one-time-code"], input[aria-label*="security code" i], input[maxlength="1"]';
@@ -1160,10 +1265,10 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
       const parsedU = new URL(targetUrl);
       boardCompany = parsedU.searchParams.get('for') || parsedU.pathname.split('/').filter(Boolean)[0] || '';
     } catch (_) {}
-    console.log(`[ATS Greenhouse] Security code challenge detected for ${email} (company=${boardCompany}). Waiting for instant NATS OTP push...`);
+    console.log(`[ATS Greenhouse] Security code challenge detected for ${email} (company=${boardCompany}). Waiting for instant atomic OTP resolution...`);
     let otpCode = null;
     if (typeof waitForPushOTP === 'function') {
-      otpCode = await waitForPushOTP(email, 'greenhouse.io', boardCompany, 45000);
+      otpCode = await waitForPushOTP(email, 'greenhouse.io', boardCompany, 45000, tSubmit);
     }
     if (!otpCode) {
       for (let p = 0; p < 3 && !otpCode; p++) {

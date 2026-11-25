@@ -23,6 +23,7 @@ COPY connectors/ats_submit/fast_submitter.js ./fast_submitter.js
 COPY connectors/ats_submit/workday_cxs.js ./workday_cxs.js
 COPY connectors/ats_submit/browser_submitter.js ./browser_submitter.js
 COPY connectors/ats_submit/playwright_submitter.js ./playwright_submitter.js
+COPY connectors/ats_submit/mailbox_mcp.js ./mailbox_mcp.js
 COPY connectors/ats_submit/worker_daemon.js ./worker_daemon.js
 COPY oneRole_UI/public/Nakul_Bhandare_Resume.pdf ./oneRole_UI/public/Nakul_Bhandare_Resume.pdf
 COPY oneRole_UI/public/Nakul_Bhandare_Resume.pdf ./Nakul_Bhandare_Resume.pdf

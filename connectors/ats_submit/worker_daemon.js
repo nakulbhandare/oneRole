@@ -6,6 +6,7 @@ const { submitApplication } = require('./browser_submitter');
 const { submitFastApplication } = require('./fast_submitter');
 const { submitWithPlaywright, initWarmPool } = require('./playwright_submitter');
 const { submitWorkdayCXS } = require('./workday_cxs');
+const mailboxMcp = require('./mailbox_mcp');
 
 const NATS_URL = process.env.NATS_URL || 'nats://localhost:4222';
 const DATABASE_URL = process.env.DATABASE_URL || 'mongodb://localhost:27017/onerole';
@@ -158,6 +159,9 @@ async function start() {
       try {
         const otp = JSON.parse(sc.decode(m.data));
         console.log(`[Worker PushOTP] Received instant OTP push: email=${otp.email} domain=${otp.domain} code=${otp.code} subject=${otp.subject}`);
+        // Feed into atomic Mailbox MCP ring buffer
+        mailboxMcp.recordIncomingOtp(otp);
+
         for (let i = otpWaiters.length - 1; i >= 0; i--) {
           const w = otpWaiters[i];
           const emailMatch = !w.email || (otp.email || '').toLowerCase() === w.email.toLowerCase();
@@ -174,15 +178,22 @@ async function start() {
     }
   })();
 
-  function waitForPushOTP(email, domain, company = '', timeoutMs = 45000) {
-    return new Promise(resolve => {
-      const waiter = { email, domain, company, resolve: (code) => { clearTimeout(timer); resolve(code); } };
-      const timer = setTimeout(() => {
-        const idx = otpWaiters.indexOf(waiter);
-        if (idx !== -1) otpWaiters.splice(idx, 1);
-        resolve(null);
-      }, timeoutMs);
-      otpWaiters.push(waiter);
+  function waitForPushOTP(email, domain, company = '', timeoutMs = 45000, sinceTimestamp = 0) {
+    return mailboxMcp.resolveOtpWithFailover({
+      email,
+      domain,
+      company,
+      sinceTimestamp: sinceTimestamp || Date.now(),
+      timeoutMs,
+      natsWaiter: (em, dom, comp, toMs) => new Promise(resolve => {
+        const waiter = { email: em, domain: dom, company: comp, resolve: (code) => { clearTimeout(timer); resolve(code); } };
+        const timer = setTimeout(() => {
+          const idx = otpWaiters.indexOf(waiter);
+          if (idx !== -1) otpWaiters.splice(idx, 1);
+          resolve(null);
+        }, toMs);
+        otpWaiters.push(waiter);
+      })
     });
   }
 
