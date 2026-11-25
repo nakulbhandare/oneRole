@@ -629,6 +629,59 @@ async function checkBotChallenges(page, statusCode = 200) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /**
+ * Annihilates cookie banners, consent modals, and blocking dark backdrops (e.g. OneTrust, GDPR)
+ */
+async function dismissCookieBannersAndOverlays(page) {
+  try {
+    await page.evaluate(() => {
+      // 1. Click accept buttons if present
+      const acceptSelectors = [
+        '#onetrust-accept-btn-handler',
+        '#accept-recommended-btn-handler',
+        '.onetrust-close-btn-handler',
+        'button[id*="accept" i]',
+        'button[class*="accept" i]',
+        'button[aria-label*="accept" i]'
+      ];
+      for (const sel of acceptSelectors) {
+        try {
+          const btn = document.querySelector(sel);
+          if (btn && btn.offsetParent !== null) {
+            btn.click();
+            break;
+          }
+        } catch (_) {}
+      }
+      // 2. Annihilate blocking overlays and modal backdrops from DOM
+      const overlaySelectors = [
+        '#onetrust-consent-sdk',
+        '.onetrust-pc-dark-filter',
+        '#onetrust-banner-sdk',
+        'div[class*="cookie-banner" i]',
+        'div[id*="cookie-banner" i]',
+        'div[class*="consent-banner" i]',
+        'div[class*="modal-backdrop" i]',
+        '.ot-fade-in'
+      ];
+      for (const sel of overlaySelectors) {
+        try {
+          document.querySelectorAll(sel).forEach(el => el.remove());
+        } catch (_) {}
+      }
+      // 3. Restore scrolling & pointer events to document
+      if (document.body) {
+        document.body.style.overflow = 'auto';
+        document.body.style.pointerEvents = 'auto';
+      }
+      if (document.documentElement) {
+        document.documentElement.style.overflow = 'auto';
+        document.documentElement.style.pointerEvents = 'auto';
+      }
+    });
+  } catch (_) {}
+}
+
+/**
  * Humanized Bezier mouse movement generator
  */
 async function humanizedMouseMove(page, targetX, targetY) {
@@ -866,12 +919,13 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
     } catch (_) {}
   });
 
-  // Handle customer website wrappers (e.g. https://www.mongodb.com/careers/job/?gh_jid=8274765)
-  // Convert directly to direct Greenhouse embed job_app URL if gh_jid parameter is present
+  // Handle customer website wrappers (e.g. https://www.mongodb.com/careers/jobs/8209134 or https://www.mongodb.com/careers/job/?gh_jid=8274765)
+  // Convert directly to direct Greenhouse embed job_app URL if gh_jid parameter or /jobs/{token} is present
   let targetUrl = url;
   try {
     const u = new URL(url);
-    const ghJid = u.searchParams.get('gh_jid') || u.searchParams.get('token');
+    const pathMatch = u.pathname.match(/\/jobs\/(\d{5,})/i);
+    const ghJid = u.searchParams.get('gh_jid') || u.searchParams.get('token') || (pathMatch ? pathMatch[1] : null);
     if (ghJid && !url.includes('/embed/job_app')) {
       let domainBoard = u.searchParams.get('for');
       if (!domainBoard) {
@@ -885,11 +939,12 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
 
   const res = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
   await checkBotChallenges(page, res ? res.status() : 200);
+  await dismissCookieBannersAndOverlays(page);
 
   // If there is an "Apply" button at top (e.g. anchor link or smooth scroll), click it if form is not yet visible
   const applyHeaderBtn = await page.$('button.btn--pill, a[href="#app"], a[href="#application_form"]');
   if (applyHeaderBtn) {
-    await applyHeaderBtn.click().catch(() => {});
+    await applyHeaderBtn.click({ force: true, timeout: 2000 }).catch(() => {});
     await sleep(500);
   }
 
@@ -1047,20 +1102,16 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
   }
 
   console.log('[ATS Greenhouse] Triggering final application submission click...');
+  await dismissCookieBannersAndOverlays(page);
   await submitBtn.scrollIntoViewIfNeeded().catch(() => {});
   const sBox = await submitBtn.boundingBox().catch(() => null);
   if (sBox) {
     await humanizedMouseMove(page, sBox.x + sBox.width / 2, sBox.y + sBox.height / 2);
     await sleep(200);
   }
-  await submitBtn.click({ timeout: 10000 }).catch(async clickErr => {
-    const isDisabled = await submitBtn.isDisabled().catch(() => false);
-    if (isDisabled) {
-      await submitBtn.evaluate(el => el.removeAttribute('disabled')).catch(() => {});
-      await submitBtn.click({ force: true, timeout: 10000 }).catch(() => {});
-    } else {
-      throw clickErr;
-    }
+  await submitBtn.click({ force: true, timeout: 10000 }).catch(async () => {
+    console.warn('[ATS Greenhouse] Direct click failed or intercepted; dispatching native DOM click...');
+    await page.evaluate(b => b.click(), submitBtn).catch(() => {});
   });
   await sleep(3500);
 
@@ -1846,7 +1897,10 @@ async function executeGenericWorkflow(page, url, candidate, resumePath, provider
         await humanizedMouseMove(page, box.x + box.width / 2, box.y + box.height / 2);
         await sleep(200);
       }
-      await submitBtn.click();
+      await dismissCookieBannersAndOverlays(page);
+      await submitBtn.click({ force: true, timeout: 10000 }).catch(async () => {
+        await page.evaluate(b => b.click(), submitBtn).catch(() => {});
+      });
       submitted = true;
       break;
     }
@@ -1854,7 +1908,10 @@ async function executeGenericWorkflow(page, url, candidate, resumePath, provider
     const nextBtn = await target.$('button:has-text("Next"), button:has-text("Continue"), button:has-text("Save and Continue")').catch(() => null);
     if (nextBtn && await nextBtn.isVisible().catch(() => false)) {
       console.log(`[ATS ${provider.toUpperCase()}] Advancing multi-step form (step ${step + 1})...`);
-      await nextBtn.click().catch(() => {});
+      await dismissCookieBannersAndOverlays(page);
+      await nextBtn.click({ force: true, timeout: 5000 }).catch(async () => {
+        await page.evaluate(b => b.click(), nextBtn).catch(() => {});
+      });
       await sleep(2000);
     } else {
       break;
