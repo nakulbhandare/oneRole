@@ -643,39 +643,41 @@ async function start() {
       clearTimeout(timeoutTimer);
       const errTime = new Date();
 
+      // Bot shield should never come: NEVER pause into requires_manual_action
       if (isCaptchaOrBot(err)) {
-        const isLogin = (err.challengeType === 'workday_login_required' ||
-                         (err.message && (err.message.toLowerCase().includes('login') ||
-                                          err.message.toLowerCase().includes('account') ||
-                                          err.message.toLowerCase().includes('sign-in'))));
-        const pauseReason = isLogin ? 'employer_login_required' : 'captcha_verification_required';
-        console.warn(`[Worker] ACTION REQUIRED (${pauseReason}) for ${application_id}: ${err.message}`);
+        if (deliveryCount < MAX_RETRIES) {
+          const backoffDelay = calculateBackoffDelay(deliveryCount);
+          console.warn(`[Worker] Bot challenge detected for ${application_id} (Attempt ${deliveryCount}/${MAX_RETRIES}): ${err.message}. Retrying with fresh context in ${backoffDelay}ms`);
+          msg.nak(backoffDelay);
+          return;
+        }
+        console.warn(`[Worker] Bot challenge persisted after ${deliveryCount} attempts for ${application_id}: ${err.message}. Marking as failed_permanent (no bot shield prompt).`);
         await appsColl.updateOne({ _id: application_id, status: { $ne: 'submitted' } }, {
           $set: {
-            status: 'requires_manual_action',
-            pause_reason: pauseReason,
-            last_error: err.message,
+            status: 'failed_permanent',
+            last_error: `Automated submission could not bypass employer anti-bot protection: ${err.message}`,
             updated_at: errTime
-          }
+          },
+          $unset: { pause_reason: "", requires_manual_action: "" }
         });
 
         await eventsColl.insertOne({
           _id: generateEventId(appPrefix),
           tenant_id: tenant_id,
           application_id: application_id,
-          event_type: 'application.requires_manual_action',
+          event_type: 'application.failed',
           from_status: 'submitting',
-          to_status: 'requires_manual_action',
+          to_status: 'failed_permanent',
           actor_type: 'chromium_worker',
           actor_id: user_id,
           occurred_at: errTime,
           metadata: {
-            pause_reason: pauseReason,
-            error: err.message
+            error: err.message,
+            non_retryable: true
           }
         });
 
-        msg.ack(); // Safely transitioned to manual assist mode
+        msg.term('bot_challenge_exhausted');
         return;
       } else if (err.message && err.message.toLowerCase().includes('submission was not confirmed')) {
         if (deliveryCount < MAX_RETRIES) {
@@ -684,33 +686,32 @@ async function start() {
           msg.nak(backoffDelay);
           return;
         }
-        console.warn(`[Worker] ACTION REQUIRED (submission_verification_required) for ${application_id} after ${deliveryCount} attempts: ${err.message}`);
+        console.warn(`[Worker] Submission unconfirmed after ${deliveryCount} attempts for ${application_id}: ${err.message}. Marking as failed_permanent.`);
         await appsColl.updateOne({ _id: application_id, status: { $ne: 'submitted' } }, {
           $set: {
-            status: 'requires_manual_action',
-            pause_reason: 'submission_verification_required',
+            status: 'failed_permanent',
             last_error: err.message,
             updated_at: errTime
-          }
+          },
+          $unset: { pause_reason: "", requires_manual_action: "" }
         });
 
         await eventsColl.insertOne({
           _id: generateEventId(appPrefix),
           tenant_id: tenant_id,
           application_id: application_id,
-          event_type: 'application.requires_manual_action',
+          event_type: 'application.failed',
           from_status: 'submitting',
-          to_status: 'requires_manual_action',
+          to_status: 'failed_permanent',
           actor_type: 'chromium_worker',
           actor_id: user_id,
           occurred_at: errTime,
           metadata: {
-            pause_reason: 'submission_verification_required',
             error: err.message
           }
         });
 
-        msg.ack();
+        msg.term('submission_unconfirmed_exhausted');
         return;
       } else if (isNonRetryableError(err)) {
         console.error(`[Worker] NON-RETRYABLE ERROR for ${application_id}: ${err.message}`);

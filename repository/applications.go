@@ -600,6 +600,25 @@ func (r *ApplicationRepository) ListApplications(ctx context.Context, scope serv
 	return items, nextCursor, nil
 }
 
+// ClearApplications removes all applications, attempts, and events for the tenant/user.
+func (r *ApplicationRepository) ClearApplications(ctx context.Context, scope service.ActorScope) error {
+	if r == nil || r.db == nil {
+		return db.ErrNilDB
+	}
+	scope = normalizeWorkflowScope(scope)
+	filter := bson.M{
+		"tenant_id": scope.TenantID,
+		"user_id":   scope.UserID,
+	}
+	_, err := r.db.Collection("applications").DeleteMany(ctx, filter)
+	_, _ = r.db.Collection("submission_attempts").DeleteMany(ctx, filter)
+	_, _ = r.db.Collection("application_events").DeleteMany(ctx, filter)
+	_, _ = r.db.Collection("timeline_events").DeleteMany(ctx, filter)
+	_, _ = r.db.Collection("application_tasks").DeleteMany(ctx, filter)
+	_, _ = r.db.Collection("application_batches").DeleteMany(ctx, filter)
+	return err
+}
+
 func (r *ApplicationRepository) GetApplicationTimeline(ctx context.Context, scope service.ActorScope, applicationID string) ([]models.ApplicationEvent, error) {
 	if r == nil || r.db == nil {
 		return nil, db.ErrNilDB

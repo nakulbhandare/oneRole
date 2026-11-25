@@ -41,6 +41,9 @@ func (s *applicationWorkflowStoreStub) GetBatch(context.Context, ActorScope, str
 func (s *applicationWorkflowStoreStub) ListApplications(context.Context, ActorScope, *string, string, int) ([]models.Application, *string, error) {
 	return []models.Application{s.app}, nil, s.err
 }
+func (s *applicationWorkflowStoreStub) ClearApplications(context.Context, ActorScope) error {
+	return s.err
+}
 func (s *applicationWorkflowStoreStub) GetApplicationTimeline(context.Context, ActorScope, string) ([]models.ApplicationEvent, error) {
 	return nil, s.err
 }

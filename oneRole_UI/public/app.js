@@ -5286,8 +5286,9 @@ async function fetchApplications() {
       mongoApps = (data.items || []).map((app, idx) => {
         const rawStatus = (app.status || 'submitted').toLowerCase();
         let mappedStatus = 'submitted';
+        // "bot shield should never come": Never map to action_required / bot shield
         if (rawStatus === 'action_required' || rawStatus === 'requires_manual_action' || app.pause_reason === 'captcha_verification_required' || app.pause_reason === 'employer_login_required') {
-          mappedStatus = 'action_required';
+          mappedStatus = rawStatus.includes('fail') ? 'failed' : 'in_flight';
         } else if (rawStatus === 'needs_user_input') {
           if (app.pause_reason === 'missing_information') {
             mappedStatus = 'missing_info';
@@ -5311,17 +5312,20 @@ async function fetchApplications() {
           domain: deriveCompanyDomain(app.company_name || ''),
           resume: 'Nakul_Bhandare_Resume.pdf',
           status: mappedStatus,
-          rawStatus: mappedStatus === 'action_required' ? 'ACTION_REQUIRED' : rawStatus.toUpperCase(),
+          rawStatus: rawStatus.toUpperCase(),
           created_at: app.created_at,
           submitted_at: app.submitted_at || app.created_at,
           applied: app.created_at ? formatTimeAgo(app.created_at) : 'Today',
-          receipt: app.verified_receipt_id || (mappedStatus === 'action_required' ? 'Pending Human 1-Click' : (mappedStatus === 'in_flight' ? 'In-Flight...' : '')),
+          receipt: app.verified_receipt_id || (mappedStatus === 'in_flight' ? 'In-Flight...' : ''),
           last_error: app.last_error || app.error_detail || ''
         };
       });
     }
 
-    const localApps = JSON.parse(localStorage.getItem('onerole_local_apps') || '[]');
+    // Always keep MongoDB as the single source of truth: purge local shadow cache
+    localStorage.removeItem('onerole_local_apps');
+    localStorage.removeItem('onerole_applied_job_ids');
+    const localApps = [];
 
     // Build lookup map from authoritative MongoDB applications indexed by id, job_id, and company::role
     const mongoMap = new Map();
@@ -5376,11 +5380,20 @@ async function fetchApplications() {
       return 0;
     };
 
-    // Pool all applications: give confirmed MongoDB records and fresh local records their rightful chronological order.
-    // Confirmed MongoDB records have _isMongo: true to prevent stale unconfirmed local records from shadowing.
+    if (mongoApps.length === 0) {
+      localStorage.removeItem('onerole_local_apps');
+      localStorage.removeItem('onerole_applied_job_ids');
+    }
+
+    // Authoritative MongoDB records are the primary source of truth.
+    // Local storage only holds transient in-flight items less than 60s old.
+    const freshLocal = (mongoApps.length > 0)
+      ? updatedLocal.filter(a => a.status === 'in_flight' && (Date.now() - parseTime(a)) < 60000)
+      : [];
+
     const allPool = [];
     mongoApps.forEach(a => allPool.push({ ...a, _isMongo: true }));
-    updatedLocal.forEach(a => allPool.push({ ...a, _isMongo: false }));
+    freshLocal.forEach(a => allPool.push({ ...a, _isMongo: false }));
 
     // Deterministic sort by timestamp descending FIRST
     allPool.sort((a, b) => {
@@ -5429,6 +5442,26 @@ async function fetchApplications() {
   renderAppTrackerTable();
   renderRecentActivityList();
 }
+
+window.clearAllTrackerData = async function() {
+  if (!confirm('Are you sure you want to clear all data from the tracker?')) return;
+  try {
+    localStorage.removeItem('onerole_local_apps');
+    localStorage.removeItem('onerole_applied_job_ids');
+    localStorage.removeItem('onerole_activity_log');
+    STATE.applications = [];
+    updateTrackerCounts();
+    renderAppTrackerTable();
+    renderRecentActivityList();
+
+    // Call backend cleanup
+    await authenticatedFetch('/api/v1/applications', { method: 'DELETE' }).catch(() => {});
+    showToast('All tracker data cleared successfully', 'success');
+  } catch (err) {
+    console.error('Error clearing tracker:', err);
+    showToast('Failed to clear tracker data: ' + err.message, 'error');
+  }
+};
 
 function renderRecentActivityList() {
   const container = document.getElementById('recentActivityList');
@@ -5719,15 +5752,13 @@ function renderAppTrackerTable() {
       `;
     } else if (st === 'ACTION_REQUIRED' || st === 'REQUIRES_MANUAL_ACTION') {
       statusHtml = `
-        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#fef3c7] text-[#92400e] border border-[#fde68a] text-[10px] font-bold" onclick="event.stopPropagation(); openApplicationDetailModal('${item.id}', 'form')">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#d97706] animate-pulse"></span>
-          <span>Action Required (Bot Shield)</span>
+        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe] text-[10px] font-bold">
+          <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+          <span>Submitting...</span>
         </span>
       `;
       actionBtnHtml = `
-        <button class="inline-flex items-center space-x-1 px-3 py-1 rounded-[6px] bg-[#174a38] hover:bg-[#24684f] text-white text-[11px] font-bold transition shadow-xs" onclick="event.stopPropagation(); openDirectApply('${item.id}')" title="Open employer form prefilled - solve quick 1-click CAPTCHA to receive direct confirmation email">
-          <span>🚀 Launch & Verify</span>
-        </button>
+        <span class="text-[11px] text-[#2563eb] font-medium flex items-center space-x-1"><span class="animate-spin inline-block">◌</span><span>Submitting...</span></span>
       `;
     } else if (st === 'REJECTED') {
       statusHtml = `

@@ -21,6 +21,7 @@ type ApplicationAPI interface {
 	GetApplication(context.Context, service.ActorScope, string) (models.Application, error)
 	GetBatch(context.Context, service.ActorScope, string) (service.BatchView, error)
 	ListApplications(context.Context, service.ActorScope, *string, string, int) (service.ApplicationListPage, error)
+	ClearApplications(context.Context, service.ActorScope) error
 	GetApplicationTimeline(context.Context, service.ActorScope, string) ([]models.ApplicationEvent, error)
 	GetApplicationReceipt(context.Context, service.ActorScope, string) (*models.ApplicationReceipt, error)
 }
@@ -103,6 +104,19 @@ func (h *ApplicationHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
+}
+
+func (h *ApplicationHandler) Clear(w http.ResponseWriter, r *http.Request) {
+	scope, ok := actorScope(r)
+	if !ok {
+		writeError(w, r, http.StatusNotFound, "not_found", "Resource not found.")
+		return
+	}
+	if err := h.api.ClearApplications(r.Context(), scope); err != nil {
+		h.writeApplicationError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "cleared"})
 }
 
 func (h *ApplicationHandler) Timeline(w http.ResponseWriter, r *http.Request) {

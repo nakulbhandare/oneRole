@@ -119,6 +119,7 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 	}
 	mux.Handle("GET /api/v1/applications", tenantScope(http.HandlerFunc(applicationHandler.List)))
 	mux.Handle("POST /api/v1/applications", tenantScope(http.HandlerFunc(applicationHandler.Create)))
+	mux.Handle("DELETE /api/v1/applications", tenantScope(http.HandlerFunc(applicationHandler.Clear)))
 	mux.Handle("GET /api/v1/applications/{applicationID}", tenantScope(http.HandlerFunc(applicationHandler.Get)))
 	mux.Handle("POST /api/v1/applications/{applicationID}/submit", tenantScope(http.HandlerFunc(applicationHandler.Submit)))
 	mux.Handle("GET /api/v1/applications/{applicationID}/timeline", tenantScope(http.HandlerFunc(applicationHandler.Timeline)))

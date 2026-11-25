@@ -134,6 +134,7 @@ type ApplicationWorkflowStore interface {
 	GetApplication(ctx context.Context, scope ActorScope, applicationID string) (models.Application, error)
 	GetBatch(ctx context.Context, scope ActorScope, batchID string) (BatchView, error)
 	ListApplications(ctx context.Context, scope ActorScope, status *string, cursor string, limit int) ([]models.Application, *string, error)
+	ClearApplications(ctx context.Context, scope ActorScope) error
 	GetApplicationTimeline(ctx context.Context, scope ActorScope, applicationID string) ([]models.ApplicationEvent, error)
 	GetApplicationReceipt(ctx context.Context, scope ActorScope, applicationID string) (*models.ApplicationReceipt, error)
 }
@@ -331,6 +332,15 @@ func (s *ApplicationService) ListApplications(ctx context.Context, scope ActorSc
 		Total:      len(items),
 		NextCursor: nextCursor,
 	}, nil
+}
+
+// ClearApplications removes all applications and events for the scoped user/tenant.
+func (s *ApplicationService) ClearApplications(ctx context.Context, scope ActorScope) error {
+	scope = normalizeActorScope(scope)
+	if err := validateActorScope(scope); err != nil {
+		return ErrApplicationRequest
+	}
+	return s.store.ClearApplications(ctx, scope)
 }
 
 // GetApplicationTimeline retrieves the append-only event stream for an application.

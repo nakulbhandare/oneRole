@@ -164,6 +164,10 @@ func (a *applicationAPIFake) ListApplications(_ context.Context, scope service.A
 		Total: 1,
 	}, nil
 }
+func (a *applicationAPIFake) ClearApplications(_ context.Context, scope service.ActorScope) error {
+	a.scope = scope
+	return nil
+}
 func (a *applicationAPIFake) GetApplicationTimeline(_ context.Context, scope service.ActorScope, _ string) ([]models.ApplicationEvent, error) {
 	a.scope = scope
 	return []models.ApplicationEvent{{ID: "evt-1", TenantID: scope.TenantID, ApplicationID: testAppID, EventType: "application.created", ToStatus: "preparing", OccurredAt: time.Now().UTC()}}, nil
