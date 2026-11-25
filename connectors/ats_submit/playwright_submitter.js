@@ -969,138 +969,161 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
   const linkedin = candidate.linkedin_url || 'https://linkedin.com/in/nakulbhandare';
   const github = candidate.github_url || 'https://github.com/nakulbhandare';
 
-  // 1. Core Profile Fields
-  await safeType(page, 'input#first_name, input[name*="first_name"]', firstName);
-  await safeType(page, 'input#last_name, input[name*="last_name"]', lastName);
-  await safeType(page, 'input#email, input[name*="email"]', email);
-  await safeType(page, 'input#phone, input[name*="phone"]', phone);
+  // 1. Core Profile Fields with genuine keystroke simulation (updates React state)
+  const fnInput = await page.$('input#first_name, input[name*="first_name"]');
+  if (fnInput) { await fnInput.click({ force: true }).catch(() => {}); await page.keyboard.type(firstName, { delay: 10 }).catch(() => {}); }
 
-  // 2. Country Field (React-Select on modern Greenhouse)
-  await fillGreenhouseReactSelect(page, 'input#country, [name*="country"]', 'United States');
+  const lnInput = await page.$('input#last_name, input[name*="last_name"]');
+  if (lnInput) { await lnInput.click({ force: true }).catch(() => {}); await page.keyboard.type(lastName, { delay: 10 }).catch(() => {}); }
 
-  // 3. Location / City Field (React-Select on modern Greenhouse)
-  await fillGreenhouseReactSelect(page, 'input#candidate-location, input#job_application_location, [name*="location"]', location);
+  const emInput = await page.$('input#email, input[name*="email"]');
+  if (emInput) { await emInput.click({ force: true }).catch(() => {}); await page.keyboard.type(email, { delay: 10 }).catch(() => {}); }
 
-  // 4. Attach Resume
+  // Phone Country Code (+1 United States)
+  const countryControl = await page.$('#country');
+  if (countryControl) {
+    const ctrlParent = await page.evaluateHandle(el => el.closest('.select__control') || el, countryControl);
+    await ctrlParent.asElement()?.click({ force: true }).catch(() => {});
+    await page.keyboard.type('United States', { delay: 15 }).catch(() => {});
+    await sleep(350);
+    await page.keyboard.press('Enter').catch(() => {});
+    await sleep(150);
+  }
+
+  // Phone number (10 digits)
+  const phInput = await page.$('input#phone, input[name*="phone"]');
+  if (phInput) {
+    const rawDigits = phone.replace(/\D/g, '').slice(-10) || '2095606421';
+    await phInput.click({ force: true }).catch(() => {});
+    await page.keyboard.type(rawDigits, { delay: 10 }).catch(() => {});
+  }
+
+  // 2. Custom text inputs & textareas
+  const textInputs = await page.$$('input[type="text"]:not([role="combobox"]), textarea');
+  for (const inp of textInputs) {
+    if (!(await inp.isVisible().catch(() => false))) continue;
+    const curVal = await inp.inputValue().catch(() => '');
+    if (curVal) continue;
+    const id = (await inp.getAttribute('id').catch(() => '')) || '';
+    if (['first_name', 'last_name', 'email', 'phone'].includes(id)) continue;
+
+    const label = await page.evaluate(el => {
+      const f = el.closest('.field, .form-field, [class*="field"], [data-field]');
+      return (f ? f.innerText : '').toLowerCase();
+    }, inp);
+
+    let val = 'N/A';
+    if (label.includes('first') || label.includes('chosen') || label.includes('preferred')) val = firstName;
+    else if (label.includes('last')) val = lastName;
+    else if (label.includes('university') || label.includes('college') || label.includes('school')) val = 'University of the Pacific';
+    else if (label.includes('why') || label.includes('interest') || label.includes('cover') || label.includes('note')) val = 'I am passionate about building scalable distributed systems and backend infrastructure.';
+    else if (label.includes('pronoun')) val = 'He/Him';
+    else if (label.includes('linkedin')) val = linkedin;
+    else if (label.includes('github') || label.includes('website') || label.includes('portfolio')) val = github;
+    else if (label.includes('date') || label.includes('graduation')) val = 'May 2026';
+
+    await inp.click({ force: true, timeout: 1500 }).catch(() => {});
+    await inp.type(val, { delay: 10 }).catch(() => {});
+  }
+
+  // 3. Attach Resume
   if (resumePath && fs.existsSync(resumePath)) {
     const fileInput = await page.$('input[type="file"]#resume, input[type="file"][name*="resume"], input[type="file"]');
     if (fileInput) {
       await safeUpload(fileInput, resumePath);
       console.log(`[ATS Greenhouse] Verified resume uploaded: ${resumePath}`);
-      await sleep(1500);
+      await sleep(2500);
     }
   }
 
-  // 5. Fill all custom textareas and single-line text inputs rapidly via React prototype setter
-  await page.evaluate(({ loc, lk, gh }) => {
-    function setVal(el, val) {
-      if (!el) return;
-      const proto = Object.getPrototypeOf(el);
-      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-      if (setter) setter.call(el, val);
-      else el.value = val;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
+  // 4. Location / City Combobox (Google Places async autocomplete on modern Greenhouse)
+  const locInput = await page.$('#candidate-location');
+  if (locInput) {
+    const locCtrl = await page.evaluateHandle(el => el.closest('.select__control') || el, locInput);
+    await locCtrl.asElement()?.click({ force: true }).catch(() => {});
+    await page.keyboard.type(location.split(',')[0] || 'San Francisco', { delay: 20 }).catch(() => {});
+    await sleep(800);
+    const optClicked = await page.evaluate(() => {
+      const opt = document.querySelector('[id*="candidate-location-option-0"], .select__option');
+      if (opt) { opt.click(); return true; }
+      return false;
+    }).catch(() => false);
+    if (!optClicked) {
+      await page.keyboard.press('ArrowDown').catch(() => {});
+      await page.keyboard.press('Enter').catch(() => {});
     }
+    await sleep(200);
+  }
 
-    document.querySelectorAll('input.input__single-line, textarea.input__multi-line, textarea, input[type="text"]').forEach(inp => {
-      const isCombobox = inp.getAttribute('role') === 'combobox' || inp.className.includes('select__input');
-      if (isCombobox || inp.value) return;
+  // 5. All React-Select controls on modern Greenhouse (custom questions & EEOC)
+  const controls = await page.$$('.select__control');
+  console.log(`[ATS Greenhouse] Processing ${controls.length} React-Select dropdown controls...`);
+  for (const ctrl of controls) {
+    const isHandled = await ctrl.$('#candidate-location, #country');
+    if (isHandled) continue;
 
-      const label = ((inp.getAttribute('aria-label') || '') + ' ' + (inp.closest('.field, .form-field')?.innerText || '')).toLowerCase();
-      if (label.includes('why') || label.includes('cover') || label.includes('note')) {
-        setVal(inp, 'I am excited about this role and eager to contribute my skills to the team. My background and experience align well with the responsibilities outlined in the job description.');
-      } else if (label.includes('where') || label.includes('location') || label.includes('work') || label.includes('reside')) {
-        setVal(inp, loc);
-      } else if (label.includes('linkedin')) {
-        setVal(inp, lk);
-      } else if (label.includes('website') || label.includes('portfolio') || label.includes('github')) {
-        setVal(inp, gh);
-      } else if (label.includes('pronoun')) {
-        setVal(inp, 'He/Him');
-      } else {
-        setVal(inp, 'N/A');
+    const label = await page.evaluate(el => {
+      const f = el.closest('.field, .form-field, [class*="field"], [data-field]');
+      return (f ? f.innerText : '').toLowerCase();
+    }, ctrl);
+
+    const isYesQuestion = /available|authorized|citizen|clearance|eligible|18 years|start immediately|full-time/i.test(label);
+    const isNoQuestion = /sponsorship|visa|felony|convicted|disciplinary|terminate|ever worked|family member|relative/i.test(label);
+    const isDemographic = /gender|race|veteran|disability|hispanic|latino|ethnicity/i.test(label);
+
+    await ctrl.scrollIntoViewIfNeeded().catch(() => {});
+    await ctrl.click({ force: true }).catch(() => {});
+    await sleep(200);
+
+    const clicked = await page.evaluate(({ isYesQuestion, isNoQuestion, isDemographic }) => {
+      const menu = document.querySelector('.select__menu, [class*="menu"]');
+      if (!menu) return false;
+      const opts = Array.from(menu.querySelectorAll('[id*="-option-"], [class*="option"]'));
+      if (!opts.length) return false;
+
+      let target = null;
+      if (isYesQuestion) {
+        target = opts.find(o => /^yes\b/i.test((o.innerText || '').trim()));
+      } else if (isNoQuestion) {
+        target = opts.find(o => /^no\b|will not require sponsorship/i.test((o.innerText || '').trim()));
+      } else if (isDemographic) {
+        target = opts.find(o => /decline|don'?t wish|prefer not/i.test((o.innerText || '').trim()));
       }
-    });
-  }, { loc: location, lk: linkedin, gh: github });
-
-  // 6. Intelligent Dynamic Question Answering for modern Greenhouse
-  await page.evaluate((cand) => {
-    // Disable native HTML5 validation locks
-    const form = document.querySelector('form');
-    if (form) form.setAttribute('novalidate', 'true');
-
-    // Remove required constraint on dummy React-Select hidden inputs
-    document.querySelectorAll('input.remix-css-1a0ro4n-requiredInput, input[required][aria-hidden="true"]').forEach(input => {
-      input.removeAttribute('required');
-      if (!input.value) input.value = '1';
-    });
-
-    // Standard screening questions (Work Auth, Sponsorship, Notice Period)
-    document.querySelectorAll('.field, .form-field, .field-wrapper, [data-field]').forEach(f => {
-      const text = (f.innerText || '').toLowerCase();
-      if (text.includes('authorized to work') || text.includes('legal right to work') || text.includes('u.s. person')) {
-        const sel = f.querySelector('select');
-        if (sel) {
-          const opt = Array.from(sel.options).find(o => /yes/i.test(o.text || o.value));
-          if (opt) {
-            sel.value = opt.value;
-            sel.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-        }
+      if (!target) {
+        target = opts.find(o => /decline|don'?t wish|prefer not|no\b/i.test((o.innerText || '').trim())) || opts[0];
       }
-      if (text.includes('sponsorship') || text.includes('visa') || text.includes('outside business') || text.includes('family member') || text.includes('relative')) {
-        const sel = f.querySelector('select');
-        if (sel) {
-          const opt = Array.from(sel.options).find(o => /no/i.test(o.text || o.value));
-          if (opt) {
-            sel.value = opt.value;
-            sel.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-        }
-      }
-    });
-  }, { linkedin, github });
+      target.click();
+      return true;
+    }, { isYesQuestion, isNoQuestion, isDemographic }).catch(() => false);
 
-  // 6b. Check all compliance & privacy acknowledgment checkboxes via native Playwright
+    if (!clicked) {
+      await page.keyboard.press('ArrowDown').catch(() => {});
+      await page.keyboard.press('Enter').catch(() => {});
+    }
+    await sleep(100);
+  }
+
+  // 6. Checkboxes & Consent radios
   try {
-    const ghCheckboxes = await page.$$('input[type="checkbox"]');
-    for (const cb of ghCheckboxes) {
+    const ghChecks = await page.$$('input[type="checkbox"], input[type="radio"][value="true"], input[type="radio"][value="yes"], input[id*="consent"], input[name*="consent"]');
+    for (const cb of ghChecks) {
       const isChecked = await cb.isChecked().catch(() => false);
       if (!isChecked) {
         await cb.check({ force: true }).catch(async () => {
           await cb.click({ force: true }).catch(() => {});
         });
-        console.log('[ATS Greenhouse] Checked compliance/privacy checkbox');
-        await sleep(150);
+        await sleep(80);
       }
     }
   } catch (cbErr) {
     console.warn(`[ATS Greenhouse] Checkbox interaction warning: ${cbErr.message}`);
   }
 
-  // 7. Handle any interactive React-Select questions on Greenhouse (relocation, sponsorship, authorization, EEOC)
-  const reactSelectQuestions = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('input.select__input[role="combobox"], input[id*="question_"].select__input, input[role="combobox"]')).map(inp => ({
-      id: inp.id,
-      label: (inp.closest('.field, .form-field, .field-wrapper, .select__container, label') || inp.parentElement)?.innerText || inp.getAttribute('aria-label') || ''
-    })).filter(q => q.id && q.id !== 'country' && q.id !== 'candidate-location');
-  });
-
-  for (const q of reactSelectQuestions) {
-    const labelLower = q.label.toLowerCase();
-    let targetOption = 'Yes';
-    if (labelLower.includes('gender') || labelLower.includes('race') || labelLower.includes('veteran') || labelLower.includes('disability') || labelLower.includes('hispanic') || labelLower.includes('latino') || labelLower.includes('ethnicity') || labelLower.includes('identity')) {
-      targetOption = "I don't wish to answer";
-    } else if (labelLower.includes('sponsorship') || labelLower.includes('visa') || labelLower.includes('family member') || labelLower.includes('relative') || labelLower.includes('personal relationship') || labelLower.includes('outside business') || labelLower.includes('employed by') || labelLower.includes('ever worked') || labelLower.includes('felony') || labelLower.includes('convicted')) {
-      targetOption = 'No';
-    } else if (labelLower.includes('authorized') || labelLower.includes('u.s. person') || labelLower.includes('citizen') || labelLower.includes('clearance') || labelLower.includes('poly') || labelLower.includes('eligible') || labelLower.includes('agree')) {
-      targetOption = 'Yes';
-    } else if (labelLower.includes('relocate') || (labelLower.includes('reside') && !labelLower.includes('family')) || (labelLower.includes('currently live') && !labelLower.includes('household'))) {
-      targetOption = 'currently live';
-    }
-    await fillGreenhouseReactSelect(page, `input[id="${q.id}"]`, targetOption);
-  }
+  // Remove novalidate and dummy required attributes
+  await page.evaluate(() => {
+    document.querySelectorAll('form').forEach(f => f.setAttribute('novalidate', 'true'));
+    document.querySelectorAll('input.remix-css-1a0ro4n-requiredInput, input[aria-hidden="true"]').forEach(i => i.removeAttribute('required'));
+  }).catch(() => {});
 
   // 8. Submit Greenhouse Form
   const submitBtn = await page.$('button:has-text("Submit application"):not(.hidden), button[type="submit"][class*="btn--pill"]:not(.hidden), input[type="submit"]#submit_app, button#submit_app, button[type="submit"]:not(.hidden)');
@@ -1123,9 +1146,14 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
   await sleep(3500);
 
   // 8b. Greenhouse Email Security Code (HTTP 428 / security_code_recipient) auto-resolution
-  const secSelectors = 'input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i], input[placeholder*="security code" i], input[autocomplete="one-time-code"], input[aria-label*="security code" i], input[maxlength="1"]';
-  const secInput = await page.$(secSelectors).catch(() => null);
-  if (secInput || (interceptedCaptcha && interceptedCaptcha.includes('security_code_recipient'))) {
+  const secSelectors = '#email-verification, input[id^="security-input-"], input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i], input[placeholder*="security code" i], input[autocomplete="one-time-code"], input[aria-label*="security code" i], input[maxlength="1"]';
+  let secInput = await page.$(secSelectors).catch(() => null);
+  if (!secInput && interceptedCaptcha && (interceptedCaptcha.includes('security_code_recipient') || interceptedCaptcha.includes('428'))) {
+    console.log('[ATS Greenhouse] Intercepted 428 security challenge; waiting for #email-verification to mount in DOM...');
+    secInput = await page.waitForSelector('#email-verification, input[id^="security-input-"]', { timeout: 8000 }).catch(() => null);
+  }
+
+  if (secInput || (interceptedCaptcha && (interceptedCaptcha.includes('security_code_recipient') || interceptedCaptcha.includes('428')))) {
     const apiBase = process.env.ONEROLE_API_URL || 'http://onerole-api:8088';
     let boardCompany = '';
     try {
@@ -1138,7 +1166,7 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
       otpCode = await waitForPushOTP(email, 'greenhouse.io', boardCompany, 45000);
     }
     if (!otpCode) {
-      for (let p = 0; p < 1 && !otpCode; p++) {
+      for (let p = 0; p < 3 && !otpCode; p++) {
         try {
           const otpResp = await fetch(`${apiBase}/api/v1/auth/email-otp?email=${encodeURIComponent(email)}&domain=greenhouse.io&company=${encodeURIComponent(boardCompany)}`, {
             signal: AbortSignal.timeout(10000)
@@ -1148,33 +1176,52 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitF
             if (otpJson && otpJson.code) otpCode = otpJson.code;
           }
         } catch (_) {}
+        if (!otpCode) await sleep(2000);
       }
     }
     if (otpCode) {
       console.log(`[ATS Greenhouse] Received security code ${otpCode} from Email OTP service! Entering code and re-submitting...`);
       interceptedCaptcha = null;
-      await page.waitForSelector(secSelectors, { timeout: 5000 }).catch(() => {});
-      const multiBoxes = await page.$$('input[maxlength="1"][aria-label*="code" i], input[maxlength="1"][name*="security" i], input[data-testid*="security-code"] input, input[maxlength="1"]').catch(() => []);
-      if (multiBoxes.length >= 6) {
-        console.log(`[ATS Greenhouse] Detected ${multiBoxes.length}-box security code input; typing digits sequentially...`);
-        for (let idx = 0; idx < Math.min(multiBoxes.length, otpCode.length); idx++) {
-          await multiBoxes[idx].click({ timeout: 1500, force: true }).catch(() => {});
-          await multiBoxes[idx].fill(otpCode[idx]).catch(() => page.keyboard.type(otpCode[idx], { delay: 30 }));
+
+      // Check for modern Greenhouse 8-box split inputs (#security-input-0..7)
+      const modernGhBoxes = await page.$$('input[id^="security-input-"]');
+      if (modernGhBoxes.length >= 6) {
+        console.log(`[ATS Greenhouse] Detected ${modernGhBoxes.length}-box modern Greenhouse input (#security-input-0..7); entering digits...`);
+        for (let idx = 0; idx < Math.min(modernGhBoxes.length, otpCode.length); idx++) {
+          const box = await page.$(`#security-input-${idx}`);
+          if (box) {
+            await box.click({ timeout: 1500, force: true }).catch(() => {});
+            await page.keyboard.type(otpCode[idx], { delay: 25 });
+            await sleep(40);
+          }
         }
       } else {
-        const activeSecInput = await page.$(secSelectors).catch(() => null);
-        if (activeSecInput) {
-          console.log('[ATS Greenhouse] Filling single security code input...');
-          await activeSecInput.click({ timeout: 2000, force: true }).catch(() => {});
-          await activeSecInput.fill(otpCode).catch(() => activeSecInput.type(otpCode, { delay: 45 }));
+        const multiBoxes = await page.$$('input[maxlength="1"][aria-label*="code" i], input[maxlength="1"][name*="security" i], input[data-testid*="security-code"] input, input[maxlength="1"]').catch(() => []);
+        if (multiBoxes.length >= 6) {
+          console.log(`[ATS Greenhouse] Detected ${multiBoxes.length}-box security code input; typing digits sequentially...`);
+          for (let idx = 0; idx < Math.min(multiBoxes.length, otpCode.length); idx++) {
+            await multiBoxes[idx].click({ timeout: 1500, force: true }).catch(() => {});
+            await multiBoxes[idx].fill(otpCode[idx]).catch(() => page.keyboard.type(otpCode[idx], { delay: 30 }));
+            await sleep(40);
+          }
         } else {
-          console.warn('[ATS Greenhouse] Security code input element not found in DOM after HTTP 428!');
+          const activeSecInput = await page.$(secSelectors).catch(() => null);
+          if (activeSecInput) {
+            console.log('[ATS Greenhouse] Filling single security code input...');
+            await activeSecInput.click({ timeout: 2000, force: true }).catch(() => {});
+            await activeSecInput.fill(otpCode).catch(() => activeSecInput.type(otpCode, { delay: 45 }));
+          } else {
+            console.warn('[ATS Greenhouse] Security code input element not found in DOM after HTTP 428!');
+          }
         }
       }
       await sleep(600);
-      const resubmitBtn = await page.$('button:has-text("Verify"):not(.hidden), button:has-text("Submit"):not(.hidden), button:has-text("Continue"):not(.hidden), button[type="submit"]:not(.hidden), input[type="submit"]').catch(() => submitBtn);
-      await (resubmitBtn || submitBtn).click({ force: true, timeout: 5000 }).catch(() => {});
-      await sleep(4500);
+      const resubmitBtn = await page.$('.application--submit button:not([disabled]), button:has-text("Submit application"):not([disabled]), button:has-text("Verify"):not(.hidden), button:has-text("Submit"):not(.hidden), button[type="submit"]:not([disabled])').catch(() => submitBtn);
+      console.log('[ATS Greenhouse] Clicking final submit button after OTP injection...');
+      await (resubmitBtn || submitBtn).click({ force: true, timeout: 5000 }).catch(async () => {
+        await page.evaluate(b => b.click(), resubmitBtn || submitBtn).catch(() => {});
+      });
+      await sleep(5000);
     } else {
       console.warn(`[ATS Greenhouse] Security code not received within OTP polling window for ${email}.`);
     }
