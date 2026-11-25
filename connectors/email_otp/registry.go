@@ -2,12 +2,14 @@ package email_otp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -98,6 +100,7 @@ type Registry struct {
 	pending map[string]chan *VerificationPayload
 	history map[string]*VerificationPayload
 	db      *mongo.Database
+	nc      *nats.Conn
 }
 
 // SetDB attaches a MongoDB database so OTPs are shared across all API replicas.
@@ -105,6 +108,13 @@ func (r *Registry) SetDB(db *mongo.Database) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.db = db
+}
+
+// SetNATS attaches a NATS connection to push incoming OTPs instantly to Chromium workers.
+func (r *Registry) SetNATS(nc *nats.Conn) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.nc = nc
 }
 
 func domainBrandMatch(candidateDomain, subject, expectedDomain string) bool {
@@ -186,6 +196,13 @@ func (r *Registry) DeliverIncoming(recipientEmail, senderDomain, subject, body s
 		MagicLink:  link,
 		Subject:    subject,
 		ReceivedAt: time.Now().UTC(),
+	}
+
+	// Instant NATS push to all listening Chromium workers (< 1ms delivery, zero polling)
+	if r.nc != nil && (payload.Code != "" || payload.MagicLink != "") {
+		if b, mErr := json.Marshal(payload); mErr == nil {
+			_ = r.nc.Publish("email.otp.push", b)
+		}
 	}
 
 	// Persist to MongoDB for cross-replica coordination

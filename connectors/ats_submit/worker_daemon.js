@@ -150,6 +150,42 @@ async function start() {
   const js = nc.jetstream();
   const jsm = await nc.jetstreamManager();
 
+  // 2b. Instant NATS Push OTP Listener (zero polling!)
+  const otpWaiters = [];
+  const otpSub = nc.subscribe('email.otp.push');
+  (async () => {
+    for await (const m of otpSub) {
+      try {
+        const otp = JSON.parse(sc.decode(m.data));
+        console.log(`[Worker PushOTP] Received instant OTP push: email=${otp.email} domain=${otp.domain} code=${otp.code} subject=${otp.subject}`);
+        for (let i = otpWaiters.length - 1; i >= 0; i--) {
+          const w = otpWaiters[i];
+          const emailMatch = !w.email || (otp.email || '').toLowerCase() === w.email.toLowerCase();
+          const brand = (w.domain || '').split('.')[0].toLowerCase();
+          const domainMatch = !brand || (otp.domain || '').toLowerCase().includes(brand) || (otp.subject || '').toLowerCase().includes(brand);
+          const compMatch = !w.company || (otp.subject || '').toLowerCase().includes(w.company.toLowerCase());
+          if (emailMatch && domainMatch && compMatch && otp.code) {
+            otpWaiters.splice(i, 1);
+            w.resolve(otp.code);
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+  })();
+
+  function waitForPushOTP(email, domain, company = '', timeoutMs = 45000) {
+    return new Promise(resolve => {
+      const waiter = { email, domain, company, resolve: (code) => { clearTimeout(timer); resolve(code); } };
+      const timer = setTimeout(() => {
+        const idx = otpWaiters.indexOf(waiter);
+        if (idx !== -1) otpWaiters.splice(idx, 1);
+        resolve(null);
+      }, timeoutMs);
+      otpWaiters.push(waiter);
+    });
+  }
+
   // Ensure stream exists
   try {
     await jsm.streams.info(STREAM_NAME);
@@ -435,7 +471,8 @@ async function start() {
                 candidate: candidate,
                 dryRun: false,
                 assistMode: false,
-                pipe: true
+                pipe: true,
+                waitForPushOTP
               }),
               timeoutPromise
             ]);

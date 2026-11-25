@@ -839,7 +839,7 @@ async function fillGreenhouseReactSelect(page, inputSelector, text) {
  * ATS WORKFLOW 2: GREENHOUSE (Dedicated Adapter)
  * ============================================================================
  */
-async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
+async function executeGreenhouseWorkflow(page, url, candidate, resumePath, waitForPushOTP = null) {
   console.log('[ATS Greenhouse] Executing dedicated Greenhouse submission workflow...');
 
   // Intercept network responses for Greenhouse submission & security challenges
@@ -1074,18 +1074,23 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
       const parsedU = new URL(targetUrl);
       boardCompany = parsedU.searchParams.get('for') || parsedU.pathname.split('/').filter(Boolean)[0] || '';
     } catch (_) {}
-    console.log(`[ATS Greenhouse] Security code challenge detected for ${email} (company=${boardCompany}). Polling ${apiBase}/api/v1/auth/email-otp...`);
+    console.log(`[ATS Greenhouse] Security code challenge detected for ${email} (company=${boardCompany}). Waiting for instant NATS OTP push...`);
     let otpCode = null;
-    for (let p = 0; p < 2 && !otpCode; p++) {
-      try {
-        const otpResp = await fetch(`${apiBase}/api/v1/auth/email-otp?email=${encodeURIComponent(email)}&domain=greenhouse.io&company=${encodeURIComponent(boardCompany)}`, {
-          signal: AbortSignal.timeout(26000)
-        });
-        if (otpResp.ok) {
-          const otpJson = await otpResp.json();
-          if (otpJson && otpJson.code) otpCode = otpJson.code;
-        }
-      } catch (_) {}
+    if (typeof waitForPushOTP === 'function') {
+      otpCode = await waitForPushOTP(email, 'greenhouse.io', boardCompany, 45000);
+    }
+    if (!otpCode) {
+      for (let p = 0; p < 1 && !otpCode; p++) {
+        try {
+          const otpResp = await fetch(`${apiBase}/api/v1/auth/email-otp?email=${encodeURIComponent(email)}&domain=greenhouse.io&company=${encodeURIComponent(boardCompany)}`, {
+            signal: AbortSignal.timeout(10000)
+          });
+          if (otpResp.ok) {
+            const otpJson = await otpResp.json();
+            if (otpJson && otpJson.code) otpCode = otpJson.code;
+          }
+        } catch (_) {}
+      }
     }
     if (otpCode) {
       console.log(`[ATS Greenhouse] Received security code ${otpCode} from Email OTP service! Entering code and re-submitting...`);
@@ -1109,7 +1114,7 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
         }
       }
       await sleep(600);
-      const resubmitBtn = await page.$('button:has-text("Submit application"):not(.hidden), button[type="submit"]:not(.hidden), input[type="submit"]').catch(() => submitBtn);
+      const resubmitBtn = await page.$('button:has-text("Verify"):not(.hidden), button:has-text("Submit"):not(.hidden), button:has-text("Continue"):not(.hidden), button[type="submit"]:not(.hidden), input[type="submit"]').catch(() => submitBtn);
       await (resubmitBtn || submitBtn).click({ force: true, timeout: 5000 }).catch(() => {});
       await sleep(4500);
     } else {
@@ -1992,7 +1997,7 @@ async function verifyConfirmationOutcome(page, provider, feedbackContext = {}) {
  * Main Entry Point: Submit Job Application with Chromium Engine
  * Uses pre-warmed context pool with genuine device fingerprints and single-tick JS injection.
  */
-async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resumePath: optResumePath }) {
+async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resumePath: optResumePath, waitForPushOTP }) {
   if (!url || !candidate) {
     throw new Error('url and candidate are required');
   }
@@ -2018,7 +2023,7 @@ async function submitWithPlaywright({ url, candidate, artifactsDir, dryRun, resu
     if (provider === 'lever') {
       result = await executeLeverWorkflow(page, url, candidate, resumePath);
     } else if (provider === 'greenhouse') {
-      result = await executeGreenhouseWorkflow(page, url, candidate, resumePath);
+      result = await executeGreenhouseWorkflow(page, url, candidate, resumePath, waitForPushOTP);
     } else if (provider === 'ashby') {
       result = await executeAshbyWorkflow(page, url, candidate, resumePath);
     } else if (provider === 'smartrecruiters') {

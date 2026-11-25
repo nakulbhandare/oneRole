@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/nats-io/nats.go"
 	"github.com/oneRole/connectors/email_otp"
 	"github.com/oneRole/middleware"
 	"github.com/oneRole/service"
@@ -35,6 +36,7 @@ type HTTPDependencies struct {
 	Enterprise     *EnterpriseHandler
 	EmailIdentity  *EmailIdentityHandler
 	Database       *mongo.Database
+	NATS           *nats.Conn
 }
 
 // NewHTTPHandler registers the documented /api/v1 authentication and
@@ -92,6 +94,9 @@ func NewHTTPHandler(deps HTTPDependencies) (http.Handler, error) {
 
 	if deps.Database != nil {
 		email_otp.GetRegistry().SetDB(deps.Database)
+	}
+	if deps.NATS != nil {
+		email_otp.GetRegistry().SetNATS(deps.NATS)
 	}
 	otpHandler := email_otp.NewHandler()
 	mux.HandleFunc("POST /api/v1/auth/email-otp/webhook", otpHandler.IngestWebhook)

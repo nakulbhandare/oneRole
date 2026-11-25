@@ -272,6 +272,7 @@ func buildAPIHandler(ctx context.Context, cfg config.Config, database *mongo.Dat
 		Enterprise:     enterpriseHandler,
 		EmailIdentity:  emailIdentityHandler,
 		Database:       database,
+		NATS:           natsConn,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("initialize HTTP API: %w", err)
