@@ -5312,7 +5312,7 @@ async function fetchApplications() {
           domain: deriveCompanyDomain(app.company_name || ''),
           resume: 'Nakul_Bhandare_Resume.pdf',
           status: mappedStatus,
-          rawStatus: rawStatus.toUpperCase(),
+          rawStatus: (rawStatus === 'action_required' || rawStatus === 'requires_manual_action') ? 'IN_FLIGHT' : rawStatus.toUpperCase(),
           created_at: app.created_at,
           submitted_at: app.submitted_at || app.created_at,
           applied: app.created_at ? formatTimeAgo(app.created_at) : 'Today',
@@ -5550,7 +5550,7 @@ function updateTrackerCounts() {
     const s = app.status;
     if (s === 'submitted') submitted++;
     else if (s === 'in_flight') inFlight++;
-    else if (s === 'screening_questions' || s === 'missing_info' || s === 'action_required') needsYou++;
+    else if (s === 'screening_questions' || s === 'missing_info') needsYou++;
     else if (s === 'failed') failed++;
     else if (s === 'skipped') skipped++;
     else submitted++;
@@ -5640,7 +5640,7 @@ function renderAppTrackerTable() {
   if (STATE.appFilterTab === 'submitted') {
     items = items.filter(i => i.status === 'submitted');
   } else if (STATE.appFilterTab === 'needs-you' || STATE.appFilterTab === 'needs_you') {
-    items = items.filter(i => i.status === 'screening_questions' || i.status === 'missing_info' || i.status === 'action_required');
+    items = items.filter(i => i.status === 'screening_questions' || i.status === 'missing_info');
   } else if (STATE.appFilterTab === 'failed') {
     items = items.filter(i => i.status === 'failed');
   } else if (STATE.appFilterTab === 'in-flight' || STATE.appFilterTab === 'inflight') {

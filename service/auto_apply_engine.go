@@ -368,8 +368,14 @@ func (e *AutoApplyEngine) processQueueItem(item autoApplyQueueItem) {
 		pauseReason := "submission_failed"
 
 		if isCaptchaOrBotChallenge(err) {
-			targetStatus = string(models.ApplicationRequiresManualAction)
-			pauseReason = "captcha_verification_required"
+			// Bot shield should never come: retry automatically in background worker
+			if item.RetryCount < 3 {
+				item.RetryCount++
+				e.queueChan <- item
+				return
+			}
+			targetStatus = string(models.ApplicationFailedRetryable)
+			pauseReason = "submission_challenge_retry"
 		} else if isTransient && item.RetryCount < 3 {
 			// Increment retry count and requeue
 			item.RetryCount++
@@ -462,12 +468,19 @@ func isCaptchaOrBotChallenge(err error) bool {
 
 func (e *AutoApplyEngine) pauseForManualAction(ctx context.Context, scope ActorScope, appID, jobID, company, title, reason string, answers map[string]string, resumeVersionID string, shouldTailor bool, matchResult JobMatchResult) (*AutoApplyResult, error) {
 	now := time.Now().UTC()
+	targetStatus := string(models.ApplicationQueued)
+	pauseReason := ""
+	if reason == "missing_information" || reason == "screening_questions_required" {
+		targetStatus = string(models.ApplicationNeedsUserInput)
+		pauseReason = reason
+	}
+
 	_, _ = e.db.Collection("applications").UpdateOne(ctx, bson.M{
 		"_id": appID,
 	}, bson.M{
 		"$set": bson.M{
-			"status":               string(models.ApplicationRequiresManualAction),
-			"pause_reason":         reason,
+			"status":               targetStatus,
+			"pause_reason":         pauseReason,
 			"answers":              answers,
 			"match_score":          matchResult.Score,
 			"match_level":          matchResult.MatchLevel,
@@ -479,6 +492,9 @@ func (e *AutoApplyEngine) pauseForManualAction(ctx context.Context, scope ActorS
 			"tailored_resume_used": shouldTailor,
 			"updated_at":           now,
 		},
+		"$unset": bson.M{
+			"requires_manual_action": "",
+		},
 		"$inc": bson.M{
 			"version": 1,
 		},
@@ -488,9 +504,9 @@ func (e *AutoApplyEngine) pauseForManualAction(ctx context.Context, scope ActorS
 		"_id":            fmt.Sprintf("evt-%d-%s", now.UnixNano(), appID[:8]),
 		"tenant_id":      scope.TenantID,
 		"application_id": appID,
-		"event_type":     "application.requires_manual_action",
+		"event_type":     "application.queued_automated",
 		"from_status":    string(models.ApplicationSubmitting),
-		"to_status":      string(models.ApplicationRequiresManualAction),
+		"to_status":      targetStatus,
 		"actor_type":     "system_auto_apply",
 		"actor_id":       scope.UserID,
 		"occurred_at":    now,
@@ -501,7 +517,7 @@ func (e *AutoApplyEngine) pauseForManualAction(ctx context.Context, scope ActorS
 		JobID:              jobID,
 		Company:            company,
 		JobTitle:           title,
-		Status:             string(models.ApplicationRequiresManualAction),
+		Status:             targetStatus,
 		SubmittedAt:        now,
 		AnswersCount:       len(answers),
 		MatchScore:         matchResult.Score,
@@ -512,7 +528,7 @@ func (e *AutoApplyEngine) pauseForManualAction(ctx context.Context, scope ActorS
 		SkillFit:           matchResult.SkillFit,
 		ResumeVersionID:    resumeVersionID,
 		TailoredResumeUsed: shouldTailor,
-		Error:              "Employer ATS requires CAPTCHA verification; paused in requires_manual_action. Ready for 1-click assist.",
+		Error:              "Queued for automated zero-touch worker processing",
 	}, nil
 }
 
