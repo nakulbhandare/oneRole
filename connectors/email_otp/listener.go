@@ -61,6 +61,7 @@ func (h *Handler) IngestWebhook(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PollOTP(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
 	domain := r.URL.Query().Get("domain")
+	company := r.URL.Query().Get("company")
 	if email == "" {
 		http.Error(w, "email query param required", http.StatusBadRequest)
 		return
@@ -73,7 +74,7 @@ func (h *Handler) PollOTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 
-	payload, err := h.registry.WaitForOTP(ctx, email, domain)
+	payload, err := h.registry.WaitForOTP(ctx, email, domain, company)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusRequestTimeout)

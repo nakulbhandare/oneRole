@@ -1065,14 +1065,20 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
   await sleep(3500);
 
   // 8b. Greenhouse Email Security Code (HTTP 428 / security_code_recipient) auto-resolution
-  const secInput = await page.$('input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i], input[placeholder*="security code" i]').catch(() => null);
+  const secSelectors = 'input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i], input[placeholder*="security code" i], input[autocomplete="one-time-code"], input[aria-label*="security code" i], input[maxlength="1"]';
+  const secInput = await page.$(secSelectors).catch(() => null);
   if (secInput || (interceptedCaptcha && interceptedCaptcha.includes('security_code_recipient'))) {
     const apiBase = process.env.ONEROLE_API_URL || 'http://onerole-api:8088';
-    console.log(`[ATS Greenhouse] Security code challenge detected for ${email}. Polling ${apiBase}/api/v1/auth/email-otp...`);
+    let boardCompany = '';
+    try {
+      const parsedU = new URL(targetUrl);
+      boardCompany = parsedU.searchParams.get('for') || parsedU.pathname.split('/').filter(Boolean)[0] || '';
+    } catch (_) {}
+    console.log(`[ATS Greenhouse] Security code challenge detected for ${email} (company=${boardCompany}). Polling ${apiBase}/api/v1/auth/email-otp...`);
     let otpCode = null;
     for (let p = 0; p < 2 && !otpCode; p++) {
       try {
-        const otpResp = await fetch(`${apiBase}/api/v1/auth/email-otp?email=${encodeURIComponent(email)}&domain=greenhouse.io`, {
+        const otpResp = await fetch(`${apiBase}/api/v1/auth/email-otp?email=${encodeURIComponent(email)}&domain=greenhouse.io&company=${encodeURIComponent(boardCompany)}`, {
           signal: AbortSignal.timeout(26000)
         });
         if (otpResp.ok) {
@@ -1082,16 +1088,30 @@ async function executeGreenhouseWorkflow(page, url, candidate, resumePath) {
       } catch (_) {}
     }
     if (otpCode) {
-      console.log(`[ATS Greenhouse] Received security code from Email OTP service! Entering code and re-submitting...`);
+      console.log(`[ATS Greenhouse] Received security code ${otpCode} from Email OTP service! Entering code and re-submitting...`);
       interceptedCaptcha = null;
-      const activeSecInput = secInput || await page.$('input[name*="security_code" i], input[id*="security_code" i], input[name*="verification_code" i]');
-      if (activeSecInput) {
-        await activeSecInput.click().catch(() => {});
-        await activeSecInput.fill(otpCode).catch(() => activeSecInput.type(otpCode, { delay: 45 }));
-        await sleep(500);
-        await submitBtn.click({ force: true }).catch(() => {});
-        await sleep(4000);
+      await page.waitForSelector(secSelectors, { timeout: 5000 }).catch(() => {});
+      const multiBoxes = await page.$$('input[maxlength="1"][aria-label*="code" i], input[maxlength="1"][name*="security" i], input[data-testid*="security-code"] input, input[maxlength="1"]').catch(() => []);
+      if (multiBoxes.length >= 6) {
+        console.log(`[ATS Greenhouse] Detected ${multiBoxes.length}-box security code input; typing digits sequentially...`);
+        for (let idx = 0; idx < Math.min(multiBoxes.length, otpCode.length); idx++) {
+          await multiBoxes[idx].click({ timeout: 1500, force: true }).catch(() => {});
+          await multiBoxes[idx].fill(otpCode[idx]).catch(() => page.keyboard.type(otpCode[idx], { delay: 30 }));
+        }
+      } else {
+        const activeSecInput = await page.$(secSelectors).catch(() => null);
+        if (activeSecInput) {
+          console.log('[ATS Greenhouse] Filling single security code input...');
+          await activeSecInput.click({ timeout: 2000, force: true }).catch(() => {});
+          await activeSecInput.fill(otpCode).catch(() => activeSecInput.type(otpCode, { delay: 45 }));
+        } else {
+          console.warn('[ATS Greenhouse] Security code input element not found in DOM after HTTP 428!');
+        }
       }
+      await sleep(600);
+      const resubmitBtn = await page.$('button:has-text("Submit application"):not(.hidden), button[type="submit"]:not(.hidden), input[type="submit"]').catch(() => submitBtn);
+      await (resubmitBtn || submitBtn).click({ force: true, timeout: 5000 }).catch(() => {});
+      await sleep(4500);
     } else {
       console.warn(`[ATS Greenhouse] Security code not received within OTP polling window for ${email}.`);
     }

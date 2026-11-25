@@ -232,7 +232,11 @@ func (r *Registry) DeliverIncoming(recipientEmail, senderDomain, subject, body s
 }
 
 // WaitForOTP blocks until an OTP arrives (in-memory or via MongoDB across replicas) or context expires.
-func (r *Registry) WaitForOTP(ctx context.Context, email, domain string) (*VerificationPayload, error) {
+func (r *Registry) WaitForOTP(ctx context.Context, email, domain string, company ...string) (*VerificationPayload, error) {
+	compFilter := ""
+	if len(company) > 0 {
+		compFilter = strings.ToLower(strings.TrimSpace(company[0]))
+	}
 	ch := r.RegisterExpectation(email, domain)
 	defer r.ClearExpectation(email, domain)
 
@@ -252,7 +256,7 @@ func (r *Registry) WaitForOTP(ctx context.Context, email, domain string) (*Verif
 			"received_at":     bson.M{"$gte": since},
 			"consumed":        bson.M{"$ne": true},
 		}
-		cur, err := db.Collection("email_otp_challenges").Find(qCtx, filter, options.Find().SetSort(bson.D{{Key: "received_at", Value: -1}}).SetLimit(10))
+		cur, err := db.Collection("email_otp_challenges").Find(qCtx, filter, options.Find().SetSort(bson.D{{Key: "received_at", Value: -1}}).SetLimit(15))
 		if err != nil {
 			return nil
 		}
@@ -268,6 +272,9 @@ func (r *Registry) WaitForOTP(ctx context.Context, email, domain string) (*Verif
 				ReceivedAt time.Time `bson:"received_at"`
 			}
 			if cur.Decode(&doc) == nil && domainBrandMatch(doc.Domain, doc.Subject, domain) && (doc.Code != "" || doc.MagicLink != "") {
+				if compFilter != "" && !strings.Contains(strings.ToLower(doc.Subject), compFilter) {
+					continue
+				}
 				_, _ = db.Collection("email_otp_challenges").UpdateOne(qCtx, bson.M{"_id": doc.ID}, bson.M{"$set": bson.M{"consumed": true}})
 				return &VerificationPayload{
 					Email:      doc.Email,
